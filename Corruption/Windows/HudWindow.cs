@@ -37,7 +37,11 @@ public sealed class HudWindow : Window
         PositionCondition = ImGuiCond.Appearing;
     }
 
-    public override bool DrawConditions() => settings.ShowHud && scene.Engine is not null;
+    /// Shown when turned on, and during a scene with a partner if that's chosen. A scene counts from its first verified
+    /// tick until it has ended, so a brief interruption doesn't make the HUD blink.
+    public override bool DrawConditions()
+        => scene.Engine is { } engine
+           && (settings.ShowHud || settings.HudDuringScenes && engine.Status.SceneStartedUtc is not null);
 
     public override void PreDraw()
         => Flags = settings.HudLocked ? BaseFlags | ImGuiWindowFlags.NoMove : BaseFlags;
@@ -48,32 +52,36 @@ public sealed class HudWindow : Window
         var size = Scales[Math.Clamp(settings.HudSize, 0, Scales.Length - 1)];
         ImGui.SetWindowFontScale(size);
         var width = BaseWidth * size * ImGuiHelpers.GlobalScale;
-        ImGui.Dummy(new Vector2(width, 0));
 
         var save = engine.Save;
         var status = engine.Status;
         var tier = Progression.TierOf(save.Level);
         var stateColor = Theme.StateColor(status.State);
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
 
-        Theme.StatusPill(Theme.StateName(status.State), stateColor);
-        var rightEdge = ImGui.GetItemRectMin().X + width;
+        // Row 1: who you are on the left, the menu on the right. The HUD widens rather than letting them overlap.
         var label = $"{tier} ♥ Lv. {save.Level}";
         if (save.Prestige > 0) label += $" {PrestigeRules.Label(save.Prestige, balance.StarsWithBonus)}";
-        ImGui.SameLine();
-        var labelWidth = Theme.PillWidth(label);
         var buttonWidth = Theme.IconOnlyButtonWidth(FontAwesomeIcon.Bars);
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-        ImGui.SetCursorScreenPos(new Vector2(rightEdge - labelWidth - spacing - buttonWidth, ImGui.GetCursorScreenPos().Y));
+        width = MathF.Max(width, Theme.PillWidth(label) + spacing * 2 + buttonWidth);
+        var left = ImGui.GetCursorScreenPos().X;
+        ImGui.Dummy(new Vector2(width, 0));
+
         Theme.Pill(label, Theme.TierColor(tier));
         ImGui.SameLine();
+        ImGui.SetCursorScreenPos(new Vector2(left + width - buttonWidth, ImGui.GetItemRectMin().Y));
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Bars)) openMainWindow();
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open Corruption");
 
+        // Row 2: the bars, exactly the HUD's width.
         Theme.XpBar(save.Xp, Progression.XpToNext(save.Level, balance), width: width);
         Theme.ArousalBar(save.Arousal, width: width);
 
-        if (status.State is SceneState.Waiting or SceneState.Paused)
-            ImGui.TextColored(stateColor, SceneCheck.Describe(status.Failure));
+        // Row 3: the scene state, and why it isn't earning, wrapped to the HUD.
+        // Everything below wraps at the HUD's edge, so a long name or message can't stretch it.
+        ImGui.PushTextWrapPos(left + width - ImGui.GetWindowPos().X);
+        Theme.StatusPill(Theme.StateName(status.State), stateColor);
+        if (status.State is SceneState.Waiting or SceneState.Paused) ImGui.TextColored(stateColor, SceneCheck.Describe(status.Failure));
 
         if (status.Partner is { } partner) Line(FontAwesomeIcon.UserFriends, partner.Name, Theme.PinkSoft);
         if (status.Act is { } act) Line(FontAwesomeIcon.Fire, act.DisplayName, Theme.VioletSoft);
@@ -85,6 +93,8 @@ public sealed class HudWindow : Window
             if (status.Fatigue < 1) line += $"  fatigue {status.Fatigue:P0}";
             Line(FontAwesomeIcon.Clock, line, Theme.Muted);
         }
+
+        ImGui.PopTextWrapPos();
 
         DrawBaby(save, width);
         DrawEffects(save);

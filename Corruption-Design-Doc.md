@@ -84,7 +84,7 @@ An act counts as "known" when the emote playing on your character is replaced by
 
 Levels run from 1 to 100 across seven corruption tiers. At 100 you can prestige, which resets you to level 1 and gives a permanent XP bonus plus a prestige star. There are 10 prestiges.
 
-**Profile setup.** The first time, each character chooses difficulty (XP 1.5x, 1x or 0.7x), decay (off, gentle, normal or harsh), climax mode (automatic or by hand) and arousal gain. All of it stays locked until a profile reset. Nothing earns before setup.
+**Profile setup.** The first time, each character chooses difficulty (XP 1.5x, 1x or 0.7x), decay (off, gentle, normal or harsh), climax mode (automatic or by hand) and arousal gain. All of it stays locked until a profile reset. Nothing earns before setup. Setup happens in a welcome window that opens by itself, a step at a time: what Corruption is, 18+, consent and the safeword; the locked profile; anatomy and pregnancy; Cummy layering, the safeword and privacy; HUD, nameplate and Moodles; and a summary. Everything applies on Finish. Characters set up before the welcome existed see it once, without the profile step. Settings can open it again.
 
 **XP per tick** (every 10 s of a verified scene). It comes from what's around the scene, not from the animation:
 

@@ -19,7 +19,7 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.2.0.0/Corruption-0.2.0.0.zip",
     "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.2.0.0/Corruption-0.2.0.0.zip",
-    "Changelog": "- Slower pace: a quiet scene climaxes about every 11 minutes, and climaxes, new animations, goals and achievements pay less XP.\n- No more AFK check: standing still in a looping animation keeps earning.\n- Exclude animations you don't want counted, such as cuddles, from the Acts page or the scene card.\n- A partner's climax now layers you through your own Cummy, with no pairing needed. Needs Cummy's plugin API 3.\n- Bond at any level. Bonds grow with time together and unlock quirks.\n- Sins: earn them from a daily check-in, scenes, levels, goals and achievements, and spend them on 16 items in the new Shop.\n- Opt-in pregnancy: a 7-day cycle, conception from a breeder's cum shot at the groin, a 14-day pregnancy with cravings, a growing baby on your profile, and a birth.\n- New achievements, trimester visuals and pregnancy Moodles.",
+    "Changelog": "- A welcome window walks you through setup once: difficulty, decay, climax and arousal gain, then your anatomy, pregnancy, Cummy layering, the safeword and what shows. Characters set up before it see it once too, and Settings can open it again.\n- The HUD shows by itself during a scene with a partner, even with it turned off. Change it in Settings.\n- Fixed the HUD's top row overlapping, and long messages and names stretching it.",
     "LastUpdate": "1794065224"
   }
 ]

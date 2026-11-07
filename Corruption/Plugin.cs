@@ -70,6 +70,9 @@ public sealed class Plugin : IDalamudPlugin
 
         mainWindow = new MainWindow(settings, balance, scene, acts, penumbra, heels, cummy, bridges, plateRenderer, detector, popup);
         windows.AddWindow(mainWindow);
+        var welcome = new WelcomeWindow(settings, scene, balance, cummy, bridges, () => mainWindow.IsOpen = true);
+        windows.AddWindow(welcome);
+        mainWindow.OpenWelcome = welcome.Show;
         windows.AddWindow(new HudWindow(settings, scene, balance, () => mainWindow.IsOpen = true));
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand) { HelpMessage = $"Corruption. {Usage}" });

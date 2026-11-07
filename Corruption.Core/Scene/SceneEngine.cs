@@ -661,6 +661,31 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         return null;
     }
 
+    /// The welcome window's choices, all at once. The profile setup only applies before setup is done, since it's locked
+    /// afterward. Null when done, otherwise why not, with nothing changed.
+    public string? CompleteWelcome(WelcomeChoices choices, DateTime now)
+    {
+        var p = choices.Pregnancy;
+        if (save.Setup is null && choices.Setup is null) return "Choose your profile setup first.";
+        if (p.On && !p.Carry && !p.Breed) return "Choose at least one pregnancy role, or leave pregnancy off.";
+
+        if (save.Setup is null) CompleteSetup(choices.Setup!, now);
+        save.Anatomy = choices.Anatomy;
+        if (p.On)
+        {
+            // Roles can't change while pregnant, so an ongoing pregnancy keeps its roles.
+            if (!PregnancyBook.IsPregnant(save.Pregnancy)) PregnancyBook.Enable(save.Pregnancy, p.Carry, p.Breed, p.StartDay, now);
+            save.Pregnancy.Enabled = true;
+            save.Pregnancy.ChanceFactor = Math.Clamp(p.ChanceFactor, PregnancyBook.MinChanceFactor, PregnancyBook.MaxChanceFactor);
+        }
+        else if (save.Pregnancy.Enabled) PregnancyBook.Disable(save.Pregnancy);
+
+        save.WelcomeVersion = Welcome.CurrentVersion;
+        host.Notify("You're all set. Everything here can be changed later in Settings, except your locked profile.");
+        host.SaveProgress();
+        return null;
+    }
+
     /// Settings: what this character has, sent to partners in the body tag.
     public void SetAnatomy(Anatomy anatomy)
     {

@@ -45,6 +45,9 @@ public sealed class CharacterSave
 
     public Wallet Wallet { get; set; } = new();
 
+    /// The welcome window version this character finished, 0 before it.
+    public int WelcomeVersion { get; set; }
+
     /// What this character has, for partners aiming a climax. A choice, not progress, so a reset keeps it.
     public Anatomy Anatomy { get; set; }
 

@@ -18,7 +18,7 @@ Your animations don't need to match, or even come from the same mod. Playing alo
 
 ## Using it
 
-- `/corr` opens the window. The first time, choose your difficulty, decay, climax mode and arousal gain. These can't be changed afterward unless you reset your profile.
+- The first time you log in, a welcome window takes you through setup: difficulty, decay, climax mode and arousal gain (locked afterward unless you reset your profile), then your anatomy, pregnancy, Cummy layering, the safeword, and what shows. You can go through it again from **Settings**. `/corr` opens the main window.
 - In **Acts**, tick your Penumbra folders, then tick the mods that count. Every looping animation in a ticked mod counts, except any you exclude. Click **Exclude some** on a mod to search its animations (try "cuddle") and untick them, or click **Exclude this animation** on the Profile scene card while it plays.
 - **Goals** has your daily and weekly goals and your achievements.
 - **Shop** sells items for Sins, which you earn from a daily check-in, scenes, levels, goals and achievements: faster or slower arousal, XP incense, a refractory cut, a streak charm and more, plus pregnancy items.

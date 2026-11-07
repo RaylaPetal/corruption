@@ -22,6 +22,9 @@ public sealed class Settings : IPluginConfiguration
     public float PlateOffsetY { get; set; }
 
     public bool ShowHud { get; set; } = true;
+
+    /// Shows the HUD while a scene with a partner is running, even with ShowHud off.
+    public bool HudDuringScenes { get; set; } = true;
     public bool HudLocked { get; set; }
     public float HudX { get; set; } = 300;
     public float HudY { get; set; } = 300;

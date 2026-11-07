@@ -23,9 +23,6 @@ public sealed partial class MainWindow : Window
 {
     private enum Page { Profile, Goals, Shop, Nearby, Acts, Nameplate, Settings, Debug }
 
-    private static readonly string[] DifficultyNames = Enum.GetNames<Difficulty>();
-    private static readonly string[] DecayNames = Enum.GetNames<DecayMode>();
-    private static readonly string[] ClimaxNames = ["Automatic at 100", "By hand only"];
     private static readonly string[] HudSizes = ["Small", "Medium", "Large"];
 
     /// What the scene needs, in the order the check tests it.
@@ -54,10 +51,6 @@ public sealed partial class MainWindow : Window
     private Page page = Page.Profile;
     private string filter = "";
     private bool confirmingReset;
-    private int draftDifficulty = (int)Difficulty.Normal;
-    private int draftDecay = (int)DecayMode.Normal;
-    private int draftClimax;
-    private float draftGain = 1f;
     private int rowsVersion = -1;
     private string rowsFilter = "";
     private List<ModRow> rows = [];
@@ -97,7 +90,7 @@ public sealed partial class MainWindow : Window
         if (engine.Save.Setup is null)
         {
             ImGui.BeginChild("##setup", Vector2.Zero);
-            DrawSetup(engine);
+            DrawSetup();
             ImGui.EndChild();
             return;
         }
@@ -203,54 +196,18 @@ public sealed partial class MainWindow : Window
 
     // ── First-time setup ─────────────────────────────────────────────────────
 
-    private void DrawSetup(SceneEngine engine)
+    /// Opens the welcome window. Set by the plugin once both windows exist.
+    public Action? OpenWelcome { get; set; }
+
+    /// Before setup, the main window only points to the welcome window, which holds the setup.
+    private void DrawSetup()
     {
         Theme.CardBox("intro", () =>
         {
             Theme.Heading(FontAwesomeIcon.Star, "Set up your profile");
-            Theme.MutedWrapped("Choose how this character plays. None of this can be changed afterward unless you reset your profile.");
+            Theme.MutedWrapped("A few steps choose your difficulty, decay, climax and arousal gain, your anatomy, pregnancy, and how Corruption shows. Scenes can't earn until it's done.");
+            if (Theme.PrimaryButton(FontAwesomeIcon.ArrowRight, "Finish setup")) OpenWelcome?.Invoke();
         }, stripe: Theme.Pink);
-
-        Theme.CardBox("difficulty", () =>
-        {
-            Theme.Heading(FontAwesomeIcon.Fire, "Difficulty");
-            Theme.Choice("difficulty", DifficultyNames, ref draftDifficulty);
-            Theme.MutedText(ProfileSetup.Describe((Difficulty)draftDifficulty));
-        });
-
-        Theme.CardBox("decay", () =>
-        {
-            Theme.Heading(FontAwesomeIcon.HourglassHalf, "Decay");
-            Theme.Choice("decay", DecayNames, ref draftDecay);
-            Theme.MutedText(ProfileSetup.Describe((DecayMode)draftDecay));
-            Theme.MutedText("Fading never drops you below the start of your current tier.");
-        });
-
-        Theme.CardBox("climax", () =>
-        {
-            Theme.Heading(FontAwesomeIcon.Heart, "Climax");
-            Theme.Choice("climax", ClimaxNames, ref draftClimax);
-            Theme.MutedText(draftClimax == 0 ? "You climax when arousal reaches 100, or earlier with /corr climax." : "Only /corr climax does it, from 70 arousal. Arousal holds at 100 until you do.");
-        });
-
-        Theme.CardBox("gain", () =>
-        {
-            Theme.Heading(FontAwesomeIcon.Bolt, "Arousal gain");
-            ImGui.SetNextItemWidth(220 * Scale);
-            ImGui.SliderFloat("##gain", ref draftGain, (float)ProfileSetup.MinArousalGain, (float)ProfileSetup.MaxArousalGain, "%.2fx");
-            Theme.MutedText($"About {ClimaxMinutes(draftGain):0.#} minutes to climax in a quiet scene.");
-        });
-
-        if (Theme.PrimaryButton(FontAwesomeIcon.Check, "Start"))
-        {
-            engine.CompleteSetup(new ProfileSetup
-            {
-                Difficulty = (Difficulty)draftDifficulty,
-                Decay = (DecayMode)draftDecay,
-                AutoClimax = draftClimax == 0,
-                ArousalGain = Math.Round(draftGain, 2),
-            }, DateTime.UtcNow);
-        }
     }
 
     /// Minutes from 0 to 100 arousal at Pure with nobody watching.
@@ -840,6 +797,12 @@ public sealed partial class MainWindow : Window
                 settings.HudSize = size;
                 settings.Save();
             }
+            var duringScenes = settings.HudDuringScenes;
+            if (ImGui.Checkbox("Show the HUD during scenes, even when it's off", ref duringScenes))
+            {
+                settings.HudDuringScenes = duringScenes;
+                settings.Save();
+            }
             var always = settings.ShowInCutscenesAndGpose;
             if (ImGui.Checkbox("Show windows in cutscenes and GPose", ref always))
             {
@@ -883,6 +846,13 @@ public sealed partial class MainWindow : Window
         });
 
         DrawBridges(engine);
+
+        Theme.CardBox("welcomeAgain", () =>
+        {
+            Theme.Heading(FontAwesomeIcon.Star, "Welcome");
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Redo, "Go through the welcome again")) OpenWelcome?.Invoke();
+            Theme.MutedText("Anatomy, pregnancy, layering and display, a step at a time. Your locked profile stays.");
+        });
 
         Theme.CardBox("progress", () =>
         {
