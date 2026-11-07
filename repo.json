@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.0.0",
+    "AssemblyVersion": "0.3.0.1",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -17,9 +17,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.0/Corruption-0.3.0.0.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.0/Corruption-0.3.0.0.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.1/Corruption-0.3.0.1.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.1/Corruption-0.3.0.1.zip",
     "Changelog": "- Personality and traits: pick one of 13 personalities and up to two of 14 traits at setup. Each gives a bonus and a drawback, like Shy, Exhibitionist, Hypersexual or Thrifty, and Easygoing does neither. They're locked until you reset your profile. Characters already set up choose once.\n- Chemistry: some personalities suit each other, and scenes between them pay a little more.\n- Nearby shows other players' personality and traits, and there's a {personality} nameplate token.\n- Fixed the title bar buttons overlapping on Corruption's windows, and the main window's tabs now wrap and line up.",
-    "LastUpdate": "1794073823"
+    "LastUpdate": "1794079826"
   }
 ]
