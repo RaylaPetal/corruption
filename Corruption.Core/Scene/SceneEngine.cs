@@ -17,6 +17,9 @@ public interface IEngineHost
     /// Writes the title tag, or removes it when null. False when it couldn't be written.
     bool PublishTitleTag(string? value);
 
+    /// Writes the persona tag, or removes it when null. False when it couldn't be written.
+    bool PublishPersonaTag(string? value);
+
     /// Asks this player's own Cummy to layer them as if <paramref name="source"/> had. Cummy's outcome (layered, advanced,
     /// full, blocked, unknown-part, no-character), or null when Cummy can't do it.
     string? LayerSelf(PeerRecord source, string partId);
@@ -41,9 +44,10 @@ public interface IEngineHost
 /// them (null when they aren't in a loop).
 /// Extra is null when they publish no extra tag, such as a client without prestige and bonds. Body is null for a client
 /// without the body tag, which still sends Cummy layer tells.
-/// TitleId is the id from their title tag, null for none or a client without titles.
+/// TitleId is the id from their title tag, null for none or a client without titles. Persona is null for a client
+/// without personalities.
 public readonly record struct VisiblePlayer(PeerRecord Player, double Distance, PoseKey? Pose, PresenceTag Tag, ExtraTag? Extra = null,
-    BodyTag? Body = null, string? TitleId = null);
+    BodyTag? Body = null, string? TitleId = null, PersonaTag? Persona = null);
 
 /// One second's worth of game state.
 /// <param name="LayersWorn">Cummy layer stages worn, 0 when Cummy can't say.</param>
@@ -79,6 +83,8 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private readonly ExtraTagPublisher extraPublisher = new();
     private readonly BodyTagPublisher bodyPublisher = new();
     private readonly TitleTagPublisher titlePublisher = new();
+    private readonly PersonaTagPublisher personaPublisher = new();
+    private readonly Dictionary<string, PersonaTag> personas = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, BodyTag> bodies = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PresenceTag> tags = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ExtraTag> extras = new(StringComparer.OrdinalIgnoreCase);
@@ -94,6 +100,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private bool extraPublished;
     private bool bodyPublished;
     private bool titlePublished;
+    private bool personaPublished;
     private int layersWorn;
 
     private readonly Dictionary<string, DateTime> lastClimaxCredit = new(StringComparer.OrdinalIgnoreCase);
@@ -145,12 +152,14 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
     /// What a nearby player's tag says about them, for their nameplate. Null when no tag can be read.
     public PlateValues? PlateOf(PeerRecord player)
-        => tags.TryGetValue(player.Key, out var tag) ? new PlateValues(tag.Level, tag.Arousal, StarsOf(player), TitleOf(player)) : null;
+        => tags.TryGetValue(player.Key, out var tag)
+            ? new PlateValues(tag.Level, tag.Arousal, StarsOf(player), TitleOf(player), PersonaOf(player)?.Personality)
+            : null;
 
     /// A nearby player's stars, from their extra tag; 0 when they have none.
     public int StarsOf(PeerRecord player) => extras.TryGetValue(player.Key, out var extra) ? extra.Stars : 0;
 
-    public PlateValues OwnPlate => new(save.Level, save.Arousal, save.Prestige, TitleBook.Equipped(save)?.Id);
+    public PlateValues OwnPlate => new(save.Level, save.Arousal, save.Prestige, TitleBook.Equipped(save)?.Id, PersonaBook.Personality(save).Id);
 
     public PlateScene OwnPlateScene => new(Status.Act is not null && !save.Paused, lastOwnClimax);
 
@@ -165,6 +174,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         extraPublisher.Forget();
         bodyPublisher.Forget();
         titlePublisher.Forget();
+        personaPublisher.Forget();
     }
 
     /// A nearby player's body tag, or null when their client has none.
@@ -188,7 +198,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     /// Run about once per second.
     public void Sample(DateTime now, in SceneSample sample)
     {
-        Arousal.ApplyDecay(save, now, balance);
+        Arousal.ApplyDecay(save, now, balance, ModifierBook.For(save).ArousalDecay);
         ApplyFading(now);
         if (save.Setup is not null)
         {
@@ -256,6 +266,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
                 goals.RecordPartnerScene(partnerKey);
             }
             sceneVerifiedSeconds++;
+            if (save.PentUpSecondsLeft > 0) save.PentUpSecondsLeft = Math.Max(0, save.PentUpSecondsLeft - 1);
             save.LongestVerifiedSceneSeconds = Math.Max(save.LongestVerifiedSceneSeconds, sceneVerifiedSeconds);
             save.PeakWatchers = Math.Max(save.PeakWatchers, watchers);
             if (tally is not null)
@@ -282,7 +293,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
         var partner = nearest?.Player;
         var fatigue = verified && !ItemBook.NoFatigue(save, now)
-            ? Progression.Fatigue(now - fatigueStart, balance, TitleBook.Bonus(save).FatigueGraceMinutes)
+            ? Progression.Fatigue(now - fatigueStart, balance, ModifierBook.For(save).FatigueGraceMinutes)
             : 1.0;
         if (ticker.Sample(now, verified, partner?.Key, sample.OwnAct?.Key, balance.TickSeconds))
             AwardTick(now, sample.OwnAct!, partner!, fatigue);
@@ -316,7 +327,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     {
         var paid = Sins.CheckIn(save.Wallet, now);
         if (paid <= 0) return;
-        if (TitleBook.Bonus(save).CheckInBonus is > 0 and var extra)
+        if (ModifierBook.For(save).CheckInBonus is > 0 and var extra)
         {
             Sins.Earn(save.Wallet, extra);
             paid += extra;
@@ -351,10 +362,12 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             if (extraPublished && host.PublishExtraTag(null)) extraPublished = false;
             if (bodyPublished && host.PublishBodyTag(null)) bodyPublished = false;
             if (titlePublished && host.PublishTitleTag(null)) titlePublished = false;
+            if (personaPublished && host.PublishPersonaTag(null)) personaPublished = false;
             publisher.Forget();
             extraPublisher.Forget();
             bodyPublisher.Forget();
             titlePublisher.Forget();
+            personaPublisher.Forget();
             return;
         }
         if (publisher.Update(now, ownAct, save.Level, save.Arousal, ownClimaxCount, save.Paused) is { } tag)
@@ -377,6 +390,11 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             if (host.PublishTitleTag(title.Format())) titlePublished = true;
             else titlePublisher.Forget();
         }
+        if (personaPublisher.Update(PersonaTag.Of(save)) is { } persona)
+        {
+            if (host.PublishPersonaTag(persona.Format())) personaPublished = true;
+            else personaPublisher.Forget();
+        }
     }
 
     /// Takes in what nearby players' tags say. A climax shows as their count going up. The first time a player is seen
@@ -387,8 +405,10 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         extras.Clear();
         bodies.Clear();
         titles.Clear();
+        personas.Clear();
         foreach (var player in visible)
         {
+            if (player.Persona is { } persona) personas[player.Player.Key] = persona;
             tags[player.Player.Key] = player.Tag;
             if (player.Extra is { } extra) extras[player.Player.Key] = extra;
             if (player.Body is { } body) bodies[player.Player.Key] = body;
@@ -435,17 +455,21 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     {
         lastTickPartner = partner.Key;
         lastTickUtc = now;
+        var title = ModifierBook.For(save);
+        // Back after a day or more: a Hypersexual character is Pent Up until they've had a while in scenes again.
+        if (title.PentUp && save.LastVerifiedUtc != default && now - save.LastVerifiedUtc >= PersonaCatalog.PentUpAfter)
+            save.PentUpSecondsLeft = PersonaCatalog.PentUpSeconds;
         save.LastVerifiedUtc = now;
 
-        Progression.UpdateStreak(save, now, () => ItemBook.TrySpendUse(save, ItemIds.StreakCharm));
+        Progression.UpdateStreak(save, now, () => ItemBook.TrySpendUse(save, ItemIds.StreakCharm), title.StreakEndsOnMiss);
         var bondLevel = Bonds.LevelWith(partner.Key);
-        var title = TitleBook.Bonus(save);
         var seenWatchers = watchers * ItemBook.WatcherMultiplier(save, now) * title.WatcherCount;
         lastFactors = Progression.Factors(save.Level, PlateOf(partner)?.Level, seenWatchers, save.StreakDays, fatigue, balance,
             bondLevel, layersWorn, save.Prestige, title, FullMoonAt(now)) with
             {
                 Items = ItemBook.TickXpFactor(save, now),
                 Pregnancy = PregnancyBook.TickXpFactor(save.Pregnancy),
+                Persona = PersonaTickFactor(partner, title),
             };
         var xp = balance.TickXp * lastFactors.Total;
         if (save.SeenPartners.Add(partner.Key)) xp += balance.FirstPartnerXp * title.FirstPartnerXp;
@@ -470,11 +494,34 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     /// Everything beyond tier, watchers and the setup gain that speeds or slows arousal on a tick.
     private double ArousalFactor(DateTime now, int bondLevel)
     {
-        var title = TitleBook.Bonus(save);
+        var mods = ModifierBook.For(save);
         return (bondLevel >= BondLevels.InTuneLevel ? balance.InTuneArousalFactor : 1) * ItemBook.ArousalFactor(save, now)
                * PregnancyBook.ArousalFactor(save.Pregnancy, now) * ArousalMoonFactor(now)
-               * title.Arousal * (save.Arousal >= TitleRules.HighArousal ? title.HighArousal : 1);
+               * mods.Arousal * (save.Arousal >= TitleRules.HighArousal ? mods.HighArousal : 1)
+               * (watchers == 0 ? mods.QuietArousal : 1);
     }
+
+    /// The personality's and traits' part of a tick: their own factor, quiet scenes, time away from the bond, Pent Up
+    /// and chemistry with the partner.
+    private double PersonaTickFactor(PeerRecord partner, Modifiers mods)
+    {
+        var awayFromBond = save.BondFormed && save.BondWith is { } bond && !string.Equals(bond, partner.Key, StringComparison.OrdinalIgnoreCase);
+        return mods.PersonaTickXp
+               * (watchers == 0 ? mods.QuietTickXp : 1)
+               * (awayFromBond ? mods.AwayFromBondTickXp : 1)
+               * (IsPentUp ? PersonaCatalog.PentUpXp : 1)
+               * (HasChemistryWith(partner) ? PersonaCatalog.ChemistryXp : 1);
+    }
+
+    /// Pent Up right now, with the verified seconds it has left.
+    public bool IsPentUp => save.PentUpSecondsLeft > 0 && ModifierBook.For(save).PentUp;
+
+    /// Whether this character's personality suits the partner's, from their persona tag.
+    public bool HasChemistryWith(PeerRecord partner)
+        => PersonaCatalog.HaveChemistry(PersonaBook.Personality(save).Id, PersonaOf(partner)?.Personality);
+
+    /// A nearby player's persona tag, or null for a client without personalities.
+    public PersonaTag? PersonaOf(PeerRecord player) => personas.TryGetValue(player.Key, out var persona) ? persona : null;
 
     /// The moon right now, which every client works out the same way.
     public MoonInfo MoonAt(DateTime now) => EorzeaMoon.At(now, balance);
@@ -499,7 +546,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     {
         if (!Bonds.PaysWith(partner.Key)) return;
         var before = Bonds.Level;
-        save.BondSeconds += balance.TickSeconds * TitleBook.Bonus(save).BondTime;
+        save.BondSeconds += balance.TickSeconds * ModifierBook.For(save).BondTime;
         var after = Bonds.Level;
         if (after > before)
         {
@@ -513,7 +560,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     {
         if (Bonds.LevelWith(partner.Key) < BondLevels.TogetherLevel) return;
         if (lastOwnClimax is not { } mine || lastBondedClimax is not { } theirs) return;
-        var title = TitleBook.Bonus(save);
+        var title = ModifierBook.For(save);
         if (Math.Abs((mine - theirs).TotalSeconds) > (title.TogetherSeconds ?? balance.TogetherSeconds)) return;
         var pair = mine > theirs ? mine : theirs;
         if (lastTogetherPaid == pair) return;
@@ -532,7 +579,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         goals.Record(GoalKind.SceneSeconds, seconds);
         if (watchers > 0) goals.Record(GoalKind.WatchedSeconds, seconds);
         if (watchers >= 3) goals.Record(GoalKind.CrowdSeconds, seconds);
-        if (save.Arousal >= 100) goals.Record(GoalKind.EdgedSeconds, seconds);
+        if (save.Arousal >= 100) goals.Record(GoalKind.EdgedSeconds, (long)Math.Round(seconds * ModifierBook.For(save).EdgedCount));
         goals.RecordOnce(GoalKind.DistinctAnimations, act.Key);
         goals.RecordOnce(GoalKind.DistinctPartners, partner.Key);
         goals.RecordOnce(GoalKind.ActiveDays, now.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
@@ -567,8 +614,9 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (tally is not null) tally.OwnClimaxes++;
         Crave(now, CravingKind.Climax);
         goals.Record(GoalKind.Climaxes);
-        GiveXp(balance.ClimaxXp);
-        save.Arousal = balance.ArousalAfterClimax;
+        var mods = ModifierBook.For(save);
+        GiveXp(balance.ClimaxXp * mods.ClimaxXp);
+        save.Arousal = mods.ArousalAfterClimax ?? balance.ArousalAfterClimax;
         save.ArousalAnchorUtc = now;
         save.RefractoryUntilUtc = now.AddSeconds(RefractorySeconds(now, partner));
 
@@ -580,7 +628,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
     private double RefractorySeconds(DateTime now, PeerRecord partner)
     {
-        var seconds = balance.RefractorySeconds * ItemBook.RefractoryFactor(save, now) * TitleBook.Bonus(save).Refractory;
+        var seconds = balance.RefractorySeconds * ItemBook.RefractoryFactor(save, now) * ModifierBook.For(save).Refractory;
         if (Bonds.LevelWith(partner.Key) >= BondLevels.DevotedLevel) seconds /= 2;
         return Math.Max(balance.MinimumRefractorySeconds, seconds);
     }
@@ -642,10 +690,12 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (save.Paused) return "You're paused.";
         if (!verified || verifiedAct is null || nearestInRange is null) return "There's no verified scene right now.";
         if (Arousal.InRefractory(save, now)) return "You're still recovering from the last one.";
-        // A title can lower the threshold for free. A Hair Trigger lowers it further, and is only spent when it's needed.
-        var free = Math.Min(balance.ManualClimaxMinimum, TitleBook.Bonus(save).ManualClimaxMinimum ?? double.MaxValue);
+        // A title can lower the threshold for free, and a personality can raise every threshold. A Hair Trigger lowers it
+        // further, and is only spent when it's needed.
+        var mods = ModifierBook.For(save);
+        var free = Math.Min(balance.ManualClimaxMinimum, mods.ManualClimaxMinimum ?? double.MaxValue) + mods.ManualClimaxShift;
         var hairTrigger = ItemBook.IsActive(save, ItemIds.HairTrigger, now);
-        var minimum = hairTrigger ? Math.Min(ItemBook.HairTriggerMinimum, free) : free;
+        var minimum = hairTrigger ? Math.Min(ItemBook.HairTriggerMinimum + mods.ManualClimaxShift, free) : free;
         if (save.Arousal < minimum)
             return $"Your arousal needs to be at least {minimum:0} (it's {Math.Floor(save.Arousal):0}).";
         if (save.Arousal < free) ItemBook.TrySpendUse(save, ItemIds.HairTrigger);
@@ -665,7 +715,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
         lastClimaxCredit[peer.Key] = now;
         if (tally is not null) tally.PartnerClimaxes++;
-        GiveXp(balance.ClimaxXp * (TitleBook.Bonus(save).PartnerClimaxShare ?? balance.PartnerClimaxShare));
+        GiveXp(balance.ClimaxXp * (ModifierBook.For(save).PartnerClimaxShare ?? balance.PartnerClimaxShare));
         goals.Record(GoalKind.PartnerClimaxes);
         host.Notify($"{peer.Name} climaxed.");
         if (Bonds.PaysWith(peer.Key))
@@ -723,7 +773,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         switch (PregnancyBook.Update(save.Pregnancy, now))
         {
             case PregnancyEvent.Birth:
-                var birthSins = (int)Math.Round(Sins.Birth * TitleBook.Bonus(save).BirthSins);
+                var birthSins = (int)Math.Round(Sins.Birth * ModifierBook.For(save).BirthSins);
                 Sins.Earn(save.Wallet, birthSins);
                 var father = save.Pregnancy.BirthLog.LastOrDefault()?.FatherKey is { Length: > 0 } key ? $" {key.Split('@')[0]}'s child" : "";
                 host.Notify($"You gave birth{(father.Length > 0 ? " to" + father : "")}. +{birthSins} Sins. Rest for two days before your cycle starts again.");
@@ -762,7 +812,11 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private void RollConception(DateTime now, PeerRecord peer)
     {
         if (BodyOf(peer) is not { CanBreed: true } body) return;
-        var titles = TitleBook.Bonus(save).ConceptionOwn * (TitleCatalog.Find(TitleOf(peer))?.Bonus.ConceptionPartner ?? 1);
+        // The partner's title (Sire) and traits (Virile) raise the odds too. Their tag only reaches here from a breeder,
+        // so a Virile trait there always has its role.
+        var partnerTraits = PersonaOf(peer)?.KnownTraits.Select(t => t.Effects) ?? [];
+        var partner = Modifiers.Combine(partnerTraits.Prepend(TitleCatalog.Find(TitleOf(peer))?.Bonus ?? Modifiers.None));
+        var titles = ModifierBook.For(save).ConceptionOwn * partner.ConceptionPartner;
         var chance = PregnancyBook.ConceptionChance(save, now, body.Virile, Bonds.LevelWith(peer.Key), save.Paused || save.Hidden, titles);
         if (chance <= 0 || random.NextDouble() >= chance) return;
         PregnancyBook.Conceive(save.Pregnancy, now, peer.Key);
@@ -801,7 +855,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
     private void Satisfied(DateTime now)
     {
-        var sins = (int)Math.Round(Sins.Craving * TitleBook.Bonus(save).CravingSins);
+        var sins = (int)Math.Round(Sins.Craving * ModifierBook.For(save).CravingSins);
         Sins.Earn(save.Wallet, sins);
         goals.Record(GoalKind.CravingsSatisfied);
         save.Arousal = Math.Min(100, save.Arousal + CravingBook.SatisfiedArousal);
@@ -825,8 +879,17 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         var p = choices.Pregnancy;
         if (save.Setup is null && choices.Setup is null) return "Choose your profile setup first.";
         if (p.On && !p.Carry && !p.Breed) return "Choose at least one pregnancy role, or leave pregnancy off.";
+        // The persona is locked once chosen, so it's only taken when none is set yet.
+        var choosing = Welcome.NeedsPersona(save);
+        if (choosing && PersonaBook.Refusal(choices.Persona?.Personality, choices.Persona?.Traits ?? []) is { } personaRefusal)
+            return personaRefusal;
 
         if (save.Setup is null) CompleteSetup(choices.Setup!, now);
+        if (choosing)
+        {
+            save.Setup!.Personality = choices.Persona!.Personality;
+            save.Setup.Traits = [.. choices.Persona.Traits];
+        }
         save.Anatomy = choices.Anatomy;
         if (p.On)
         {

@@ -118,6 +118,17 @@ public sealed partial class MainWindow
             Theme.Pill(title.Name, Theme.Warning);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(title.Effect);
         }
+        if (status.Partner is { } partner && engine.HasChemistryWith(partner))
+        {
+            ImGui.SameLine();
+            Theme.Pill($"Chemistry x{PersonaCatalog.ChemistryXp:0.##}", Theme.Pink);
+        }
+        if (engine.IsPentUp)
+        {
+            ImGui.SameLine();
+            Theme.Pill($"Pent Up, {Math.Ceiling(save.PentUpSecondsLeft / 60):0}m left", Theme.Warning);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"A day without a scene: ×{PersonaCatalog.PentUpXp:0.##} XP until you've had more time in scenes.");
+        }
         var moon = engine.MoonAt(DateTime.UtcNow);
         if (moon.IsEvent)
         {
@@ -178,6 +189,8 @@ public sealed partial class MainWindow
             ImGui.AlignTextToFramePadding();
             Theme.MutedText($"About {ClimaxMinutes(setup.ArousalGain):0.#} minutes to climax in a quiet scene.");
 
+            DrawPersona(save);
+
             ImGuiHelpers.ScaledDummy(2f);
             Theme.Icon(FontAwesomeIcon.Lock, Theme.Faint);
             ImGui.SameLine();
@@ -190,6 +203,29 @@ public sealed partial class MainWindow
             ImGui.SameLine();
             Theme.Pill(save.StreakDays == 1 ? "1 day streak" : $"{save.StreakDays} day streak", Theme.Good);
         });
+    }
+
+    /// The personality and traits, each with what it does. A trait missing its pregnancy role says so.
+    private static void DrawPersona(CharacterSave save)
+    {
+        ImGuiHelpers.ScaledDummy(2f);
+        var personality = PersonaBook.Personality(save);
+        Theme.Pill(save.Setup?.Personality is null ? "Personality: not chosen yet" : $"Personality: {personality.Name}", Theme.Violet);
+        ImGui.SameLine();
+        ImGui.AlignTextToFramePadding();
+        Theme.MutedText(personality.Upside.Length == 0
+            ? save.Setup?.Personality is null ? "Plays as Easygoing until you choose, in the welcome window." : "No bonus and no drawback"
+            : $"{personality.Upside}. {personality.Downside}.");
+        foreach (var trait in PersonaBook.Traits(save))
+        {
+            var active = PersonaBook.IsActive(save, trait);
+            Theme.Pill(trait.Name, active ? Theme.PinkSoft : Theme.Faint);
+            ImGui.SameLine();
+            ImGui.AlignTextToFramePadding();
+            Theme.MutedText(active ? $"{trait.Upside}. {trait.Downside}."
+                : trait.Role == ItemRole.Carry ? "Needs the carry role: turn pregnancy on as a carrier in Settings."
+                : "Needs the breed role: turn pregnancy on as a breeder in Settings.");
+        }
     }
 
     /// Each condition passes until the check's first failure, which is the one to fix. Later ones aren't known yet.

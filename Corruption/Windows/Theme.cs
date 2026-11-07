@@ -91,12 +91,17 @@ internal static class Theme
             .Push(ImGuiStyleVar.ScrollbarRounding, 6f * Scale)
             .Push(ImGuiStyleVar.ScrollbarSize, 10f * Scale)
             .Push(ImGuiStyleVar.WindowBorderSize, 1f)
-            .Push(ImGuiStyleVar.WindowPadding, new Vector2(12f, 12f) * Scale)
-            .Push(ImGuiStyleVar.FramePadding, new Vector2(8f, 5f) * Scale)
-            .Push(ImGuiStyleVar.ItemSpacing, new Vector2(7f, 7f) * Scale);
+            .Push(ImGuiStyleVar.WindowPadding, new Vector2(12f, 12f) * Scale);
 
         return new Scope(style, colors);
     }
+
+    /// The roomier frames and spacing, pushed inside each window's content. Not around the window itself: the title bar's
+    /// height and close button follow FramePadding, while Dalamud places its own title bar button for the default, so a
+    /// larger padding there draws the two on top of each other.
+    public static IDisposable Content()
+        => ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(8f, 5f) * Scale)
+            .Push(ImGuiStyleVar.ItemSpacing, new Vector2(7f, 7f) * Scale);
 
     private sealed class Scope(IDisposable style, IDisposable colors) : IDisposable
     {
@@ -346,14 +351,24 @@ internal static class Theme
         return ImGui.CalcTextSize(icon.ToIconString()).X + ImGui.GetStyle().FramePadding.X * 2;
     }
 
-    /// One page of the main window's navigation.
-    public static bool NavButton(FontAwesomeIcon icon, string text, bool selected)
+    /// How wide a nav button is, so a row can wrap before one.
+    public static float NavButtonWidth(FontAwesomeIcon icon, string text)
     {
         float iconWidth;
         using (ImRaii.PushFont(UiBuilder.IconFont)) iconWidth = ImGui.CalcTextSize(icon.ToIconString()).X;
+        return iconWidth + 6f * Scale + ImGui.CalcTextSize(text).X + 22f * Scale;
+    }
+
+    /// One page of the main window's navigation. The icon and the text are each centred in the pill's height, since
+    /// the icon font's glyphs aren't the text's height.
+    public static bool NavButton(FontAwesomeIcon icon, string text, bool selected)
+    {
+        Vector2 iconSize;
+        using (ImRaii.PushFont(UiBuilder.IconFont)) iconSize = ImGui.CalcTextSize(icon.ToIconString());
+        var iconWidth = iconSize.X;
         var textSize = ImGui.CalcTextSize(text);
         var gap = 6f * Scale;
-        var size = new Vector2(iconWidth + gap + textSize.X + 22f * Scale, textSize.Y + 12f * Scale);
+        var size = new Vector2(NavButtonWidth(icon, text), MathF.Max(textSize.Y, iconSize.Y) + 12f * Scale);
 
         var min = ImGui.GetCursorScreenPos();
         var clicked = ImGui.InvisibleButton($"##nav{text}", size);
@@ -366,9 +381,10 @@ internal static class Theme
         else if (hovered) dl.AddRectFilled(min, max, U32(FieldHover), rounding);
 
         var color = selected ? Text : hovered ? PinkSoft : Muted;
-        var at = min + new Vector2(11f * Scale, 6f * Scale);
-        using (ImRaii.PushFont(UiBuilder.IconFont)) dl.AddText(at, U32(selected ? Text : hovered ? Pink : Muted), icon.ToIconString());
-        dl.AddText(at + new Vector2(iconWidth + gap, 0), U32(color), text);
+        var left = min.X + 11f * Scale;
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            dl.AddText(new Vector2(left, min.Y + (size.Y - iconSize.Y) / 2f), U32(selected ? Text : hovered ? Pink : Muted), icon.ToIconString());
+        dl.AddText(new Vector2(left + iconWidth + gap, min.Y + (size.Y - textSize.Y) / 2f), U32(color), text);
         return clicked;
     }
 

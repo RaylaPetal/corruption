@@ -76,6 +76,7 @@ public sealed class RewardPopup : Window
 
     public override void Draw()
     {
+        using var content = Theme.Content();
         if (showing is not { } reward) return;
         using var alpha = ImRaii.PushStyle(ImGuiStyleVar.Alpha, Fade());
 

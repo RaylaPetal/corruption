@@ -82,7 +82,7 @@ public sealed partial class MainWindow
             TextRow("Normally", "##steady", settings.PlateTemplate, t => settings.PlateTemplate = t);
             TextRow("With arousal", "##act", settings.PlateActTemplate, t => settings.PlateActTemplate = t);
             TextRow("On climax", "##climax", settings.PlateClimaxTemplate, t => settings.PlateClimaxTemplate = t);
-            Theme.MutedText("Tokens: {tier} {level} {arousal} {arousalBar} {prestige} {title}");
+            Theme.MutedText("Tokens: {tier} {level} {arousal} {arousalBar} {prestige} {title} {personality}");
 
             var unknown = PlateComposer.UnknownTokens(settings.PlateTemplate + settings.PlateActTemplate + settings.PlateClimaxTemplate);
             if (unknown.Count > 0) ImGui.TextColored(Theme.Warning, $"Unknown: {string.Join(", ", unknown)}");

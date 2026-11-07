@@ -452,8 +452,15 @@ public sealed partial class MainWindow
 
     private int debugStars;
 
+    private int debugPersona;
+
     private void DrawSimulatedExtra(SceneEngine engine)
     {
+        // The simulated player's personality, for chemistry and the Nearby card. "None" is a client without personas.
+        var names = PersonaCatalog.Personalities.Select(p => p.Name).Prepend("None").ToArray();
+        ImGui.SetNextItemWidth(160 * Scale);
+        if (ImGui.Combo("Their personality", ref debugPersona, names, names.Length))
+            scene.DebugPersona = debugPersona == 0 ? null : new PersonaTag(PersonaCatalog.Personalities[debugPersona - 1].Id, [PersonaIds.Sensitive]);
         var extra = scene.DebugExtra;
         var has = extra is not null;
         if (ImGui.Checkbox("Has the extra tag", ref has)) extra = has ? new ExtraTag(0, null) : null;

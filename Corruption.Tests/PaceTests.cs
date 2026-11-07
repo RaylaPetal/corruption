@@ -5,9 +5,12 @@ namespace Corruption.Tests;
 /// The shipped defaults: how fast a plain scene goes.
 public class PaceTests
 {
-    private static EngineRig Quiet()
+    /// The baseline: shipped balance, no moon, Easygoing with no traits.
+    private static EngineRig Quiet(string personality = PersonaIds.Easygoing, params string[] traits)
     {
         var r = new EngineRig(balance: new Balance().WithoutMoon());
+        r.Save.Setup!.Personality = personality;
+        r.Save.Setup.Traits = [.. traits];
         foreach (var achievement in GoalCatalog.Achievements) r.Save.Goals.Achievements.Add(achievement.Id);
         r.Save.SeenPartners.Add(r.Bob.Key);
         r.Save.SeenActs.Add(r.Act.Key);
@@ -89,6 +92,35 @@ public class PaceTests
         Assert.True(goals > 0, "some goals should complete in an hour");
         Assert.Equal(1.06, r.Engine.Status.Factors.Title, 6);
         Assert.True(events < ticks, $"events {events:0} (goals {goals:0}) vs ticks {ticks:0}");
+    }
+
+    [Fact]
+    public void TheStrongestPersonaStillPaysLessForEventsThanTicks()
+    {
+        // Bratty pays most per climax; Quick Learner most for new partners and animations.
+        var r = Quiet(PersonaIds.Bratty, PersonaIds.QuickLearner);
+        var other = new ActEntry { ModDirectory = "m", Option = "other", EmoteMode = 50 };
+        r.Save.SeenActs.Add(other.Key);
+        var first = r.Act;
+        var xp = 0.0;
+        var lastXp = r.Save.Xp;
+        var lastLevel = r.Save.Level;
+
+        for (var second = 0; second < 3600; second++)
+        {
+            r.Act = second / 600 % 2 == 0 ? first : other;
+            if (second > 0 && second % 660 == 0) r.BobTag = r.BobTag with { ClimaxCount = r.BobTag.ClimaxCount + 1 };
+            r.Run(1);
+            xp += Gained(r, ref lastXp, ref lastLevel);
+        }
+
+        var own = r.Host.Notes.Count(n => n == "You climaxed.");
+        var theirs = r.Host.Notes.Count(n => n == "Bob B climaxed.");
+        var events = own * r.Balance.ClimaxXp * 1.3 + theirs * r.Balance.ClimaxXp * r.Balance.PartnerClimaxShare
+                     + r.Host.Layers.Count * r.Balance.LayerXp;
+        var ticks = xp - events;
+        Assert.True(own > 0);
+        Assert.True(events < ticks, $"events {events:0} vs ticks {ticks:0}");
     }
 
     /// XP gained since the last call, counting whole levels.

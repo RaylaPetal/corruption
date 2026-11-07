@@ -40,6 +40,7 @@ public sealed class SimpleHeelsIpc : IDisposable
         PublishExtra(null);
         PublishBody(null);
         PublishTitle(null);
+        PublishPersona(null);
     }
 
     private void OnPluginsChanged(IActivePluginsChangedEventArgs args) => Refresh();
@@ -63,6 +64,17 @@ public sealed class SimpleHeelsIpc : IDisposable
 
     /// Writes the local player's title tag (the equipped title's id), or removes it when null.
     public bool PublishTitle(string? value) => Write(TitleTag.Key, value);
+
+    /// Writes the local player's persona tag (personality and traits), or removes it when null.
+    public bool PublishPersona(string? value) => Write(PersonaTag.Key, value);
+
+    /// Another player's persona, or null when their client has none.
+    public PersonaTag? ReadPersona(int objectIndex)
+    {
+        if (!IsAvailable) return null;
+        try { return PersonaTag.Parse(getTag.InvokeFunc(objectIndex, PersonaTag.Key)); }
+        catch { return null; }
+    }
 
     private bool Write(string key, string? value)
     {

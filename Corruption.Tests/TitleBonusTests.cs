@@ -7,7 +7,7 @@ public class TitleBonusTests
 {
     private static readonly Balance B = new();
 
-    private static TitleBonus Of(string id) => TitleCatalog.Find(id)!.Bonus;
+    private static Modifiers Of(string id) => TitleCatalog.Find(id)!.Bonus;
 
     /// The shipped balance, every achievement already earned and the partner and act already seen, so a tick is plain.
     private static EngineRig Wearing(string? title, Random? random = null, bool seen = true)

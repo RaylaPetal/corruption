@@ -80,6 +80,7 @@ public sealed partial class MainWindow : Window
 
     public override void Draw()
     {
+        using var content = Theme.Content();
         if (scene.Engine is not { } engine)
         {
             Theme.MutedText("Log in to a character to use this.");
@@ -256,8 +257,10 @@ public sealed partial class MainWindow : Window
         ImGuiHelpers.ScaledDummy(1f);
     }
 
+    /// One nav button, wrapping to the next line when it wouldn't fit on this one.
     private void Nav(FontAwesomeIcon icon, string text, Page target)
     {
+        if (ImGui.GetContentRegionAvail().X < Theme.NavButtonWidth(icon, text)) ImGui.NewLine();
         if (Theme.NavButton(icon, text, page == target)) page = target;
         ImGui.SameLine(0, 4f * Scale);
     }

@@ -46,11 +46,12 @@ public static class Progression
         return new XpResult(gained, after != before ? after : null);
     }
 
-    /// 1.0 through the grace period, then one step down per whole extra minute, to the floor. A title can lengthen the
-    /// grace by <paramref name="extraGraceMinutes"/>.
+    /// 1.0 through the grace period, then one step down per whole extra minute, to the floor. Modifiers can lengthen or
+    /// shorten the grace by <paramref name="extraGraceMinutes"/>, but never below 0.
     public static double Fatigue(TimeSpan onThisAct, Balance b, double extraGraceMinutes = 0)
     {
-        var extra = Math.Floor(onThisAct.TotalMinutes - b.FatigueGraceMinutes - extraGraceMinutes);
+        var grace = Math.Max(0, b.FatigueGraceMinutes + extraGraceMinutes);
+        var extra = Math.Floor(onThisAct.TotalMinutes - grace);
         return extra <= 0 ? 1.0 : Math.Max(b.FatigueFloor, 1.0 - extra * b.FatigueStep);
     }
 
@@ -103,9 +104,9 @@ public static class Progression
     /// this player, else 0. <paramref name="layersWorn"/>: Cummy layer stages worn. <paramref name="stars"/>: prestige.
     /// <paramref name="title"/>: the equipped title's bonus, which can raise caps and adds its own factor.
     public static TickFactors Factors(int level, int? partnerLevel, double watchers, int streakDays, double fatigue, Balance b,
-        int bondLevel = 0, int layersWorn = 0, int stars = 0, TitleBonus? title = null, bool fullMoon = false)
+        int bondLevel = 0, int layersWorn = 0, int stars = 0, Modifiers? title = null, bool fullMoon = false)
     {
-        title ??= TitleBonus.None;
+        title ??= Modifiers.None;
         var own = (int)TierOf(level);
         var above = partnerLevel is { } other ? Math.Max(0, (int)TierOf(other) - own) : 0;
         return new TickFactors(
@@ -114,8 +115,8 @@ public static class Progression
             WatchFactor(watchers, b, title.WatcherCap),
             Math.Min(title.StreakCap ?? b.StreakFactorCap, 1 + b.XpPerStreakDay * Math.Max(0, streakDays - 1)),
             fatigue,
-            BondFactor(bondLevel, b),
-            MarkedFactor(layersWorn, b, title.MarkedCap),
+            BondFactor(bondLevel, b) + (bondLevel > 0 ? title.BondedExtra : 0),
+            MarkedFactor(layersWorn, b, title.MarkedCap, title.MarkedPerLayer),
             PrestigeRules.Factor(stars, b),
             Title: title.TickXp * (fullMoon ? title.FullMoonTickXp : 1));
     }
@@ -123,22 +124,26 @@ public static class Progression
     public static double BondFactor(int bondLevel, Balance b)
         => bondLevel <= 0 ? 1 : bondLevel >= BondLevels.DevotedLevel ? b.DevotedBondFactor : b.BondedFactor;
 
-    public static double MarkedFactor(int layersWorn, Balance b, double? cap = null)
-        => Math.Min(cap ?? b.MarkedFactorCap, 1 + b.XpPerLayerWorn * Math.Max(0, layersWorn));
+    public static double MarkedFactor(int layersWorn, Balance b, double? cap = null, double? perLayer = null)
+        => Math.Min(cap ?? b.MarkedFactorCap, 1 + (perLayer ?? b.XpPerLayerWorn) * Math.Max(0, layersWorn));
 
     public static double WatchFactor(double watchers, Balance b, double? cap = null)
         => Math.Min(cap ?? b.WatcherFactorCap, 1 + b.XpPerWatcher * Math.Max(0, watchers));
 
     /// Counts today toward the streak. Each missed day halves it rather than ending it, unless
     /// <paramref name="protectDay"/> says a Streak Charm covers that day.
-    public static void UpdateStreak(CharacterSave save, DateTime now, Func<bool>? protectDay = null)
+    /// <paramref name="endsOnMiss"/>: an unprotected missed day ends the streak rather than halving it.
+    public static void UpdateStreak(CharacterSave save, DateTime now, Func<bool>? protectDay = null, bool endsOnMiss = false)
     {
         var today = now.Date;
         if (save.LastSceneDayUtc == today) return;
 
         var missed = save.LastSceneDayUtc == default ? 0 : (int)(today - save.LastSceneDayUtc).TotalDays - 1;
         for (var i = 0; i < missed && save.StreakDays > 0; i++)
-            if (protectDay?.Invoke() != true) save.StreakDays /= 2;
+        {
+            if (protectDay?.Invoke() == true) continue;
+            save.StreakDays = endsOnMiss ? 0 : save.StreakDays / 2;
+        }
         save.StreakDays++;
         save.LastSceneDayUtc = today;
     }
@@ -146,11 +151,12 @@ public static class Progression
 
 /// Each factor of a tick's XP. 1 means no effect.
 public readonly record struct TickFactors(double Level, double Partner, double Watchers, double Streak, double Fatigue,
-    double Bonded = 1, double Marked = 1, double Prestige = 1, double Items = 1, double Pregnancy = 1, double Title = 1)
+    double Bonded = 1, double Marked = 1, double Prestige = 1, double Items = 1, double Pregnancy = 1, double Title = 1,
+    double Persona = 1)
 {
     public static readonly TickFactors None = new(1, 1, 1, 1, 1);
 
-    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy * Title;
+    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy * Title * Persona;
 }
 
 /// Who counts as watching: near the scene, and either targeting it or close by and facing it. Only a count is used, and
@@ -178,8 +184,8 @@ public static class Arousal
         return refractory ? gain * b.RefractoryGainFactor : gain;
     }
 
-    /// Takes off the decay owed since the anchor, keeping any part-finished step.
-    public static void ApplyDecay(CharacterSave save, DateTime now, Balance b)
+    /// Takes off the decay owed since the anchor, keeping any part-finished step. <paramref name="factor"/> scales each step.
+    public static void ApplyDecay(CharacterSave save, DateTime now, Balance b, double factor = 1)
     {
         if (save.ArousalAnchorUtc == default)
         {
@@ -188,7 +194,7 @@ public static class Arousal
         }
         var steps = Math.Floor((now - save.ArousalAnchorUtc).TotalSeconds / b.ArousalDecaySeconds);
         if (steps <= 0) return;
-        save.Arousal = Math.Max(0, save.Arousal - steps * b.ArousalDecayStep);
+        save.Arousal = Math.Max(0, save.Arousal - steps * b.ArousalDecayStep * factor);
         save.ArousalAnchorUtc = save.ArousalAnchorUtc.AddSeconds(steps * b.ArousalDecaySeconds);
     }
 

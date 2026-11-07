@@ -6,7 +6,8 @@ using System.Text.RegularExpressions;
 namespace Corruption.Core;
 
 /// <param name="TitleId">The equipped title's id, or null. It may be one this version doesn't know, which shows nothing.</param>
-public readonly record struct PlateValues(int Level, double Arousal, int Prestige = 0, string? TitleId = null)
+/// <param name="Personality">The personality's id, or null when unknown or not sent.</param>
+public readonly record struct PlateValues(int Level, double Arousal, int Prestige = 0, string? TitleId = null, string? Personality = null)
 {
     public Tier Tier => Progression.TierOf(Level);
 
@@ -44,7 +45,7 @@ public static partial class PlateComposer
 
     private static readonly Vector3 Red = new(0.95f, 0.1f, 0.15f);
 
-    private static readonly string[] KnownTokens = ["tier", "level", "arousal", "arousalBar", "prestige", "title"];
+    private static readonly string[] KnownTokens = ["tier", "level", "arousal", "arousalBar", "prestige", "title", "personality"];
 
     [GeneratedRegex(@"\{([A-Za-z]+)\}")]
     private static partial Regex TokenPattern();
@@ -58,6 +59,8 @@ public static partial class PlateComposer
             "arousalBar" => ArousalBar(values.Arousal),
             "prestige" => PrestigeRules.Label(values.Prestige),
             "title" => values.Title?.Name ?? "",
+            // Easygoing is the plain choice, so it shows nothing, like an unknown one.
+            "personality" => PersonaCatalog.FindPersonality(values.Personality) is { } p && p.Id != PersonaIds.Easygoing ? p.Name : "",
             _ => match.Value,
         });
 

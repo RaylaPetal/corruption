@@ -80,3 +80,27 @@ public class PlateTitleTests
         => Assert.Equal(130, PlateLayout.DrawnBottom(100, 30, 6, 20, 1, 18), 3);
 }
 
+
+public class PlatePersonalityTests
+{
+    [Theory]
+    [InlineData(PersonaIds.Shy, "Shy")]
+    [InlineData(PersonaIds.Easygoing, "")]
+    [InlineData("from_the_future", "")]
+    [InlineData(null, "")]
+    public void ThePersonalityToken(string? id, string shown)
+        => Assert.Equal($"[{shown}]", PlateComposer.Render("[{personality}]", new PlateValues(30, 0, Personality: id)));
+
+    [Fact]
+    public void TheTokenIsKnown() => Assert.Empty(PlateComposer.UnknownTokens("{personality}"));
+
+    [Fact]
+    public void OwnAndOthersPlatesCarryTheirPersonality()
+    {
+        var r = new EngineRig { Playing = false, BobPersona = new PersonaTag(PersonaIds.Lewd, []) };
+        r.Save.Setup!.Personality = PersonaIds.Shy;
+        r.Run(1);
+        Assert.Equal(PersonaIds.Shy, r.Engine.OwnPlate.Personality);
+        Assert.Equal(PersonaIds.Lewd, r.Engine.PlateOf(r.Bob)!.Value.Personality);
+    }
+}

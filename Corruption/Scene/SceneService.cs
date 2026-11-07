@@ -155,6 +155,7 @@ public sealed class SceneService : IDisposable, IEngineHost
         heels.PublishExtra(null);
         heels.PublishBody(null);
         heels.PublishTitle(null);
+        heels.PublishPersona(null);
         if (id == 0) return;
         cummy.ReadLayerCount();
 
@@ -181,11 +182,11 @@ public sealed class SceneService : IDisposable, IEngineHost
             if (distance > TagReadRangeYalms || heels.Read(pc.ObjectIndex) is not { } tag) continue;
             var player = new PeerRecord { Name = pc.Name.TextValue, World = pc.HomeWorld.Value.Name.ExtractText() };
             nearby.Add((pc.EntityId, new VisiblePlayer(player, distance, PoseReader.Read(pc), tag, heels.ReadExtra(pc.ObjectIndex),
-                heels.ReadBody(pc.ObjectIndex), heels.ReadTitle(pc.ObjectIndex))));
+                heels.ReadBody(pc.ObjectIndex), heels.ReadTitle(pc.ObjectIndex), heels.ReadPersona(pc.ObjectIndex))));
         }
 #if DEBUG
         if (DebugPartnerActive)
-            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra, DebugBody, DebugTitle)));
+            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra, DebugBody, DebugTitle, DebugPersona)));
 #endif
         return nearby;
     }
@@ -245,6 +246,8 @@ public sealed class SceneService : IDisposable, IEngineHost
     public bool PublishBodyTag(string? value) => heels.PublishBody(value);
 
     public bool PublishTitleTag(string? value) => heels.PublishTitle(value);
+
+    public bool PublishPersonaTag(string? value) => heels.PublishPersona(value);
 
     /// A scene long enough to be worth it gets a summary popup. The Last scene card shows every scene.
     public void SceneEnded(SceneSummary summary)
@@ -315,6 +318,7 @@ public sealed class SceneService : IDisposable, IEngineHost
     public ExtraTag? DebugExtra { get; set; }
     public BodyTag? DebugBody { get; set; } = BodyTag.Empty;
     public string? DebugTitle { get; set; }
+    public PersonaTag? DebugPersona { get; set; }
 
     private readonly List<string> debugLog = [];
 

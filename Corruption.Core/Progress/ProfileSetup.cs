@@ -15,6 +15,13 @@ public sealed class ProfileSetup
     public bool AutoClimax { get; set; } = true;
     public double ArousalGain { get; set; } = 1;
 
+    /// The personality's id. Null for a character set up before personalities existed, who plays as Easygoing until
+    /// they choose once.
+    public string? Personality { get; set; }
+
+    /// Up to two trait ids.
+    public List<string> Traits { get; set; } = [];
+
     public double XpMultiplier => Difficulty switch
     {
         Difficulty.Relaxed => 1.5,

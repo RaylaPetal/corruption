@@ -100,7 +100,7 @@ public static class ItemBook
     public static int Owned(CharacterSave save, string id) => save.Inventory.GetValueOrDefault(id);
 
     /// What an item costs this character: the equipped title can take a share off, rounded up.
-    public static int PriceFor(CharacterSave save, ItemDef item) => (int)Math.Ceiling(item.Price * TitleBook.Bonus(save).ItemPrice - 1e-9);
+    public static int PriceFor(CharacterSave save, ItemDef item) => (int)Math.Ceiling(item.Price * ModifierBook.For(save).PriceFactorFor(item.Id) - 1e-9);
 
     /// Null when bought, otherwise why not.
     public static string? Buy(CharacterSave save, string id)
@@ -133,7 +133,7 @@ public static class ItemBook
                 counted.UsesLeft += item.Uses;
                 break;
             default:
-                var duration = item.Duration ?? TimeSpan.Zero;
+                var duration = (item.Duration ?? TimeSpan.Zero) * ModifierBook.For(save).ItemDuration;
                 if (item.Opposite is { } opposite) save.Effects.Remove(opposite);
                 var until = save.Effects.TryGetValue(id, out var e) && e.UntilUtc is { } current && current > now ? current + duration : now + duration;
                 var cap = now + duration * ItemCatalog.MaxStack;

@@ -5,60 +5,11 @@ namespace Corruption.Core;
 /// Where a title comes from. Also how the picker groups it and what colour it shows in.
 public enum TitleSource { Level, Prestige, Achievement, Hidden, Moon, Shop }
 
-/// What the equipped title changes. Every field is neutral by default, so a call site can always apply it: a factor of 1,
-/// an extra of 0, or null to keep the base value.
-public sealed record TitleBonus
-{
-    public static readonly TitleBonus None = new();
-
-    public double TickXp { get; init; } = 1;
-
-    /// Tick XP, only during a Full Moon.
-    public double FullMoonTickXp { get; init; } = 1;
-
-    public double Arousal { get; init; } = 1;
-
-    /// Arousal gain from <see cref="TitleRules.HighArousal"/> up.
-    public double HighArousal { get; init; } = 1;
-
-    public double Refractory { get; init; } = 1;
-    public double? WatcherCap { get; init; }
-    public double? StreakCap { get; init; }
-    public double? MarkedCap { get; init; }
-
-    /// How much each watcher counts.
-    public double WatcherCount { get; init; } = 1;
-
-    /// Minutes added to the fatigue grace period.
-    public double FatigueGraceMinutes { get; init; }
-
-    public double FirstPartnerXp { get; init; } = 1;
-    public double FirstActXp { get; init; } = 1;
-    public double? PartnerClimaxShare { get; init; }
-    public double BondTime { get; init; } = 1;
-
-    /// XP and Sins for climaxing together.
-    public double TogetherPay { get; init; } = 1;
-    public double? TogetherSeconds { get; init; }
-
-    public double ConceptionOwn { get; init; } = 1;
-
-    /// Partners' conception chance with the wearer. Partners read it from the title tag.
-    public double ConceptionPartner { get; init; } = 1;
-
-    public double BirthSins { get; init; } = 1;
-    public double CravingSins { get; init; } = 1;
-    public double SceneSins { get; init; } = 1;
-    public double ItemPrice { get; init; } = 1;
-    public int CheckInBonus { get; init; }
-    public double? ManualClimaxMinimum { get; init; }
-}
-
 /// <param name="Id">Stored in saves and sent in the title tag: never rename one.</param>
 /// <param name="HowTo">How to get it, for the picker.</param>
 /// <param name="Effect">What it does, for the picker and popups. Empty for a cosmetic title.</param>
 /// <param name="Achievement">The achievement that unlocks it, for achievement, hidden and moon titles.</param>
-public sealed record TitleDef(string Id, string Name, TitleSource Source, string HowTo, string Effect, TitleBonus Bonus,
+public sealed record TitleDef(string Id, string Name, TitleSource Source, string HowTo, string Effect, Modifiers Bonus,
     int Level = 0, int Stars = 0, string? Achievement = null, int Price = 0)
 {
     public bool IsCosmetic => Effect.Length == 0;
@@ -79,12 +30,12 @@ public sealed class TitleSave
 public static partial class TitleCatalog
 {
     private static TitleDef Level(string id, string name, int level, double xp)
-        => new(id, name, TitleSource.Level, $"Reach level {level}", $"Scene XP ×{xp:0.##}", new TitleBonus { TickXp = xp }, Level: level);
+        => new(id, name, TitleSource.Level, $"Reach level {level}", $"Scene XP ×{xp:0.##}", new Modifiers { TickXp = xp }, Level: level);
 
-    private static TitleDef Earned(string achievement, string name, string effect, TitleBonus bonus, TitleSource source = TitleSource.Achievement)
+    private static TitleDef Earned(string achievement, string name, string effect, Modifiers bonus, TitleSource source = TitleSource.Achievement)
         => new(achievement, name, source, "", effect, bonus, Achievement: achievement);
 
-    private static TitleDef Shop(string id, string name, int price, string effect, TitleBonus bonus)
+    private static TitleDef Shop(string id, string name, int price, string effect, Modifiers bonus)
         => new(id, name, TitleSource.Shop, $"Buy it in the shop for {price} Sins", effect, bonus, Price: price);
 
     public static readonly IReadOnlyList<TitleDef> All =
@@ -95,49 +46,49 @@ public static partial class TitleCatalog
         Level("lv_75", "Debauchee", 75, 1.04),
         Level("lv_100", "Unrepentant", 100, 1.05),
 
-        new("star_1", "Reborn", TitleSource.Prestige, "Prestige once", "Scene XP ×1.02", new TitleBonus { TickXp = 1.02 }, Stars: 1),
-        new("star_10", "Starfallen", TitleSource.Prestige, "Reach 10 stars", "Scene XP ×1.06", new TitleBonus { TickXp = 1.06 }, Stars: 10),
-        new("star_11", "Eternal", TitleSource.Prestige, "Reach 11 stars", "", TitleBonus.None, Stars: 11),
+        new("star_1", "Reborn", TitleSource.Prestige, "Prestige once", "Scene XP ×1.02", new Modifiers { TickXp = 1.02 }, Stars: 1),
+        new("star_10", "Starfallen", TitleSource.Prestige, "Reach 10 stars", "Scene XP ×1.06", new Modifiers { TickXp = 1.06 }, Stars: 10),
+        new("star_11", "Eternal", TitleSource.Prestige, "Reach 11 stars", "", Modifiers.None, Stars: 11),
 
-        Earned("first_taste", "First Taste", "", TitleBonus.None),
-        Earned("expecting", "Expecting", "", TitleBonus.None),
-        Earned("worked_up", "Worked Up", "Arousal builds ×1.05 as fast", new TitleBonus { Arousal = 1.05 }),
-        Earned("edged", "Edged", "Arousal builds ×0.9 as fast from 80", new TitleBonus { HighArousal = 0.9 }),
-        Earned("well_travelled", "Well Travelled", "First scene with someone new pays ×2 XP", new TitleBonus { FirstPartnerXp = 2 }),
-        Earned("well_travelled_2", "Well Travelled II", "First scene with someone new pays ×2.5 XP", new TitleBonus { FirstPartnerXp = 2.5 }),
-        Earned("well_travelled_3", "Well Travelled III", "First scene with someone new pays ×3 XP", new TitleBonus { FirstPartnerXp = 3 }),
-        Earned("collector", "Collector", "A new animation pays ×2 XP", new TitleBonus { FirstActXp = 2 }),
-        Earned("shameless", "Shameless", "Watchers' bonus goes up to ×1.6", new TitleBonus { WatcherCap = 1.6 }),
-        Earned("shameless_2", "Shameless II", "Watchers' bonus goes up to ×1.7", new TitleBonus { WatcherCap = 1.7 }),
-        Earned("shameless_3", "Shameless III", "Watchers' bonus goes up to ×1.8", new TitleBonus { WatcherCap = 1.8 }),
-        Earned("habit", "Habit", "Streak bonus goes up to ×1.35", new TitleBonus { StreakCap = 1.35 }),
-        Earned("fallen", "Fallen", "Scene XP ×1.03", new TitleBonus { TickXp = 1.03 }),
-        Earned("fallen_star", "Fallen Star", "Scene XP ×1.05", new TitleBonus { TickXp = 1.05 }),
-        Earned("insatiable", "Insatiable", "Refractory period ×0.75", new TitleBonus { Refractory = 0.75 }),
-        Earned("insatiable_2", "Insatiable II", "Refractory period ×0.65", new TitleBonus { Refractory = 0.65 }),
-        Earned("insatiable_3", "Insatiable III", "Refractory period ×0.55", new TitleBonus { Refractory = 0.55 }),
-        Earned("painted", "Painted", "Marked bonus goes up to ×1.35", new TitleBonus { MarkedCap = 1.35 }),
-        Earned("cum_dump", "Cum Dump", "Marked bonus goes up to ×1.4", new TitleBonus { MarkedCap = 1.4 }),
-        Earned("generous", "Generous", "A partner's climax pays you 75% of theirs", new TitleBonus { PartnerClimaxShare = 0.75 }),
-        Earned("devoted", "Devoted", "Time with your bond counts ×1.2", new TitleBonus { BondTime = 1.2 }),
-        Earned("soulmates", "Soulmates", "Climaxing together pays ×2 XP and Sins", new TitleBonus { TogetherPay = 2 }),
-        Earned("brood_mother", "Brood Mother", "Your conception chance ×1.25", new TitleBonus { ConceptionOwn = 1.25 }),
-        Earned("sire", "Sire", "Partners' conception chance with you ×1.15", new TitleBonus { ConceptionPartner = 1.15 }),
-        Earned("labour_of_love", "Labour of Love", "Births pay ×1.5 Sins", new TitleBonus { BirthSins = 1.5 }),
-        Earned("big_spender", "Big Spender", "Shop items cost 5% less", new TitleBonus { ItemPrice = 0.95 }),
-        Earned("devout", "Devout", "Daily check-in +10 Sins", new TitleBonus { CheckInBonus = 10 }),
+        Earned("first_taste", "First Taste", "", Modifiers.None),
+        Earned("expecting", "Expecting", "", Modifiers.None),
+        Earned("worked_up", "Worked Up", "Arousal builds ×1.05 as fast", new Modifiers { Arousal = 1.05 }),
+        Earned("edged", "Edged", "Arousal builds ×0.9 as fast from 80", new Modifiers { HighArousal = 0.9 }),
+        Earned("well_travelled", "Well Travelled", "First scene with someone new pays ×2 XP", new Modifiers { FirstPartnerXp = 2 }),
+        Earned("well_travelled_2", "Well Travelled II", "First scene with someone new pays ×2.5 XP", new Modifiers { FirstPartnerXp = 2.5 }),
+        Earned("well_travelled_3", "Well Travelled III", "First scene with someone new pays ×3 XP", new Modifiers { FirstPartnerXp = 3 }),
+        Earned("collector", "Collector", "A new animation pays ×2 XP", new Modifiers { FirstActXp = 2 }),
+        Earned("shameless", "Shameless", "Watchers' bonus goes up to ×1.6", new Modifiers { WatcherCap = 1.6 }),
+        Earned("shameless_2", "Shameless II", "Watchers' bonus goes up to ×1.7", new Modifiers { WatcherCap = 1.7 }),
+        Earned("shameless_3", "Shameless III", "Watchers' bonus goes up to ×1.8", new Modifiers { WatcherCap = 1.8 }),
+        Earned("habit", "Habit", "Streak bonus goes up to ×1.35", new Modifiers { StreakCap = 1.35 }),
+        Earned("fallen", "Fallen", "Scene XP ×1.03", new Modifiers { TickXp = 1.03 }),
+        Earned("fallen_star", "Fallen Star", "Scene XP ×1.05", new Modifiers { TickXp = 1.05 }),
+        Earned("insatiable", "Insatiable", "Refractory period ×0.75", new Modifiers { Refractory = 0.75 }),
+        Earned("insatiable_2", "Insatiable II", "Refractory period ×0.65", new Modifiers { Refractory = 0.65 }),
+        Earned("insatiable_3", "Insatiable III", "Refractory period ×0.55", new Modifiers { Refractory = 0.55 }),
+        Earned("painted", "Painted", "Marked bonus goes up to ×1.35", new Modifiers { MarkedCap = 1.35 }),
+        Earned("cum_dump", "Cum Dump", "Marked bonus goes up to ×1.4", new Modifiers { MarkedCap = 1.4 }),
+        Earned("generous", "Generous", "A partner's climax pays you 75% of theirs", new Modifiers { PartnerClimaxShare = 0.75 }),
+        Earned("devoted", "Devoted", "Time with your bond counts ×1.2", new Modifiers { BondTime = 1.2 }),
+        Earned("soulmates", "Soulmates", "Climaxing together pays ×2 XP and Sins", new Modifiers { TogetherPay = 2 }),
+        Earned("brood_mother", "Brood Mother", "Your conception chance ×1.25", new Modifiers { ConceptionOwn = 1.25 }),
+        Earned("sire", "Sire", "Partners' conception chance with you ×1.15", new Modifiers { ConceptionPartner = 1.15 }),
+        Earned("labour_of_love", "Labour of Love", "Births pay ×1.5 Sins", new Modifiers { BirthSins = 1.5 }),
+        Earned("big_spender", "Big Spender", "Shop items cost 5% less", new Modifiers { ItemPrice = 0.95 }),
+        Earned("devout", "Devout", "Daily check-in +10 Sins", new Modifiers { CheckInBonus = 10 }),
 
-        Earned("marathon", "Marathon", "Fatigue starts 5 minutes later", new TitleBonus { FatigueGraceMinutes = 5 }, TitleSource.Hidden),
-        Earned("crowd_pleaser", "Crowd Pleaser", "Each watcher counts ×1.25", new TitleBonus { WatcherCount = 1.25 }, TitleSource.Hidden),
-        Earned("in_sync", "In Sync", "Climaxing together counts within 60 seconds", new TitleBonus { TogetherSeconds = 60 }, TitleSource.Hidden),
-        Earned("glutton", "Glutton", "Cravings pay ×2 Sins", new TitleBonus { CravingSins = 2 }, TitleSource.Hidden),
+        Earned("marathon", "Marathon", "Fatigue starts 5 minutes later", new Modifiers { FatigueGraceMinutes = 5 }, TitleSource.Hidden),
+        Earned("crowd_pleaser", "Crowd Pleaser", "Each watcher counts ×1.25", new Modifiers { WatcherCount = 1.25 }, TitleSource.Hidden),
+        Earned("in_sync", "In Sync", "Climaxing together counts within 60 seconds", new Modifiers { TogetherSeconds = 60 }, TitleSource.Hidden),
+        Earned("glutton", "Glutton", "Cravings pay ×2 Sins", new Modifiers { CravingSins = 2 }, TitleSource.Hidden),
 
-        Earned("moon_touched", "Moon-Touched", "Scene XP ×1.08 during a Full Moon", new TitleBonus { FullMoonTickXp = 1.08 }, TitleSource.Moon),
+        Earned("moon_touched", "Moon-Touched", "Scene XP ×1.08 during a Full Moon", new Modifiers { FullMoonTickXp = 1.08 }, TitleSource.Moon),
 
-        Shop("shop_tease", "Tease", 400, "/corr climax works from 60 arousal", new TitleBonus { ManualClimaxMinimum = 60 }),
-        Shop("shop_harlot", "Harlot", 500, "Scene time pays ×1.25 Sins", new TitleBonus { SceneSins = 1.25 }),
-        Shop("shop_tireless", "Tireless", 600, "Fatigue starts 3 minutes later", new TitleBonus { FatigueGraceMinutes = 3 }),
-        Shop("shop_unholy", "Unholy", 2000, "", TitleBonus.None),
+        Shop("shop_tease", "Tease", 400, "/corr climax works from 60 arousal", new Modifiers { ManualClimaxMinimum = 60 }),
+        Shop("shop_harlot", "Harlot", 500, "Scene time pays ×1.25 Sins", new Modifiers { SceneSins = 1.25 }),
+        Shop("shop_tireless", "Tireless", 600, "Fatigue starts 3 minutes later", new Modifiers { FatigueGraceMinutes = 3 }),
+        Shop("shop_unholy", "Unholy", 2000, "", Modifiers.None),
     ];
 
     public const string Unholy = "shop_unholy";
@@ -169,7 +120,7 @@ public static class TitleBook
     public static TitleDef? Equipped(CharacterSave save)
         => save.Titles.Equipped is { } id && IsUnlocked(save, id) ? TitleCatalog.Find(id) : null;
 
-    public static TitleBonus Bonus(CharacterSave save) => Equipped(save)?.Bonus ?? TitleBonus.None;
+    public static Modifiers Bonus(CharacterSave save) => Equipped(save)?.Bonus ?? Modifiers.None;
 
     /// Whether the character has earned a title that isn't bought. Prestige means level 100 was reached once.
     private static bool Earned(CharacterSave save, TitleDef title) => title.Source switch

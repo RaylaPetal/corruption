@@ -140,7 +140,7 @@ public class TitleTests
     {
         var save = Ready();
         save.Titles.Equipped = "fallen_star";
-        Assert.Same(TitleBonus.None, TitleBook.Bonus(save));
+        Assert.Same(Modifiers.None, TitleBook.Bonus(save));
     }
 
     // ── Equipping through the engine ────────────────────────────────────────

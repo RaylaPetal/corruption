@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Corruption.Bridges;
 using Corruption.Core;
@@ -12,11 +13,12 @@ using Dalamud.Interface.Windowing;
 
 namespace Corruption.Windows;
 
-/// The one-time setup, a step at a time: the locked profile, body and pregnancy, Cummy and safety, and how it shows.
+/// The one-time setup, a step at a time: the locked profile and persona, body and pregnancy, Cummy and safety, and how
+/// it shows.
 /// Opens by itself for a character that hasn't finished it, and applies everything at once on Finish.
 public sealed class WelcomeWindow : Window
 {
-    private enum Step { Welcome, Profile, Body, Safety, Display, Done }
+    private enum Step { Welcome, Profile, Persona, Body, Safety, Display, Done }
 
     private static readonly string[] DifficultyNames = Enum.GetNames<Difficulty>();
     private static readonly string[] DecayNames = Enum.GetNames<DecayMode>();
@@ -53,6 +55,8 @@ public sealed class WelcomeWindow : Window
     private bool plateOwn = true;
     private bool platePartners = true;
     private bool moodles;
+    private string? personality;
+    private readonly List<string> traits = [];
 
     private static float Scale => ImGuiHelpers.GlobalScale;
 
@@ -103,9 +107,12 @@ public sealed class WelcomeWindow : Window
     private void Load(SceneEngine engine)
     {
         var save = engine.Save;
-        steps = save.Setup is null
-            ? [Step.Welcome, Step.Profile, Step.Body, Step.Safety, Step.Display, Step.Done]
-            : [Step.Welcome, Step.Body, Step.Safety, Step.Display, Step.Done];
+        steps = [Step.Welcome];
+        if (save.Setup is null) steps.Add(Step.Profile);
+        if (Welcome.NeedsPersona(save)) steps.Add(Step.Persona);
+        steps.AddRange([Step.Body, Step.Safety, Step.Display, Step.Done]);
+        personality = null;
+        traits.Clear();
         index = 0;
         problem = null;
         anatomy = (int)save.Anatomy;
@@ -124,6 +131,7 @@ public sealed class WelcomeWindow : Window
 
     public override void Draw()
     {
+        using var content = Theme.Content();
         if (scene.Engine is not { } engine)
         {
             Theme.MutedText("Log in to a character to set up Corruption.");
@@ -137,6 +145,7 @@ public sealed class WelcomeWindow : Window
         {
             case Step.Welcome: DrawWelcome(engine); break;
             case Step.Profile: DrawProfile(); break;
+            case Step.Persona: DrawPersona(); break;
             case Step.Body: DrawBody(engine); break;
             case Step.Safety: DrawSafety(); break;
             case Step.Display: DrawDisplay(); break;
@@ -191,6 +200,11 @@ public sealed class WelcomeWindow : Window
             problem = "Choose at least one pregnancy role, or leave pregnancy off.";
             return;
         }
+        if (by > 0 && steps[index] == Step.Persona && personality is null)
+        {
+            problem = "Pick a personality.";
+            return;
+        }
         index = Math.Clamp(index + by, 0, steps.Count - 1);
     }
 
@@ -205,7 +219,8 @@ public sealed class WelcomeWindow : Window
                 ArousalGain = Math.Round(gain, 2),
             }
             : null;
-        var choices = new WelcomeChoices(setup, (Anatomy)anatomy, new PregnancyChoice(pregnancy, carry, breed, cycleDay, chance));
+        var persona = steps.Contains(Step.Persona) ? new PersonaChoice(personality, traits.ToList()) : null;
+        var choices = new WelcomeChoices(setup, (Anatomy)anatomy, new PregnancyChoice(pregnancy, carry, breed, cycleDay, chance), persona);
         if (engine.CompleteWelcome(choices, DateTime.UtcNow) is { } refusal)
         {
             problem = refusal;
@@ -234,7 +249,9 @@ public sealed class WelcomeWindow : Window
             ImGui.SetWindowFontScale(1f);
             Theme.MutedWrapped(engine.Save.Setup is null
                 ? "Two players with Corruption earn XP and arousal while each plays an animation from mods they picked, standing close together. Levels take you through corruption tiers, climaxes layer your partner through Cummy, and everything runs on your own PC."
-                : "Your profile is set up. Since then Corruption has gained anatomy, pregnancy and a few display choices. This takes a minute.");
+                : Welcome.NeedsPersona(engine.Save)
+                    ? "Your profile is set up. Since then Corruption has gained personalities and traits: pick yours once, and it's locked with the rest of your profile. This takes a minute."
+                    : "Your profile is set up. Since then Corruption has gained anatomy, pregnancy and a few display choices. This takes a minute.");
         }, stripe: Theme.Pink);
 
         Theme.CardBox("consent", () =>
@@ -281,6 +298,62 @@ public sealed class WelcomeWindow : Window
             ImGui.SliderFloat("##gain", ref gain, (float)ProfileSetup.MinArousalGain, (float)ProfileSetup.MaxArousalGain, "%.2fx");
             Theme.MutedText($"About {100 / (balance.ArousalPerTick * gain) * balance.TickSeconds / 60:0.#} minutes to climax in a quiet scene.");
         });
+    }
+
+    /// One personality and up to two traits, each with what it gives and what it costs.
+    private void DrawPersona()
+    {
+        Theme.CardBox("personaLock", () =>
+        {
+            Theme.Icon(FontAwesomeIcon.Lock, Theme.Warning);
+            ImGui.SameLine();
+            ImGui.TextColored(Theme.Warning, "Your personality and traits are locked once you finish, until you reset your profile.");
+            Theme.MutedWrapped("Each one gives something and costs something. Easygoing does neither, if you'd rather play plain.");
+        });
+        Theme.CardBox("personalities", () =>
+        {
+            Theme.Heading(FontAwesomeIcon.TheaterMasks, "Personality: pick one");
+            foreach (var p in PersonaCatalog.Personalities)
+            {
+                if (ImGui.RadioButton($"{p.Name}##p{p.Id}", personality == p.Id)) personality = p.Id;
+                DrawEffects(p);
+            }
+        });
+        Theme.CardBox("traits", () =>
+        {
+            Theme.Heading(FontAwesomeIcon.Star, $"Traits: up to {PersonaCatalog.MaxTraits} ({traits.Count} picked)");
+            foreach (var t in PersonaCatalog.Traits)
+            {
+                var on = traits.Contains(t.Id);
+                var full = !on && traits.Count >= PersonaCatalog.MaxTraits;
+                if (full) ImGui.BeginDisabled();
+                if (ImGui.Checkbox($"{t.Name}##t{t.Id}", ref on))
+                {
+                    if (on) traits.Add(t.Id);
+                    else traits.Remove(t.Id);
+                }
+                if (full) ImGui.EndDisabled();
+                if (t.Role != ItemRole.Anyone)
+                {
+                    ImGui.SameLine();
+                    Theme.MutedText(t.Role == ItemRole.Carry ? "(needs pregnancy as a carrier)" : "(needs pregnancy as a breeder)");
+                }
+                DrawEffects(t);
+            }
+        });
+    }
+
+    /// The upside in green and the downside in amber, under a choice.
+    private static void DrawEffects(PersonaDef persona)
+    {
+        ImGui.Indent();
+        if (persona.Upside.Length == 0) Theme.MutedText("No bonus and no drawback");
+        else
+        {
+            ImGui.TextColored(Theme.Good, $"+ {persona.Upside}");
+            ImGui.TextColored(Theme.Warning, $"- {persona.Downside}");
+        }
+        ImGui.Unindent();
     }
 
     private void DrawBody(SceneEngine engine)
@@ -378,6 +451,11 @@ public sealed class WelcomeWindow : Window
                 Line("Decay", ((DecayMode)decay).ToString());
                 Line("Climax", ClimaxNames[climax]);
                 Line("Arousal gain", $"{gain:0.##}x");
+            }
+            if (steps.Contains(Step.Persona))
+            {
+                Line("Personality", PersonaCatalog.FindPersonality(personality)?.Name ?? "Not picked");
+                Line("Traits", traits.Count == 0 ? "None" : string.Join(", ", traits.Select(id => PersonaCatalog.FindTrait(id)?.Name ?? id)));
             }
             Line("Anatomy", AnatomyNames[anatomy]);
             Line("Pregnancy", !pregnancy ? "Off" : carry && breed ? "Can carry and breed" : carry ? "Can carry" : "Can breed");

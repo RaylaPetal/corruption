@@ -48,6 +48,7 @@ public sealed class HudWindow : Window
 
     public override void Draw()
     {
+        using var content = Theme.Content();
         if (scene.Engine is not { } engine) return;
         var size = Scales[Math.Clamp(settings.HudSize, 0, Scales.Length - 1)];
         ImGui.SetWindowFontScale(size);
@@ -98,6 +99,8 @@ public sealed class HudWindow : Window
 
         if (status.Partner is { } partner) Line(FontAwesomeIcon.UserFriends, partner.Name, Theme.PinkSoft);
         if (status.Act is { } act) Line(FontAwesomeIcon.Fire, act.DisplayName, Theme.VioletSoft);
+        if (engine.IsPentUp)
+            Line(FontAwesomeIcon.Fire, $"Pent Up, {Math.Ceiling(save.PentUpSecondsLeft / 60):0}m left", Theme.Warning);
         if (status.Watchers > 0) Line(FontAwesomeIcon.Eye, status.Watchers == 1 ? "1 watching" : $"{status.Watchers} watching", Theme.Pink);
         if (status.SceneStartedUtc is { } started)
         {

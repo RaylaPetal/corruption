@@ -80,6 +80,13 @@ public class FakeHost : IEngineHost
     public List<string?> ExtraTags { get; } = [];
     public List<string?> BodyTags { get; } = [];
     public List<string?> TitleTags { get; } = [];
+    public List<string?> PersonaTags { get; } = [];
+
+    public bool PublishPersonaTag(string? value)
+    {
+        if (TagsWork) PersonaTags.Add(value);
+        return TagsWork;
+    }
     public List<SceneSummary> Scenes { get; } = [];
 
     public void SceneEnded(SceneSummary summary) => Scenes.Add(summary);
@@ -153,6 +160,7 @@ public sealed class EngineRig
     public ExtraTag? BobExtra;
     public BodyTag? BobBody = BodyTag.Empty;
     public string? BobTitle;
+    public PersonaTag? BobPersona;
     public int LayersWorn;
     public string? SelfKey = "Alice A@W";
 
@@ -173,7 +181,7 @@ public sealed class EngineRig
             // Move a little, as a player would.
             var position = new Vector3((Now - T0).Minutes % 2, 0, 0);
             Engine.Sample(Now, new SceneSample(Playing ? Act : null, Playing ? Act.Pose : null, position,
-                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle)] : [], Watchers, LayersWorn, SelfKey));
+                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle, BobPersona)] : [], Watchers, LayersWorn, SelfKey));
             Now = Now.AddSeconds(1);
         }
     }

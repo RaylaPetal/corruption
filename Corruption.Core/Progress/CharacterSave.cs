@@ -60,6 +60,9 @@ public sealed class CharacterSave
     /// The most watchers at once during a verified scene. For Crowd Pleaser.
     public int PeakWatchers { get; set; }
 
+    /// Verified seconds of scenes left before a Hypersexual character stops being Pent Up. 0 when they aren't.
+    public double PentUpSecondsLeft { get; set; }
+
     /// Different Full Moons with a verified tick, and the cycle of the last one counted. For Moon-Touched.
     public int FullMoonsSeen { get; set; }
     public long LastFullMoonCycle { get; set; } = long.MinValue;
@@ -104,6 +107,7 @@ public sealed class CharacterSave
         LongestVerifiedSceneSeconds = 0;
         PeakWatchers = 0;
         FullMoonsSeen = 0;
+        PentUpSecondsLeft = 0;
         LastFullMoonCycle = long.MinValue;
         Goals = new GoalSave();
         SeenPartners.Clear();

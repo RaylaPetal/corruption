@@ -67,6 +67,7 @@ public sealed partial class MainWindow
                 Theme.AlignRight(ImGui.CalcTextSize(distance).X);
                 ImGui.AlignTextToFramePadding();
                 Theme.MutedText(distance);
+                DrawNearbyPersona(engine, nearby.Player);
                 if (PartnerBook.Of(engine.Save, nearby.Player.Key) is { Scenes: > 0 } history)
                     Theme.MutedText(History(history));
                 DrawBondRow(engine, nearby);
@@ -74,6 +75,38 @@ public sealed partial class MainWindow
         }
 
         DrawPastPartners(engine);
+    }
+
+    /// Their personality and traits, with what each does on hover, and a mark when your personalities suit each other.
+    private static void DrawNearbyPersona(SceneEngine engine, PeerRecord player)
+    {
+        if (engine.PersonaOf(player) is not { } persona) return;
+        var drew = false;
+        void Next()
+        {
+            if (drew) ImGui.SameLine();
+            drew = true;
+        }
+        if (persona.KnownPersonality is { Id: not PersonaIds.Easygoing } personality)
+        {
+            Next();
+            Theme.Pill(personality.Name, Theme.Violet);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{personality.Upside}. {personality.Downside}.");
+        }
+        foreach (var trait in persona.KnownTraits)
+        {
+            Next();
+            Theme.Pill(trait.Name, Theme.PinkSoft);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{trait.Upside}. {trait.Downside}.");
+        }
+        if (engine.HasChemistryWith(player))
+        {
+            Next();
+            Theme.Icon(FontAwesomeIcon.HeartCircleBolt, Theme.Pink);
+            ImGui.SameLine();
+            ImGui.TextColored(Theme.Pink, "Chemistry");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Your personalities suit each other: scenes together pay ×{PersonaCatalog.ChemistryXp:0.##} XP.");
+        }
     }
 
     /// Everyone this character has had a scene with, most recent first.
