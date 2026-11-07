@@ -148,7 +148,7 @@ public class BonusFactorTests
     [Fact]
     public void AllFactorsMultiply()
     {
-        var f = Progression.Factors(1, null, 0, 1, 1, b, bonded: true, layersWorn: 5, stars: 3);
+        var f = Progression.Factors(1, null, 0, 1, 1, b, bondLevel: 1, layersWorn: 5, stars: 3);
         Assert.Equal(1.25 * 1.15 * 1.15, f.Total, 6);
     }
 }
@@ -256,7 +256,7 @@ public class BondTests
     public void RequestingNamesThem()
     {
         var (save, book) = Book();
-        Assert.Null(book.Request(Bob.Key, 40, 40));
+        Assert.Null(book.Request(Bob.Key));
         Assert.Equal(Bob.Key, save.BondWith);
         Assert.False(save.BondFormed);
         Assert.Equal(BondHashes.Of(Bob.Key), book.OwnTagHash);
@@ -267,7 +267,7 @@ public class BondTests
     public void FormsWhenTheyNameMe()
     {
         var (save, book) = Book();
-        book.Request(Bob.Key, 40, 40);
+        book.Request(Bob.Key);
         var news = book.Observe(Me, [Naming(Bob, Me)]);
         Assert.True(save.BondFormed);
         Assert.Contains("bonded", news);
@@ -309,7 +309,7 @@ public class BondTests
     public void WaitingRequestSurvivesThemNamingSomeoneElse()
     {
         var (save, book) = Book();
-        book.Request(Bob.Key, 40, 40);
+        book.Request(Bob.Key);
         Assert.Null(book.Observe(Me, [Naming(Bob, Carol.Key)]));
         Assert.Equal(Bob.Key, save.BondWith);
         Assert.False(save.BondFormed);
@@ -326,22 +326,12 @@ public class BondTests
         Assert.False(book.PaysWith(Bob.Key));
     }
 
-    [Theory]
-    [InlineData(39, 40, "Bonding opens")]
-    [InlineData(40, 39, "They need")]
-    public void TaintedRule(int mine, int theirs, string reason)
-    {
-        var (save, book) = Book();
-        Assert.Contains(reason, book.Request(Bob.Key, mine, theirs));
-        Assert.Null(save.BondWith);
-    }
-
     [Fact]
     public void AskingSomeoneElseReplacesTheRequest()
     {
         var (save, book) = Book();
-        book.Request(Bob.Key, 40, 40);
-        book.Request(Carol.Key, 40, 40);
+        book.Request(Bob.Key);
+        book.Request(Carol.Key);
         Assert.Equal(Carol.Key, save.BondWith);
     }
 
@@ -351,7 +341,7 @@ public class BondTests
         var (save, book) = Book();
         save.BondWith = Bob.Key;
         save.BondFormed = true;
-        Assert.Contains("Unbond", book.Request(Carol.Key, 40, 40));
+        Assert.Contains("Unbond", book.Request(Carol.Key));
         Assert.Equal(Bob.Key, save.BondWith);
     }
 

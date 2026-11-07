@@ -70,14 +70,12 @@ public sealed class SceneService : IDisposable, IEngineHost
         startupError = error ?? acts.LoadError;
 
         heels.BecameAvailable += OnHeelsAvailable;
-        cummy.LayerReceived += OnLayerReceived;
         Plugin.Framework.Update += OnUpdate;
     }
 
     public void Dispose()
     {
         Plugin.Framework.Update -= OnUpdate;
-        cummy.LayerReceived -= OnLayerReceived;
         heels.BecameAvailable -= OnHeelsAvailable;
         Engine?.Flush();
         bridges.EndSession();
@@ -103,8 +101,9 @@ public sealed class SceneService : IDisposable, IEngineHost
             var labelled = ReadNearby(me);
             Nearby = labelled.Select(l => l.Player).ToList();
             var self = $"{me.Name.TextValue}@{me.HomeWorld.Value.Name.ExtractText()}";
+            engine.LayerOnPartnerClimax = settings.LayerOnPartnerClimax;
             engine.Sample(now, new SceneSample(act, pose, me.Position, Nearby, CountWatchers(me, engine.Status.Partner),
-                cummy.LayerCount, self));
+                cummy.LayerCount, self, detector.Excluded));
             UpdatePlates(engine, me, labelled);
             bridges.Update(now, engine, self);
         }
@@ -149,6 +148,7 @@ public sealed class SceneService : IDisposable, IEngineHost
         Engine = null;
         heels.Publish(null);
         heels.PublishExtra(null);
+        heels.PublishBody(null);
         if (id == 0) return;
         cummy.ReadLayerCount();
 
@@ -174,11 +174,12 @@ public sealed class SceneService : IDisposable, IEngineHost
             var distance = Vector3.Distance(me.Position, pc.Position);
             if (distance > TagReadRangeYalms || heels.Read(pc.ObjectIndex) is not { } tag) continue;
             var player = new PeerRecord { Name = pc.Name.TextValue, World = pc.HomeWorld.Value.Name.ExtractText() };
-            nearby.Add((pc.EntityId, new VisiblePlayer(player, distance, PoseReader.Read(pc), tag, heels.ReadExtra(pc.ObjectIndex))));
+            nearby.Add((pc.EntityId, new VisiblePlayer(player, distance, PoseReader.Read(pc), tag, heels.ReadExtra(pc.ObjectIndex),
+                heels.ReadBody(pc.ObjectIndex))));
         }
 #if DEBUG
         if (DebugPartnerActive)
-            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra)));
+            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra, DebugBody)));
 #endif
         return nearby;
     }
@@ -229,32 +230,52 @@ public sealed class SceneService : IDisposable, IEngineHost
         Engine?.SetHidden(hidden);
     }
 
-    private void OnLayerReceived(string partId, string sourceName, string sourceWorld)
-    {
-#if DEBUG
-        DebugLog($"Cummy reported a layer: {partId} from {sourceName}@{sourceWorld}");
-#endif
-        Engine?.HandleLayerReceived(DateTime.UtcNow, sourceName, sourceWorld);
-    }
-
     // ── Engine host ────────────────────────────────────────────────────────────
 
     public bool PublishTag(string? value) => heels.Publish(value);
 
     public bool PublishExtraTag(string? value) => heels.PublishExtra(value);
 
-    public string? SendLayer(PeerRecord to, string partId)
+    public bool PublishBodyTag(string? value) => heels.PublishBody(value);
+
+    public string? LayerSelf(PeerRecord source, string partId)
     {
+        var outcome = cummy.LayerSelf(partId, source.Name, source.World);
+        Plugin.Log.Debug($"Cummy.LayerSelf({partId}, from {source.Key}): {outcome ?? "bridge off or too old"}");
 #if DEBUG
-        if (to.Matches(DebugName, DebugWorld))
-        {
-            DebugLog($"Would layer the simulated partner: {partId}");
-            return "sent";
-        }
+        DebugLog($"Layered myself on {partId} for {source.Name}: {outcome ?? "Cummy off or too old"}");
 #endif
-        var outcome = cummy.SendLayer(to.Name, to.World, partId);
-        Plugin.Log.Debug($"Cummy.SendLayer({to.Key}, {partId}): {outcome ?? "bridge off"}");
         return outcome;
+    }
+
+    public IReadOnlyList<string>? AimParts(PeerRecord giver, Anatomy anatomy)
+    {
+        if (Plugin.ObjectTable.LocalPlayer is not { } me) return null;
+        IPlayerCharacter? them = null;
+        foreach (var obj in Plugin.ObjectTable)
+        {
+            if (obj is IPlayerCharacter pc && pc.Address != me.Address && giver.Matches(pc.Name.TextValue, pc.HomeWorld.Value.Name.ExtractText()))
+            {
+                them = pc;
+                break;
+            }
+        }
+        return them is null ? null : AimFrom(me, them, anatomy);
+    }
+
+    /// Parts on <paramref name="me"/> by distance from <paramref name="them"/>'s genitals, or null without bones.
+    private IReadOnlyList<string>? AimFrom(IPlayerCharacter me, IPlayerCharacter them, Anatomy anatomy)
+    {
+        if (BoneReader.Snapshot(them) is not { } theirs || BoneReader.Snapshot(me) is not { } mine) return null;
+
+        var shot = ShotAim.GiverPoint(names => BoneReader.Average(theirs.Bones, names), ShotAim.Facing(theirs.Yaw), anatomy);
+        if (shot is not { } from) return null;
+        var points = ShotAim.PartPoints(names => BoneReader.Average(mine.Bones, names), ShotAim.Facing(mine.Yaw));
+        var order = ShotAim.Order(from, points, CummyParts.All);
+#if DEBUG
+        DebugLog("Aimed: " + string.Join(", ", order.Take(4).Select(p => points.TryGetValue(p, out var at) ? $"{p} {Vector3.Distance(at, from):0.00}y" : p)));
+#endif
+        return order;
     }
 
     public void Notify(string text) => Notifier.Info(text);
@@ -278,6 +299,7 @@ public sealed class SceneService : IDisposable, IEngineHost
     public float DebugDistance { get; set; } = 1;
     public PresenceTag DebugTag { get; set; } = new(new PoseKey(50, 0), 30, 40, 0, false);
     public ExtraTag? DebugExtra { get; set; }
+    public BodyTag? DebugBody { get; set; } = BodyTag.Empty;
 
     private readonly List<string> debugLog = [];
 
@@ -290,13 +312,26 @@ public sealed class SceneService : IDisposable, IEngineHost
         if (debugLog.Count > 12) debugLog.RemoveAt(0);
     }
 
-    /// A real layer on this character through Cummy, so the whole path can be seen working.
+    /// Where a climax from the current target would land on this character, without layering anything.
+    public void DebugAimFromTarget()
+    {
+        if (Plugin.ObjectTable.LocalPlayer is not { } me || Plugin.TargetManager.Target is not IPlayerCharacter target)
+        {
+            DebugLog("Target a player first.");
+            return;
+        }
+        var anatomy = Engine?.BodyOf(new PeerRecord { Name = target.Name.TextValue, World = target.HomeWorld.Value.Name.ExtractText() })?.Anatomy ?? Anatomy.NotSet;
+        DebugLog($"Their anatomy: {anatomy}.");
+        if (AimFrom(me, target, anatomy) is null) DebugLog("Couldn't read both skeletons.");
+    }
+
+    /// A real layer on this character through Cummy, as a partner's climax would give.
     public void DebugLayerMe()
     {
         var part = CummyParts.All[Random.Shared.Next(CummyParts.All.Count)];
-        DebugLog(cummy.DebugLayerSelf(part) is { } outcome
-            ? $"Asked Cummy to layer {part}: {outcome}. A report should follow, unless that part is blocked or full."
-            : "Couldn't reach Cummy's test call. Load a Debug build of Cummy.");
+        DebugLog(cummy.LayerSelf(part, DebugName, DebugWorld) is { } outcome
+            ? $"Cummy layered {part}: {outcome}."
+            : "Cummy is missing or older than plugin API version 3.");
     }
 #endif
 }

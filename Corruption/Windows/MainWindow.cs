@@ -21,7 +21,7 @@ namespace Corruption.Windows;
 
 public sealed partial class MainWindow : Window
 {
-    private enum Page { Profile, Goals, Nearby, Acts, Nameplate, Settings, Debug }
+    private enum Page { Profile, Goals, Shop, Nearby, Acts, Nameplate, Settings, Debug }
 
     private static readonly string[] DifficultyNames = Enum.GetNames<Difficulty>();
     private static readonly string[] DecayNames = Enum.GetNames<DecayMode>();
@@ -36,7 +36,6 @@ public sealed partial class MainWindow : Window
         (SceneFailure.PartnerTooFar, "You're within 3 yalms"),
         (SceneFailure.NoPartnerDeclaration, "They're playing a known act"),
         (SceneFailure.PartnerEmoteMismatch, "You can see them playing it"),
-        (SceneFailure.Afk, "Someone has moved recently"),
     ];
 
 
@@ -109,6 +108,7 @@ public sealed partial class MainWindow : Window
         {
             case Page.Profile: DrawProfile(engine); break;
             case Page.Goals: DrawGoals(engine); break;
+            case Page.Shop: DrawShop(engine); break;
             case Page.Nearby: DrawNearby(); break;
             case Page.Acts: DrawActs(); break;
             case Page.Nameplate: DrawNameplate(engine); break;
@@ -149,6 +149,12 @@ public sealed partial class MainWindow : Window
             ImGui.SameLine();
             Theme.Pill(PrestigeRules.Label(save.Prestige, balance.StarsWithBonus), Theme.Warning);
         }
+        if (save.Setup is not null)
+        {
+            ImGui.SameLine();
+            Theme.Pill($"♦ {save.Wallet.Sins} Sins", Theme.PinkSoft);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Spend them in the Shop. Earned from your daily check-in, scenes, levels, goals and achievements.");
+        }
 
         var stateName = Theme.StateName(status.State);
         ImGui.SameLine(MathF.Max(inner - Theme.StatusPillWidth(stateName), ImGui.GetCursorPosX() - start.X) + 0f);
@@ -160,6 +166,7 @@ public sealed partial class MainWindow : Window
         ImGui.SameLine(0, 10f * Scale);
         ImGui.AlignTextToFramePadding();
         Theme.Hearts(save.Arousal);
+        DrawHeaderCycle(save, inner);
 
         ImGui.EndGroup();
         var end = new Vector2(start.X + width, ImGui.GetItemRectMax().Y + pad.Y);
@@ -176,6 +183,7 @@ public sealed partial class MainWindow : Window
     {
         Nav(FontAwesomeIcon.Heart, "Profile", Page.Profile);
         Nav(FontAwesomeIcon.Trophy, "Goals", Page.Goals);
+        Nav(FontAwesomeIcon.Store, "Shop", Page.Shop);
         Nav(FontAwesomeIcon.UserFriends, "Nearby", Page.Nearby);
         Nav(FontAwesomeIcon.Fire, "Acts", Page.Acts);
         Nav(FontAwesomeIcon.Tag, "Nameplate", Page.Nameplate);
@@ -254,8 +262,10 @@ public sealed partial class MainWindow : Window
     {
         DrawSceneCard(engine);
         DrawStatusCard(engine);
+        DrawPregnancyCard(engine);
         DrawProfileCard(engine);
         DrawPrestigeCard(engine);
+        DrawStory(engine);
     }
 
     /// One glance: what's happening, and only what's worth saying about it.
@@ -318,6 +328,7 @@ public sealed partial class MainWindow : Window
                 }
             }
 
+            DrawExcludeCurrent(engine);
             if (status.State == SceneState.Earning) DrawBonuses(engine);
             if (status.State == SceneState.Waiting && ImGui.TreeNode("Scene checks"))
             {
@@ -556,7 +567,7 @@ public sealed partial class MainWindow : Window
             Integration("Penumbra", penumbra.IsAvailable, penumbra.IsAvailable ? "Connected" : "Unavailable (required)");
             Integration("SimpleHeels", heels.IsAvailable, heels.IsAvailable ? "Connected" : "Unavailable (required to find other players)");
             Integration("Nameplate text", plateRenderer.IsAvailable, plateRenderer.IsAvailable ? "Running" : "Couldn't start, so it's off this session");
-            Integration("Cummy", cummy.IsAvailable, cummy.IsAvailable ? "Connected. Layers still need you paired in Cummy." : cummy.Status);
+            Integration("Cummy", cummy.IsAvailable, cummy.Status);
         });
     }
 
@@ -674,6 +685,7 @@ public sealed partial class MainWindow : Window
             Theme.Pill($"{mod.NotLooping} can't count", Theme.Faint);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("These emotes don't loop, so they can't count as acts.");
         }
+        DrawExclusionToggle(mod);
     }
 
     // ── Nameplate ────────────────────────────────────────────────────────────
@@ -945,6 +957,8 @@ public sealed partial class MainWindow : Window
         DrawDetectionSpike();
         ImGuiHelpers.ScaledDummy(4f);
         DrawSimulator(engine);
+        ImGuiHelpers.ScaledDummy(4f);
+        DrawPregnancyDebug(engine);
     }
 
     /// What the in-game spike needs: raw pose state, and what Penumbra serves for the current pose.
@@ -1003,7 +1017,10 @@ public sealed partial class MainWindow : Window
         if (ImGui.Button("Climax")) tag = tag with { ClimaxCount = tag.ClimaxCount + 1, Arousal = 20 };
         ImGui.SameLine();
         if (ImGui.Button("Layer me through Cummy")) scene.DebugLayerMe();
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("A real layer on a random part. Needs a Debug build of Cummy. It pays XP only within 10 seconds of a credited climax.");
+        ImGui.SameLine();
+        if (ImGui.Button("Aim from my target")) scene.DebugAimFromTarget();
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Shows the nearest parts on you to your target's genitals, as a climax from them would land. Nothing is layered.");
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("A real layer on a random part, through Cummy plugin API 3. It pays no XP: the simulated player's Climax button does that, as a real partner would.");
         scene.DebugTag = tag;
 
         if (ImGui.Button("Arousal +10")) engine.Save.Arousal = Math.Min(99, engine.Save.Arousal + 10);

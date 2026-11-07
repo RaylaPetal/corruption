@@ -14,31 +14,33 @@ Each client checks these for itself, once a second. A tick of XP and arousal lan
 4. You can see them playing the emote they declared.
 5. You're within 3 yalms of each other.
 
-Your animations don't need to match, or even come from the same mod. Playing alone earns nothing. The HUD says which condition is failing.
+Your animations don't need to match, or even come from the same mod. Playing alone earns nothing. The HUD says which condition is failing. A quiet scene builds to a climax in about 11 minutes.
 
 ## Using it
 
 - `/corr` opens the window. The first time, choose your difficulty, decay, climax mode and arousal gain. These can't be changed afterward unless you reset your profile.
-- In **Acts**, tick your Penumbra folders, then tick the mods that count. Every looping animation in a ticked mod counts.
+- In **Acts**, tick your Penumbra folders, then tick the mods that count. Every looping animation in a ticked mod counts, except any you exclude. Click **Exclude some** on a mod to search its animations (try "cuddle") and untick them, or click **Exclude this animation** on the Profile scene card while it plays.
 - **Goals** has your daily and weekly goals and your achievements.
+- **Shop** sells items for Sins, which you earn from a daily check-in, scenes, levels, goals and achievements: faster or slower arousal, XP incense, a refractory cut, a streak charm and more, plus pregnancy items.
 - **Nearby** lists who's around with Corruption. **Hide me** there, or `/corr hide`, stops other players seeing you have it. Scenes can't earn while you're hidden.
-- `/corr hud` toggles the HUD. `/corr plate` toggles your nameplate text. `/corr climax` climaxes by hand at 70 arousal or more; at 100 it happens by itself.
+- `/corr hud` toggles the HUD. `/corr plate` toggles your nameplate text. `/corr climax` climaxes by hand at 70 arousal or more (40 with a Hair Trigger); at 100 it happens by itself.
 - **Safeword:** Ctrl+Shift+End, or `/corr pause`, stops scene XP and arousal at once, and shows others you've paused. `/corr resume` continues. Change the key in **Settings**.
 
 XP comes from your tier, your partner's tier if higher, people watching you, your streak, your bond, Cummy layers you're wearing, your prestige stars and your difficulty, not from which animation is playing.
 
 - **Prestige:** at level 100, prestige from **Profile** or with `/corr prestige confirm`. You go back to level 1 for a star and +5% XP for good, up to +50% at 10 stars. Everything else stays.
-- **Bonds:** from the Tainted tier, click **Bond** on someone in **Nearby**. When they bond back, scenes together pay 1.25x. Either of you can unbond.
+- **Bonds:** at any level, click **Bond** on someone in **Nearby**. When they bond back, scenes together pay 1.25x. The bond levels up with time together (1, 3, 6 and 12 hours), adding faster arousal, a reward for climaxing together, better conception odds, and finally 1.35x XP and a shorter refractory period. Either of you can unbond.
 - **Marked:** each Cummy layer stage you wear adds 3% XP, up to 1.3x. This needs Cummy's plugin API version 2.
-- **Profile** shows your status, how long since your last scene, and how long until decay starts, or until the next fade.
+- **Profile** shows your status, how long since your last scene, and how long until decay starts, or until the next fade. **Your story** there counts everything: time in scenes and your longest, climaxes, loads taken and given, time watched, conceptions and babies (each birth with its date and father), Sins and progress.
+- **Pregnancy** is off until you turn it on in **Settings**, as someone who can carry, breed or both. Carriers get a 7-day cycle with fertile days, and can conceive only from a breeder partner's cum shot at the groin, so it needs Cummy. You can set your own conception chance. A pregnancy lasts 14 days, with daily cravings and a baby on **Profile** that grows as it goes, then a birth.
 
 Under **Settings → Bridges**, all off until you turn them on:
 
-- **Tier visuals:** pick a Glamourer design or a Penumbra mod option for each tier. It goes on when you reach that tier, and synced players see it.
+- **Tier visuals:** pick a Glamourer design or a Penumbra mod option for each tier, and for each trimester if you can carry. It goes on when you reach that tier, and synced players see it.
 - **Toys:** through [Intiface Central](https://intiface.com/central/). Toys follow your arousal during a scene, and a climax gives a 3 second burst. The safeword stops them at once.
-- **Moodles:** Aroused, Marked, Watched, Bonded, Refractory and Fading statuses on your character. Moodles needs "Allow other plugins to apply Moodles" turned on.
+- **Moodles:** Aroused, Marked, Watched, Bonded, Refractory and Fading statuses on your character, plus Fertile, Pregnant, Craving, Unsatisfied and Recovering with pregnancy on. Moodles needs "Allow other plugins to apply Moodles" turned on.
 
-Requirements: Penumbra, SimpleHeels, and a sync service such as Lightless. **You can only find someone you're synced with**, because the tag travels through your sync service. Optional: Glamourer, Moodles and Intiface Central for the bridges, and Cummy, for layering your partner on a random part when you climax. That needs a pairing in Cummy, and Cummy's own block and range rules still apply.
+Requirements: Penumbra, SimpleHeels, and a sync service such as Lightless. **You can only find someone you're synced with**, because the tag travels through your sync service. Optional: Glamourer, Moodles and Intiface Central for the bridges, and Cummy (plugin API 3 or later), which layers you where your scene partner climaxes: the part of you nearest their genitals, read from both skeletons, then the next nearest if it's full. Set **Your anatomy** in **Settings** (Penis, Vagina or Both), so partners aim your climaxes from the right place. No pairing is needed, your own Cummy part blocks still apply, and you can turn it off in **Settings**.
 
 **Nameplate text:** your tier and level show above your nameplate. Add `{prestige}` to show your stars. During an act, or while you have any arousal, it cycles with your arousal, and after a climax with a climax line. Edit the texts, size, height and pace under **Nameplate**. Only you and players with Corruption who are synced with you can see it. Anyone else sees nothing.
 

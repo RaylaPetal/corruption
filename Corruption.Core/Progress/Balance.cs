@@ -6,7 +6,7 @@ namespace Corruption.Core;
 public sealed class Balance
 {
     public double TickXp { get; set; } = 6;
-    public double ArousalPerTick { get; set; } = 3;
+    public double ArousalPerTick { get; set; } = 1.5;
 
     public double XpPerOwnTier { get; set; } = 0.05;
     public double XpPerPartnerTierAbove { get; set; } = 0.1;
@@ -16,6 +16,11 @@ public sealed class Balance
     public double XpPerStreakDay { get; set; } = 0.05;
     public double StreakFactorCap { get; set; } = 1.3;
     public double BondedFactor { get; set; } = 1.25;
+    public double DevotedBondFactor { get; set; } = 1.35;
+    public double InTuneArousalFactor { get; set; } = 1.1;
+    public double TogetherSeconds { get; set; } = 30;
+    public double TogetherXp { get; set; } = 60;
+    public double MinimumRefractorySeconds { get; set; } = 15;
     public double XpPerLayerWorn { get; set; } = 0.03;
     public double MarkedFactorCap { get; set; } = 1.3;
     public double XpPerStar { get; set; } = 0.05;
@@ -35,11 +40,11 @@ public sealed class Balance
     public double CurveExponent { get; set; } = 1.5;
     public int LevelCap { get; set; } = 100;
 
-    public double FirstPartnerXp { get; set; } = 200;
-    public double FirstActXp { get; set; } = 100;
-    public double ClimaxXp { get; set; } = 150;
+    public double FirstPartnerXp { get; set; } = 100;
+    public double FirstActXp { get; set; } = 25;
+    public double ClimaxXp { get; set; } = 60;
     public double PartnerClimaxShare { get; set; } = 0.5;
-    public double LayerXp { get; set; } = 75;
+    public double LayerXp { get; set; } = 30;
 
     public double ArousalPerCorruptionTier { get; set; } = 0.05;
     public double ArousalDecayStep { get; set; } = 1;
@@ -51,12 +56,9 @@ public sealed class Balance
 
     public double TickSeconds { get; set; } = 10;
     public double SceneRangeYalms { get; set; } = 3;
-    public double AfkMinutes { get; set; } = 15;
     public double SceneEndSeconds { get; set; } = 30;
     public double PartnerClimaxRecencySeconds { get; set; } = 30;
     public double PartnerClimaxLimitSeconds { get; set; } = 60;
-    public double LayerWindowSeconds { get; set; } = 10;
-    public double LayerDelaySeconds { get; set; } = 2;
     public double SaveIntervalSeconds { get; set; } = 60;
 
     private static readonly JsonSerializerOptions Options = new()

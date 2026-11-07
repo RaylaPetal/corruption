@@ -6,7 +6,7 @@ namespace Corruption.Tests;
 public class SceneCheckTests
 {
     private static readonly PoseKey Pose = new(50, 0);
-    private static readonly SceneInput Good = new(false, true, true, 1, Pose, Pose, false);
+    private static readonly SceneInput Good = new(false, true, true, 1, Pose, Pose);
 
     private static SceneFailure Eval(SceneInput input) => SceneCheck.Evaluate(input, 3);
 
@@ -20,7 +20,6 @@ public class SceneCheckTests
     [Fact] public void NoDeclaration() => Assert.Equal(SceneFailure.NoPartnerDeclaration, Eval(Good with { Declared = null }));
     [Fact] public void NotLooping() => Assert.Equal(SceneFailure.PartnerEmoteMismatch, Eval(Good with { Observed = null }));
     [Fact] public void DifferentEmote() => Assert.Equal(SceneFailure.PartnerEmoteMismatch, Eval(Good with { Observed = new PoseKey(51, 0) }));
-    [Fact] public void Afk() => Assert.Equal(SceneFailure.Afk, Eval(Good with { Afk = true }));
 }
 
 public class SceneTickerTests
@@ -58,40 +57,13 @@ public class SceneTickerTests
     }
 }
 
-public class AfkTrackerTests
-{
-    private static readonly DateTime T0 = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly PoseKey Pose = new(50, 0);
-
-    [Fact]
-    public void FlaggedAfterFifteenMinutesWithoutChange()
-    {
-        var afk = new AfkTracker();
-        afk.Update(T0, Pose, Vector3.Zero);
-        afk.Update(T0.AddMinutes(14.9), Pose, Vector3.Zero);
-        Assert.False(afk.IsAfk(T0.AddMinutes(14.9), 15));
-        afk.Update(T0.AddMinutes(15), Pose, Vector3.Zero);
-        Assert.True(afk.IsAfk(T0.AddMinutes(15), 15));
-    }
-
-    [Fact]
-    public void ChangingEmoteOrMovingClearsIt()
-    {
-        var afk = new AfkTracker();
-        afk.Update(T0, Pose, Vector3.Zero);
-        afk.Update(T0.AddMinutes(20), new PoseKey(51, 0), Vector3.Zero);
-        Assert.False(afk.IsAfk(T0.AddMinutes(20), 15));
-        afk.Update(T0.AddMinutes(40), new PoseKey(51, 0), new Vector3(1, 0, 0));
-        Assert.False(afk.IsAfk(T0.AddMinutes(40), 15));
-    }
-}
-
 public class FakeHost : IEngineHost
 {
     public List<string?> Tags { get; } = [];
-    public List<(string To, string Part)> Layers { get; } = [];
+    /// Every LayerSelf call: who the layer is from, and the part.
+    public List<(string From, string Part)> Layers { get; } = [];
     public List<string> Notes { get; } = [];
-    public string? LayerOutcome { get; set; } = "sent";
+    public string? LayerOutcome { get; set; } = "layered";
     public bool TagsWork { get; set; } = true;
 
     /// Outcomes to give before falling back to LayerOutcome.
@@ -106,6 +78,13 @@ public class FakeHost : IEngineHost
     }
 
     public List<string?> ExtraTags { get; } = [];
+    public List<string?> BodyTags { get; } = [];
+
+    public bool PublishBodyTag(string? value)
+    {
+        if (TagsWork) BodyTags.Add(value);
+        return TagsWork;
+    }
 
     public bool PublishExtraTag(string? value)
     {
@@ -113,9 +92,21 @@ public class FakeHost : IEngineHost
         return TagsWork;
     }
 
-    public string? SendLayer(PeerRecord to, string partId)
+    /// Parts by distance, as the bones would give them. Null means the bones couldn't be read.
+    public IReadOnlyList<string>? Aim { get; set; }
+
+    /// The giver's anatomy, as the last aim was asked for.
+    public Anatomy? AimedFrom { get; private set; }
+
+    public IReadOnlyList<string>? AimParts(PeerRecord giver, Anatomy anatomy)
     {
-        Layers.Add((to.Key, partId));
+        AimedFrom = anatomy;
+        return Aim;
+    }
+
+    public string? LayerSelf(PeerRecord source, string partId)
+    {
+        Layers.Add((source.Key, partId));
         return Outcomes.Count > 0 ? Outcomes.Dequeue() : LayerOutcome;
     }
 
@@ -138,7 +129,7 @@ public sealed class EngineRig
     public readonly PeerRecord Bob = new() { Name = "Bob B", World = "W" };
     public static readonly PoseKey BobPose = new(51, 0);
     public readonly CharacterSave Save = new() { ArousalAnchorUtc = T0, Setup = new ProfileSetup { Decay = DecayMode.Off } };
-    public readonly Balance Balance = new();
+    public readonly Balance Balance;
     public readonly FakeHost Host = new();
     public readonly SceneEngine Engine;
     public ActEntry Act = new() { ModDirectory = "m", Option = "o", EmoteMode = 50 };
@@ -150,11 +141,13 @@ public sealed class EngineRig
     public PoseKey? BobSeenPose = BobPose;
     public PresenceTag BobTag = new(BobPose, 1, 0, 0, false);
     public ExtraTag? BobExtra;
+    public BodyTag? BobBody = BodyTag.Empty;
     public int LayersWorn;
     public string? SelfKey = "Alice A@W";
 
-    public EngineRig(Random? random = null)
+    public EngineRig(Random? random = null, Balance? balance = null)
     {
+        Balance = balance ?? TestBalance.Classic();
         // Periods already rolled with no goals in them, so a random pick can't change a test's XP.
         Save.Goals.Seed = 1;
         Save.Goals.DailyKey = T0.ToString("yyyy-MM-dd");
@@ -166,10 +159,10 @@ public sealed class EngineRig
     {
         for (var i = 0; i < seconds; i++)
         {
-            // Move a little so long runs aren't AFK.
+            // Move a little, as a player would.
             var position = new Vector3((Now - T0).Minutes % 2, 0, 0);
             Engine.Sample(Now, new SceneSample(Playing ? Act : null, Playing ? Act.Pose : null, position,
-                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra)] : [], Watchers, LayersWorn, SelfKey));
+                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody)] : [], Watchers, LayersWorn, SelfKey));
             Now = Now.AddSeconds(1);
         }
     }
@@ -303,15 +296,16 @@ public class SceneEngineTests
     }
 
     [Fact]
-    public void AfkStopsEarning()
+    public void StandingStillInALoopKeepsEarning()
     {
+        // A looping animation doesn't move, so an hour of the same pose in the same spot still earns.
         var r = new EngineRig();
-        for (var i = 0; i < 16 * 60; i++)
+        for (var i = 0; i < 60 * 60; i++)
         {
             r.Engine.Sample(r.Now, new SceneSample(r.Act, r.Act.Pose, Vector3.Zero, [new VisiblePlayer(r.Bob, 1, EngineRig.BobPose, r.BobTag)]));
             r.Now = r.Now.AddSeconds(1);
         }
-        Assert.Equal(SceneFailure.Afk, r.Engine.Status.Failure);
+        Assert.Equal(SceneFailure.None, r.Engine.Status.Failure);
     }
 
     [Fact]
@@ -410,18 +404,6 @@ public class SceneEngineTests
     }
 
     [Fact]
-    public void SafewordCancelsAQueuedLayer()
-    {
-        var r = new EngineRig();
-        r.Save.Arousal = 80;
-        r.Run(6);
-        Assert.Null(r.Engine.TryManualClimax(r.Now));
-        r.Engine.Pause();
-        r.Run(10);
-        Assert.Empty(r.Host.Layers);
-    }
-
-    [Fact]
     public void ResumeEarnsAgain()
     {
         var r = Plain();
@@ -471,63 +453,6 @@ public class SceneEngineTests
     }
 
     [Fact]
-    public void LayerGoesOutAfterTheClimaxOnARandomPart()
-    {
-        var r = new EngineRig();
-        r.Save.Arousal = 98;
-        r.Run(11);
-        Assert.Empty(r.Host.Layers);
-        r.Run(3);
-        var layer = Assert.Single(r.Host.Layers);
-        Assert.Equal(r.Bob.Key, layer.To);
-        Assert.Contains(layer.Part, CummyParts.All);
-    }
-
-    [Fact]
-    public void BlockedPartsAreSkippedForAnother()
-    {
-        var r = new EngineRig();
-        r.Host.Outcomes.Enqueue("blocked");
-        r.Host.Outcomes.Enqueue("blocked");
-        r.Save.Arousal = 98;
-        r.Run(14);
-        Assert.Equal(3, r.Host.Layers.Count);
-        Assert.Equal(3, r.Host.Layers.Select(l => l.Part).Distinct().Count());
-    }
-
-    [Fact]
-    public void EveryPartBlockedSendsNothingAndStops()
-    {
-        var r = new EngineRig { Host = { LayerOutcome = "blocked" } };
-        r.Save.Arousal = 98;
-        r.Run(20);
-        Assert.Equal(CummyParts.All.Count, r.Host.Layers.Count);
-    }
-
-    [Fact]
-    public void NotBeingPairedInCummyMeansNoLayerAndNoRetry()
-    {
-        var r = new EngineRig { Host = { LayerOutcome = "not-paired" } };
-        r.Save.Arousal = 98;
-        r.Run(14);
-        Assert.Single(r.Host.Layers);
-    }
-
-    [Fact]
-    public void RandomLayersReachDifferentParts()
-    {
-        var seen = new HashSet<string>();
-        for (var seed = 0; seed < 40; seed++)
-        {
-            var r = new EngineRig(new Random(seed));
-            r.Save.Arousal = 98;
-            r.Run(14);
-            seen.Add(r.Host.Layers.Single().Part);
-        }
-        Assert.True(seen.Count >= 8);
-    }
-
-    [Fact]
     public void WatchersRaiseXpAndArousal()
     {
         var r = Plain(new EngineRig { Watchers = 2 });
@@ -552,23 +477,6 @@ public class SceneEngineTests
         var r = new EngineRig();
         r.Run(11);
         Assert.Equal(1, r.Save.StreakDays);
-    }
-
-    [Theory]
-    [InlineData("sent", 75)]
-    [InlineData("not-paired", 0)]
-    [InlineData("out-of-range", 0)]
-    [InlineData("queue-full", 0)]
-    [InlineData(null, 0)]
-    public void GiverLayerXpOnlyWhenSent(string? outcome, double expected)
-    {
-        var r = Plain(new EngineRig { Host = { LayerOutcome = outcome } });
-        r.Save.Level = 50;
-        r.Save.Arousal = 98;
-        r.Run(11);
-        var afterClimax = r.Save.Xp;
-        r.Run(3);
-        Assert.Equal(expected, r.Save.Xp - afterClimax, 6);
     }
 
     [Fact]
@@ -629,6 +537,7 @@ public class SceneEngineTests
     public void TheirClimaxPaysHalf()
     {
         var r = WithRecentTick();
+        r.Engine.LayerOnPartnerClimax = false;
         var before = r.Save.Xp;
         r.BobClimaxes();
         Assert.Equal(75, r.Save.Xp - before, 6);
@@ -668,6 +577,7 @@ public class SceneEngineTests
     public void RepeatedClimaxesWithinTheLimitPayOnce()
     {
         var r = WithRecentTick();
+        r.Engine.LayerOnPartnerClimax = false;
         var before = r.Save.Xp;
         r.BobClimaxes();
         r.BobClimaxes();
@@ -685,62 +595,6 @@ public class SceneEngineTests
         r.Run(1);
         Assert.InRange(r.Save.Xp - before, 0, 10);
     }
-
-    // ── Layers received ────────────────────────────────────────────────────────
-
-    [Fact]
-    public void LayerSoonAfterAClimaxPays()
-    {
-        var r = WithRecentTick();
-        r.BobClimaxes();
-        var before = r.Save.Xp;
-        r.Now = r.Now.AddSeconds(2);
-        r.Engine.HandleLayerReceived(r.Now, r.Bob.Name, r.Bob.World);
-        Assert.Equal(75, r.Save.Xp - before, 6);
-    }
-
-    [Fact]
-    public void LayerArrivingBeforeTheClimaxStillPays()
-    {
-        var r = WithRecentTick();
-        var before = r.Save.Xp;
-        r.Engine.HandleLayerReceived(r.Now, r.Bob.Name, r.Bob.World);
-        Assert.Equal(before, r.Save.Xp);
-        r.BobClimaxes();
-        Assert.Equal(75 + 75, r.Save.Xp - before, 6);
-    }
-
-    [Fact]
-    public void LayerOutsideTheWindowPaysNothing()
-    {
-        var r = WithRecentTick();
-        r.BobClimaxes();
-        var before = r.Save.Xp;
-        r.Now = r.Now.AddSeconds(11);
-        r.Engine.HandleLayerReceived(r.Now, r.Bob.Name, r.Bob.World);
-        Assert.Equal(before, r.Save.Xp);
-    }
-
-    [Fact]
-    public void ManualLayerWithNoClimaxPaysNothing()
-    {
-        var r = WithRecentTick();
-        var before = r.Save.Xp;
-        r.Engine.HandleLayerReceived(r.Now, r.Bob.Name, r.Bob.World);
-        Assert.Equal(before, r.Save.Xp);
-    }
-
-    [Fact]
-    public void LayerFromAnotherSourcePaysNothing()
-    {
-        var r = WithRecentTick();
-        r.BobClimaxes();
-        var before = r.Save.Xp;
-        r.Engine.HandleLayerReceived(r.Now, "Stranger S", "W");
-        Assert.Equal(before, r.Save.Xp);
-    }
-
-    // ── Their nameplate ────────────────────────────────────────────────────────
 
     [Fact]
     public void TheirValuesComeFromTheirTag()
@@ -916,18 +770,6 @@ public class SceneEngineTests
     }
 
     [Fact]
-    public void HidingCancelsAQueuedLayer()
-    {
-        var r = new EngineRig();
-        r.Save.Arousal = 80;
-        r.Run(6);
-        Assert.Null(r.Engine.TryManualClimax(r.Now));
-        r.Engine.SetHidden(true);
-        r.Run(10);
-        Assert.Empty(r.Host.Layers);
-    }
-
-    [Fact]
     public void BeingHiddenSurvivesAReloadAndAReset()
     {
         var r = new EngineRig();
@@ -995,9 +837,9 @@ public class SceneEngineTests
         Assert.Null(r.Engine.TryManualClimax(r.Now));
         r.Run(1);
         Assert.Contains(r.Host.Notes, n => n.Contains("Daily goal done"));
-        Assert.Equal((150 + 100) * 1.5, r.Save.Xp - before, 6);
+        Assert.Equal((150 + 50) * 1.5, r.Save.Xp - before, 6);
         var reward = Assert.Single(r.Host.Celebrated);
-        Assert.Equal((RewardKind.Daily, "Climax", 150.0), (reward.Kind, reward.Title, reward.Xp));
+        Assert.Equal((RewardKind.Daily, "Climax", 75.0), (reward.Kind, reward.Title, reward.Xp));
     }
 
     [Fact]
@@ -1005,14 +847,12 @@ public class SceneEngineTests
     {
         var r = WithRecentTick();
         r.BobClimaxes();
-        r.Engine.HandleLayerReceived(r.Now, r.Bob.Name, r.Bob.World);
         Assert.Equal(1, r.Save.Goals.Stats["PartnerClimaxes"]);
         Assert.Equal(1, r.Save.Goals.Stats["LayersReceived"]);
 
         r.Save.Arousal = 98;
         r.Run(14);
         Assert.Equal(1, r.Save.Goals.Stats["Climaxes"]);
-        Assert.Equal(1, r.Save.Goals.Stats["LayersGiven"]);
     }
 
     [Fact]

@@ -16,6 +16,9 @@ public enum GoalKind
     DistinctAnimations,
     DistinctPartners,
     ActiveDays,
+    ItemsUsed,
+    CravingsSatisfied,
+    ClimaxesTogether,
 }
 
 public sealed record GoalDef(string Id, string Text, GoalKind Kind, long Target, double Xp);
@@ -62,24 +65,24 @@ public static class GoalCatalog
     /// Every goal can be met with just Corruption: layers need a Cummy pairing, so they're only achievements.
     public static readonly IReadOnlyList<GoalDef> Daily =
     [
-        new("d_scene15", "Spend 15 minutes in scenes", GoalKind.SceneSeconds, 15 * 60, 150),
-        new("d_scene30", "Spend 30 minutes in scenes", GoalKind.SceneSeconds, 30 * 60, 300),
-        new("d_climax1", "Climax", GoalKind.Climaxes, 1, 100),
-        new("d_climax3", "Climax 3 times", GoalKind.Climaxes, 3, 250),
-        new("d_partnerclimax", "Be there when a partner climaxes", GoalKind.PartnerClimaxes, 1, 100),
-        new("d_watched", "Be watched for 5 minutes", GoalKind.WatchedSeconds, 5 * 60, 200),
-        new("d_variety", "Play 3 different animations", GoalKind.DistinctAnimations, 3, 150),
+        new("d_scene15", "Spend 15 minutes in scenes", GoalKind.SceneSeconds, 15 * 60, 75),
+        new("d_scene30", "Spend 30 minutes in scenes", GoalKind.SceneSeconds, 30 * 60, 150),
+        new("d_climax1", "Climax", GoalKind.Climaxes, 1, 50),
+        new("d_climax3", "Climax 3 times", GoalKind.Climaxes, 3, 125),
+        new("d_partnerclimax", "Be there when a partner climaxes", GoalKind.PartnerClimaxes, 1, 50),
+        new("d_watched", "Be watched for 5 minutes", GoalKind.WatchedSeconds, 5 * 60, 100),
+        new("d_variety", "Play 3 different animations", GoalKind.DistinctAnimations, 3, 75),
     ];
 
     public static readonly IReadOnlyList<GoalDef> Weekly =
     [
-        new("w_scene120", "Spend 2 hours in scenes", GoalKind.SceneSeconds, 120 * 60, 1500),
-        new("w_climax15", "Climax 15 times", GoalKind.Climaxes, 15, 1200),
-        new("w_partnerclimax", "Be there for 10 of a partner's climaxes", GoalKind.PartnerClimaxes, 10, 800),
-        new("w_watched", "Be watched for 30 minutes", GoalKind.WatchedSeconds, 30 * 60, 1000),
-        new("w_variety", "Play 10 different animations", GoalKind.DistinctAnimations, 10, 800),
-        new("w_partners", "Have scenes with 2 different partners", GoalKind.DistinctPartners, 2, 800),
-        new("w_days", "Have a scene on 4 different days", GoalKind.ActiveDays, 4, 1000),
+        new("w_scene120", "Spend 2 hours in scenes", GoalKind.SceneSeconds, 120 * 60, 750),
+        new("w_climax15", "Climax 15 times", GoalKind.Climaxes, 15, 600),
+        new("w_partnerclimax", "Be there for 10 of a partner's climaxes", GoalKind.PartnerClimaxes, 10, 400),
+        new("w_watched", "Be watched for 30 minutes", GoalKind.WatchedSeconds, 30 * 60, 500),
+        new("w_variety", "Play 10 different animations", GoalKind.DistinctAnimations, 10, 400),
+        new("w_partners", "Have scenes with 2 different partners", GoalKind.DistinctPartners, 2, 400),
+        new("w_days", "Have a scene on 4 different days", GoalKind.ActiveDays, 4, 500),
     ];
 
     private static long Stat(CharacterSave save, GoalKind kind)
@@ -87,20 +90,29 @@ public static class GoalCatalog
 
     public static readonly IReadOnlyList<AchievementDef> Achievements =
     [
-        new("first_taste", "First Taste", "Earn from your first scene", 250, 1, s => Stat(s, GoalKind.SceneSeconds) > 0 ? 1 : 0),
-        new("worked_up", "Worked Up", "Climax 10 times", 500, 10, s => Stat(s, GoalKind.Climaxes)),
-        new("insatiable", "Insatiable", "Climax 100 times", 3000, 100, s => Stat(s, GoalKind.Climaxes)),
-        new("well_travelled", "Well Travelled", "Have scenes with 10 different partners", 1500, 10, s => s.SeenPartners.Count),
-        new("devoted", "Devoted", "Have 50 scenes with one partner", 3000, 50, s => s.Goals.PartnerScenes.Count == 0 ? 0 : s.Goals.PartnerScenes.Values.Max()),
-        new("collector", "Collector", "Play 50 different animations", 1500, 50, s => s.SeenActs.Count),
-        new("shameless", "Shameless", "Spend an hour watched by 3 or more people", 3000, 3600, s => Stat(s, GoalKind.CrowdSeconds)),
-        new("painted", "Painted", "Receive 10 layers from a climax", 500, 10, s => Stat(s, GoalKind.LayersReceived)),
-        new("cum_dump", "Cum Dump", "Receive 100 layers from a climax", 3000, 100, s => Stat(s, GoalKind.LayersReceived)),
-        new("generous", "Generous", "Give 50 layers from a climax", 1500, 50, s => Stat(s, GoalKind.LayersGiven)),
-        new("edged", "Edged", "Hold at 100 arousal in a scene for 10 minutes", 1500, 600, s => Stat(s, GoalKind.EdgedSeconds)),
-        new("habit", "Habit", "Reach a 7 day streak", 1000, 7, s => s.StreakDays),
-        new("fallen", "Fallen", "Reach the Fallen tier", 5000, 95, s => s.Level),
-        new("fallen_star", "Fallen Star", "Prestige 5 times", 10000, 5, s => s.Prestige),
+        new("first_taste", "First Taste", "Earn from your first scene", 125, 1, s => Stat(s, GoalKind.SceneSeconds) > 0 ? 1 : 0),
+        new("worked_up", "Worked Up", "Climax 10 times", 250, 10, s => Stat(s, GoalKind.Climaxes)),
+        new("insatiable", "Insatiable", "Climax 100 times", 1500, 100, s => Stat(s, GoalKind.Climaxes)),
+        new("well_travelled", "Well Travelled", "Have scenes with 10 different partners", 750, 10, s => s.SeenPartners.Count),
+        new("devoted", "Devoted", "Have 50 scenes with one partner", 1500, 50, s => s.Goals.PartnerScenes.Count == 0 ? 0 : s.Goals.PartnerScenes.Values.Max()),
+        new("collector", "Collector", "Play 50 different animations", 750, 50, s => s.SeenActs.Count),
+        new("shameless", "Shameless", "Spend an hour watched by 3 or more people", 1500, 3600, s => Stat(s, GoalKind.CrowdSeconds)),
+        new("painted", "Painted", "Receive 10 layers from a climax", 250, 10, s => Stat(s, GoalKind.LayersReceived)),
+        new("cum_dump", "Cum Dump", "Receive 100 layers from a climax", 1500, 100, s => Stat(s, GoalKind.LayersReceived)),
+        // Was "give 50 layers": each client now layers itself, so the giver can't count layers. Same id, so anyone who
+        // earned it keeps it.
+        new("generous", "Generous", "Be there for 50 of your partners' climaxes", 750, 50, s => Stat(s, GoalKind.PartnerClimaxes)),
+        new("edged", "Edged", "Hold at 100 arousal in a scene for 10 minutes", 750, 600, s => Stat(s, GoalKind.EdgedSeconds)),
+        new("habit", "Habit", "Reach a 7 day streak", 500, 7, s => s.StreakDays),
+        new("fallen", "Fallen", "Reach the Fallen tier", 2500, 95, s => s.Level),
+        new("fallen_star", "Fallen Star", "Prestige 5 times", 5000, 5, s => s.Prestige),
+        new("expecting", "Expecting", "Conceive for the first time", 500, 1, s => s.Pregnancy.Conceptions),
+        new("labour_of_love", "Labour of Love", "Give birth", 1000, 1, s => s.Pregnancy.Births),
+        new("brood_mother", "Brood Mother", "Give birth 3 times", 2500, 3, s => s.Pregnancy.Births),
+        new("sire", "Sire", "Father a child", 500, 1, s => s.Pregnancy.Fathered),
+        new("soulmates", "Soulmates", "Reach bond level 5", 1500, 5, s => s.BondFormed ? BondLevels.LevelOf(s.BondSeconds) : 0),
+        new("big_spender", "Big Spender", "Spend 1,000 Sins in the shop", 500, 1000, s => s.Wallet.SpentTotal),
+        new("devout", "Devout", "Check in 14 days in a row", 750, 14, s => s.Wallet.CheckInStreak),
     ];
 
     public static GoalDef? Find(string id) => Daily.Concat(Weekly).FirstOrDefault(g => g.Id == id);

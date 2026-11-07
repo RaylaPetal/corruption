@@ -43,6 +43,23 @@ public sealed class CharacterSave
     /// True once both tags named each other.
     public bool BondFormed { get; set; }
 
+    public Wallet Wallet { get; set; } = new();
+
+    /// What this character has, for partners aiming a climax. A choice, not progress, so a reset keeps it.
+    public Anatomy Anatomy { get; set; }
+
+    /// The longest verified scene, start to last passing check.
+    public double LongestSceneSeconds { get; set; }
+
+    /// Items owned, by id, and items working now.
+    public Dictionary<string, int> Inventory { get; set; } = [];
+    public Dictionary<string, ActiveEffect> Effects { get; set; } = [];
+
+    public PregnancyState Pregnancy { get; set; } = new();
+
+    /// Verified scene time with the bonded partner, which sets the bond level.
+    public double BondSeconds { get; set; }
+
     /// The chosen look per tier, keyed by tier name. Kept through a reset, since it's a choice rather than progress.
     public Dictionary<string, TierVisual> TierVisuals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -65,6 +82,11 @@ public sealed class CharacterSave
         Prestige = 0;
         BondWith = null;
         BondFormed = false;
+        BondSeconds = 0;
+        Wallet = new Wallet();
+        Inventory.Clear();
+        Effects.Clear();
+        Pregnancy = new PregnancyState();
     }
 }
 

@@ -72,7 +72,7 @@ public class GoalBookTests
         Assert.DoesNotContain(book.TakeRewards(), r => r.Message.Contains("Daily"));
         book.Record(GoalKind.Climaxes);
         var reward = Assert.Single(book.TakeRewards(), r => r.Message.Contains("Daily"));
-        Assert.Equal(250, reward.Xp);
+        Assert.Equal(125, reward.Xp);
         Assert.True(save.Goals.Daily[0].Done);
         book.Record(GoalKind.Climaxes);
         Assert.DoesNotContain(book.TakeRewards(), r => r.Message.Contains("Daily"));

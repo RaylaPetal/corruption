@@ -61,6 +61,15 @@ public sealed partial class MainWindow
                 ImGui.TextColored(Theme.Warning, $"Fading. Next fade in {ProfileTimers.Describe(next)}. A scene stops it.");
             else if (times.UntilDecay is { } until) ImGui.TextUnformatted($"Decay starts in {ProfileTimers.Describe(until)}");
             else Theme.MutedText("Decay starts after your first scene");
+
+            var wallet = save.Wallet;
+            Theme.Icon(FontAwesomeIcon.Gem, Theme.PinkSoft);
+            ImGui.SameLine();
+            ImGui.TextUnformatted($"{wallet.Sins} Sins");
+            ImGui.SameLine();
+            Theme.MutedText(wallet.CheckInStreak > 1
+                ? $"Checked in {wallet.CheckInStreak} days in a row. Scenes pay 1 Sin a minute."
+                : "Scenes pay 1 Sin a minute.");
         }, stripe: color);
     }
 
@@ -112,23 +121,38 @@ public sealed partial class MainWindow
     private void DrawBondCard(SceneEngine engine)
     {
         var save = engine.Save;
-        if (save.BondWith is not { } with)
-        {
-            if (Progression.TierOf(save.Level) < BondBook.MinimumTier)
-                Theme.MutedText($"Bonding with a regular partner opens at the {BondBook.MinimumTier} tier.");
-            return;
-        }
+        if (save.BondWith is not { } with) return;
 
         Theme.CardBox("bond", () =>
         {
             Theme.Icon(FontAwesomeIcon.Link, Theme.Pink);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            if (save.BondFormed) ImGui.TextColored(Theme.PinkSoft, $"Bonded with {NameOf(with)}: scenes together pay x{balance.BondedFactor:0.##}");
+            var level = engine.Bonds.Level;
+            if (save.BondFormed) ImGui.TextColored(Theme.PinkSoft, $"Bonded with {NameOf(with)}");
             else ImGui.TextUnformatted($"Waiting for {NameOf(with)} to bond back");
+            if (save.BondFormed)
+            {
+                ImGui.SameLine();
+                Theme.Pill($"Bond level {level}", Theme.Pink);
+            }
             var label = save.BondFormed ? "Unbond" : "Withdraw";
             Theme.AlignRight(Theme.IconButtonWidth(FontAwesomeIcon.Unlink, label));
             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Unlink, label)) engine.Unbond();
+            if (!save.BondFormed) return;
+
+            for (var unlocked = 1; unlocked <= level; unlocked++)
+            {
+                Theme.Icon(FontAwesomeIcon.Heart, Theme.Pink);
+                ImGui.SameLine();
+                ImGui.TextUnformatted(BondLevels.QuirkOf(unlocked));
+            }
+            if (BondLevels.UntilNext(save.BondSeconds) is { } next)
+            {
+                Theme.Icon(FontAwesomeIcon.Lock, Theme.Faint);
+                ImGui.SameLine();
+                Theme.MutedText($"Level {level + 1} in {ProfileTimers.Describe(next)} of scenes together: {BondLevels.QuirkOf(level + 1)}");
+            }
         }, stripe: Theme.Pink);
     }
 
@@ -149,12 +173,6 @@ public sealed partial class MainWindow
         if (nearby.Extra is null) return;
 
         var wants = bonds.WantsToBond.Contains(key);
-        if (bonds.WhyNot(engine.Save.Level, nearby.Tag.Level) is { } reason)
-        {
-            if (wants || Progression.TierOf(engine.Save.Level) >= BondBook.MinimumTier) Theme.MutedText(wants ? $"Wants to bond. {reason}" : reason);
-            return;
-        }
-
         if (wants)
         {
             ImGui.TextColored(Theme.PinkSoft, "Wants to bond with you");
@@ -169,6 +187,8 @@ public sealed partial class MainWindow
 
     private void DrawBridges(SceneEngine engine)
     {
+        DrawCummySettings(engine);
+        DrawPregnancySettings(engine);
         DrawTierVisuals(engine);
         DrawToys();
         DrawMoodles();
@@ -193,37 +213,40 @@ public sealed partial class MainWindow
 
             var visuals = bridges.Visuals;
             if (visuals.Problem is { } problem) ImGui.TextColored(Theme.Warning, problem);
-            else if (visuals.Applied is { } applied)
+            else if (visuals.Applied is not null)
                 Theme.MutedText(visuals.Superseded
-                    ? $"On now: {applied.Name}. Something else changed your look since, so Corruption won't undo it."
-                    : $"On now: {applied.Name}");
+                    ? $"On now: {visuals.AppliedText}. Something else changed your look since, so Corruption won't undo it."
+                    : $"On now: {visuals.AppliedText}");
 
-            foreach (var tier in VisualTiers)
+            var slots = VisualSlots(save);
+            foreach (var slot in slots)
             {
-                save.TierVisuals.TryGetValue(tier.ToString(), out var choice);
-                ImGui.TextColored(Theme.TierColor(tier), tier.ToString());
-                ImGui.SameLine(110 * Scale);
+                slot.Store.TryGetValue(slot.Key, out var choice);
+                ImGui.TextColored(slot.Color, slot.Label);
+                ImGui.SameLine(150 * Scale);
                 Theme.MutedText(choice is null ? "Nothing" : $"{(choice.Kind == VisualKind.Glamourer ? "Design" : "Mod")}: {choice.Name}{OptionsText(choice)}");
             }
+            if (save.Pregnancy.Enabled && save.Pregnancy.CanCarry)
+                Theme.MutedWrapped("A trimester's visual goes on over your tier's while you're in that trimester, and comes off at the birth.");
 
             ImGuiHelpers.ScaledDummy(2f);
-            var names = VisualTiers.Select(t => t.ToString()).ToArray();
-            ImGui.SetNextItemWidth(140 * Scale);
-            if (ImGui.Combo("Tier to change", ref visualTier, names, names.Length)) visualFilter = "";
-            var editing = VisualTiers[Math.Clamp(visualTier, 0, VisualTiers.Length - 1)];
+            var names = slots.Select(slot => slot.Label).ToArray();
+            ImGui.SetNextItemWidth(160 * Scale);
+            if (ImGui.Combo("Visual to change", ref visualTier, names, names.Length)) visualFilter = "";
+            var editing = slots[Math.Clamp(visualTier, 0, slots.Count - 1)];
             if (Theme.Choice("visualKind", VisualKindNames, ref visualKind)) visualFilter = "";
 
             switch (visualKind)
             {
                 case 0:
-                    if (save.TierVisuals.ContainsKey(editing.ToString()) && ImGui.Button($"Clear {editing}'s visual"))
-                        SetVisual(save, editing, null);
+                    if (editing.Store.ContainsKey(editing.Key) && ImGui.Button($"Clear {editing.Label}'s visual"))
+                        SetVisual(editing, null);
                     break;
                 case 1:
-                    DrawDesignPicker(save, editing);
+                    DrawDesignPicker(editing);
                     break;
                 default:
-                    DrawModPicker(save, editing);
+                    DrawModPicker(editing);
                     break;
             }
         });
@@ -232,14 +255,26 @@ public sealed partial class MainWindow
     private static string OptionsText(TierVisual visual)
         => visual.Options.Count == 0 ? "" : $" ({string.Join(", ", visual.Options.Values)})";
 
-    private void SetVisual(CharacterSave save, Tier tier, TierVisual? visual)
+    /// Somewhere a visual can be chosen: a tier, or a trimester.
+    private sealed record VisualSlot(Dictionary<string, TierVisual> Store, string Key, string Label, Vector4 Color);
+
+    private static List<VisualSlot> VisualSlots(CharacterSave save)
     {
-        if (visual is null) save.TierVisuals.Remove(tier.ToString());
-        else save.TierVisuals[tier.ToString()] = visual;
+        var slots = VisualTiers.Select(t => new VisualSlot(save.TierVisuals, t.ToString(), t.ToString(), Theme.TierColor(t))).ToList();
+        if (save.Pregnancy.Enabled && save.Pregnancy.CanCarry)
+            foreach (var trimester in PregnancyVisualPlan.Keys)
+                slots.Add(new VisualSlot(save.Pregnancy.Visuals, trimester, $"{trimester} trimester", Theme.Pink));
+        return slots;
+    }
+
+    private void SetVisual(VisualSlot slot, TierVisual? visual)
+    {
+        if (visual is null) slot.Store.Remove(slot.Key);
+        else slot.Store[slot.Key] = visual;
         scene.SaveProgress();
     }
 
-    private void DrawDesignPicker(CharacterSave save, Tier tier)
+    private void DrawDesignPicker(VisualSlot slot)
     {
         if (!bridges.Glamourer.IsAvailable)
         {
@@ -248,19 +283,19 @@ public sealed partial class MainWindow
         }
         ImGui.SetNextItemWidth(220 * Scale);
         ImGui.InputTextWithHint("##designFilter", "Search designs", ref visualFilter, 64);
-        save.TierVisuals.TryGetValue(tier.ToString(), out var current);
+        slot.Store.TryGetValue(slot.Key, out var current);
         if (!ImGui.BeginListBox("##designs", new Vector2(-1, 140 * Scale))) return;
         foreach (var design in bridges.Glamourer.Designs())
         {
             if (visualFilter.Length > 0 && !design.Path.Contains(visualFilter, StringComparison.OrdinalIgnoreCase)) continue;
             var selected = current is { Kind: VisualKind.Glamourer } && current.DesignId == design.Id;
             if (ImGui.Selectable($"{design.Path}##{design.Id}", selected))
-                SetVisual(save, tier, new TierVisual { Kind = VisualKind.Glamourer, DesignId = design.Id, Name = design.Name });
+                SetVisual(slot, new TierVisual { Kind = VisualKind.Glamourer, DesignId = design.Id, Name = design.Name });
         }
         ImGui.EndListBox();
     }
 
-    private void DrawModPicker(CharacterSave save, Tier tier)
+    private void DrawModPicker(VisualSlot slot)
     {
         if (!penumbra.IsAvailable)
         {
@@ -273,7 +308,7 @@ public sealed partial class MainWindow
             modListRead = DateTime.UtcNow;
         }
 
-        save.TierVisuals.TryGetValue(tier.ToString(), out var current);
+        slot.Store.TryGetValue(slot.Key, out var current);
         ImGui.SetNextItemWidth(220 * Scale);
         ImGui.InputTextWithHint("##modFilter", "Search mods", ref visualFilter, 64);
         if (ImGui.BeginListBox("##mods", new Vector2(-1, 140 * Scale)))
@@ -283,7 +318,7 @@ public sealed partial class MainWindow
                 if (visualFilter.Length > 0 && !name.Contains(visualFilter, StringComparison.OrdinalIgnoreCase)) continue;
                 var selected = current is { Kind: VisualKind.Penumbra } && current.ModDirectory == directory;
                 if (ImGui.Selectable($"{name}##{directory}", selected))
-                    SetVisual(save, tier, new TierVisual { Kind = VisualKind.Penumbra, ModDirectory = directory, Name = name });
+                    SetVisual(slot, new TierVisual { Kind = VisualKind.Penumbra, ModDirectory = directory, Name = name });
             }
             ImGui.EndListBox();
         }
@@ -300,14 +335,14 @@ public sealed partial class MainWindow
             {
                 var copy = Copy(chosen);
                 copy.Options.Remove(group);
-                SetVisual(save, tier, copy);
+                SetVisual(slot, copy);
             }
             foreach (var option in options)
             {
                 if (!ImGui.Selectable(option, option == picked)) continue;
                 var copy = Copy(chosen);
                 copy.Options[group] = option;
-                SetVisual(save, tier, copy);
+                SetVisual(slot, copy);
             }
             ImGui.EndCombo();
         }
@@ -319,6 +354,32 @@ public sealed partial class MainWindow
         Kind = visual.Kind, DesignId = visual.DesignId, ModDirectory = visual.ModDirectory, Name = visual.Name,
         Options = new Dictionary<string, string>(visual.Options),
     };
+
+    private static readonly string[] AnatomyNames = ["Not set", "Penis", "Vagina", "Both"];
+
+    private void DrawCummySettings(SceneEngine engine)
+    {
+        Theme.CardBox("cummy", () =>
+        {
+            Theme.Heading(FontAwesomeIcon.Tint, "Cummy");
+            var layer = settings.LayerOnPartnerClimax;
+            if (ImGui.Checkbox("Get layered when a partner climaxes", ref layer))
+            {
+                settings.LayerOnPartnerClimax = layer;
+                settings.Save();
+            }
+            Theme.MutedWrapped("Your own Cummy layers you on a random part when your scene partner's climax counts. No pairing is needed, and the parts you block in Cummy are still skipped.");
+            if (!cummy.CanLayerSelf) ImGui.TextColored(Theme.Warning, cummy.Status);
+
+            ImGuiHelpers.ScaledDummy(2f);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Your anatomy");
+            ImGui.SameLine();
+            var anatomy = (int)engine.Save.Anatomy;
+            if (Theme.Choice("anatomy", AnatomyNames, ref anatomy)) engine.SetAnatomy((Anatomy)anatomy);
+            Theme.MutedWrapped("When you climax, partners' clients aim from here: your penis tip or your vagina. Both shoots from the penis. Not set guesses from your skeleton's bones, which may carry both even when your body shows one.");
+        });
+    }
 
     private void DrawToys()
     {
@@ -378,7 +439,7 @@ public sealed partial class MainWindow
             Theme.Heading(FontAwesomeIcon.Smile, "Moodles");
             var enabled = settings.MoodlesEnabled;
             if (ImGui.Checkbox("Show statuses on my character", ref enabled)) bridges.SetMoodlesEnabled(enabled);
-            Theme.MutedWrapped("Aroused, Marked, Watched, Bonded, Refractory and Fading, while they apply. Synced players with Moodles see them. Your other Moodles are never touched.");
+            Theme.MutedWrapped("Aroused, Marked, Watched, Bonded, Refractory and Fading, and with pregnancy on: Fertile, Pregnant, Craving, Unsatisfied and Recovering, while they apply. Synced players with Moodles see them. Your other Moodles are never touched.");
             if (!settings.MoodlesEnabled) return;
             if (!moodles.IsAvailable) ImGui.TextColored(Theme.Warning, "Moodles isn't available.");
             else if (moodles.Problem is { } problem) ImGui.TextColored(Theme.Warning, problem);
@@ -410,6 +471,12 @@ public sealed partial class MainWindow
         }
         scene.DebugExtra = extra;
         Theme.MutedText($"Bond: {engine.Save.BondWith ?? "none"}{(engine.Save.BondFormed ? " (formed)" : "")}; layers worn {engine.LayersWorn}");
+
+        var breeds = scene.DebugBody is { CanBreed: true };
+        if (ImGui.Checkbox("Simulated player can breed", ref breeds))
+            scene.DebugBody = new BodyTag(breeds ? BodyFlags.CanBreed : BodyFlags.None, PregnancyStage.None, null);
+
+        if (ImGui.Button("+100 Sins")) engine.Save.Wallet.Sins += 100;
     }
 #endif
 }

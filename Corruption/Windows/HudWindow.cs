@@ -86,7 +86,42 @@ public sealed class HudWindow : Window
             Line(FontAwesomeIcon.Clock, line, Theme.Muted);
         }
 
+        DrawBaby(save, width);
+        DrawEffects(save);
         SavePosition();
+    }
+
+    /// A small growing baby while pregnant, with the days to go beside it.
+    private static void DrawBaby(CharacterSave save, float width)
+    {
+        var p = save.Pregnancy;
+        if (!PregnancyBook.IsPregnant(p)) return;
+        var now = DateTime.UtcNow;
+        var days = PregnancyBook.DaysPregnant(p, now);
+        BabyIllustration.Draw(MathF.Min(64 * ImGuiHelpers.GlobalScale, width * 0.3f), days / PregnancyBook.DaysLong);
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"About the size of {BabyIllustration.SizeOn(days)}");
+        ImGui.SameLine();
+        ImGui.BeginGroup();
+        ImGui.TextColored(Theme.PinkSoft, "Pregnant");
+        var left = Math.Ceiling((p.DueUtc!.Value - now).TotalDays);
+        Theme.MutedText(left <= 1 ? "Due today" : $"{left:0} days to go");
+        if (p.Craving is { } craving && !p.CravingMet) Theme.MutedText($"Craving: {CravingBook.Describe(craving).ToLowerInvariant()}");
+        ImGui.EndGroup();
+    }
+
+    /// One icon per item working now, with what's left on hover.
+    private static void DrawEffects(CharacterSave save)
+    {
+        var now = DateTime.UtcNow;
+        var first = true;
+        foreach (var (id, effect) in save.Effects)
+        {
+            if (!ItemBook.IsActive(save, id, now) || ItemCatalog.Find(id) is not { } item) continue;
+            if (!first) ImGui.SameLine();
+            first = false;
+            Theme.Icon(ItemIcons.Of(id), Theme.PinkSoft);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{item.Name}: {ItemIcons.Remaining(effect, now)}\n{item.Effect}");
+        }
     }
 
     private static void Line(FontAwesomeIcon icon, string text, Vector4 color)

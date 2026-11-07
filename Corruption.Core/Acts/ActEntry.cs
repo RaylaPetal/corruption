@@ -18,6 +18,9 @@ public sealed class ActEntry
 
     public string DisplayName => Option is "" or "Default" ? ModName : Option;
 
+    /// Identifies this animation within its mod, for exclusions.
+    public string ExclusionKey => ActsFile.ExclusionKeyOf(Group, Option, Pose);
+
     public static string KeyOf(string modDirectory, string group, string option, PoseKey pose)
         => $"{modDirectory}|{group}|{option}|{pose.EmoteMode}|{pose.Variant}";
 }
@@ -56,6 +59,32 @@ public sealed class ActsFile
 
     /// Mods the user has already seen; anything else in a ticked folder is "new, not yet picked".
     public HashSet<string> KnownMods { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// Animations of a mod that don't count, by mod directory then <see cref="ExclusionKeyOf"/>. Kept apart from the picks,
+    /// so unpicking a mod and picking it again keeps them.
+    public Dictionary<string, HashSet<string>> Exclusions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public static string ExclusionKeyOf(string group, string option, PoseKey pose)
+        => $"{group}|{option}|{pose.EmoteMode}.{pose.Variant}";
+
+    public bool IsExcluded(string modDirectory, string key)
+        => Exclusions.TryGetValue(modDirectory, out var keys) && keys.Contains(key);
+
+    /// Excludes or includes animations of one mod. True when anything changed.
+    public bool SetExcluded(string modDirectory, IEnumerable<string> keys, bool excluded)
+    {
+        if (!Exclusions.TryGetValue(modDirectory, out var set))
+        {
+            if (!excluded) return false;
+            Exclusions[modDirectory] = set = new HashSet<string>(StringComparer.Ordinal);
+        }
+        var changed = false;
+        foreach (var key in keys) changed |= excluded ? set.Add(key) : set.Remove(key);
+        if (set.Count == 0) Exclusions.Remove(modDirectory);
+        return changed;
+    }
+
+    public int ExcludedCount(string modDirectory) => Exclusions.TryGetValue(modDirectory, out var keys) ? keys.Count : 0;
 
     /// From before picks were per mod. Read once by <see cref="Migrate"/> and never written again.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

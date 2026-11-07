@@ -4,19 +4,20 @@ using Dalamud.Plugin.Ipc;
 
 namespace Corruption.Ipc;
 
-/// Cummy's IPC (Cummy/Ipc/CummyApi.cs). Cummy keeps its own pairing, block and range rules, so all this does is ask.
-/// Load order doesn't matter: availability is re-read whenever the plugin list changes.
+/// Cummy's IPC (Cummy/Ipc/CummyApi.cs). Corruption only ever asks Cummy about, or layers, the local player: when a
+/// partner's climax counts, this client layers itself, so no pairing or tell is needed and Cummy's own blocks still
+/// apply. Load order doesn't matter: availability is re-read whenever the plugin list changes.
 public sealed class CummyBridge : IDisposable
 {
-    /// Version 1 layers on climax; version 2 adds the layer count.
+    /// Version 2 adds the layer count, and version 3 layering yourself.
     private const int MinimumApiVersion = 1;
     private const int LayerCountVersion = 2;
+    private const int LayerSelfVersion = 3;
 
     private readonly ICallGateSubscriber<int> apiVersion;
-    private readonly ICallGateSubscriber<string, string, string, string> sendLayer;
-    private readonly ICallGateSubscriber<string, string, string, object> layerReceived;
     private readonly ICallGateSubscriber<int> getLayerCount;
     private readonly ICallGateSubscriber<int, object> layersChanged;
+    private readonly ICallGateSubscriber<string, string, string, string> layerSelf;
     private int version;
 
     public bool IsAvailable { get; private set; }
@@ -26,22 +27,20 @@ public sealed class CummyBridge : IDisposable
 
     public bool HasLayerCount => IsAvailable && version >= LayerCountVersion;
 
-    /// Why the bridge is off, for the UI.
-    public string Status { get; private set; } = "Not installed";
+    /// Partners' climaxes can layer this player, from Cummy version 3.
+    public bool CanLayerSelf => IsAvailable && version >= LayerSelfVersion;
 
-    /// (part id, source name, source world).
-    public event Action<string, string, string>? LayerReceived;
+    /// What works, for the UI.
+    public string Status { get; private set; } = "Not installed";
 
     public CummyBridge()
     {
         var pi = Plugin.PluginInterface;
         apiVersion = pi.GetIpcSubscriber<int>("Cummy.ApiVersion");
-        sendLayer = pi.GetIpcSubscriber<string, string, string, string>("Cummy.SendLayer");
-        layerReceived = pi.GetIpcSubscriber<string, string, string, object>("Cummy.OnLayerReceived");
-        layerReceived.Subscribe(OnLayerReceived);
         getLayerCount = pi.GetIpcSubscriber<int>("Cummy.GetLayerCount");
         layersChanged = pi.GetIpcSubscriber<int, object>("Cummy.OnLayersChanged");
         layersChanged.Subscribe(OnLayersChanged);
+        layerSelf = pi.GetIpcSubscriber<string, string, string, string>("Cummy.LayerSelf");
         pi.ActivePluginsChanged += OnPluginsChanged;
         Refresh();
     }
@@ -49,7 +48,6 @@ public sealed class CummyBridge : IDisposable
     public void Dispose()
     {
         Plugin.PluginInterface.ActivePluginsChanged -= OnPluginsChanged;
-        layerReceived.Unsubscribe(OnLayerReceived);
         layersChanged.Unsubscribe(OnLayersChanged);
     }
 
@@ -76,11 +74,6 @@ public sealed class CummyBridge : IDisposable
 
     private void OnPluginsChanged(IActivePluginsChangedEventArgs args) => Refresh();
 
-    private void OnLayerReceived(string partId, string sourceName, string sourceWorld)
-    {
-        if (IsAvailable) LayerReceived?.Invoke(partId, sourceName, sourceWorld);
-    }
-
     private void Refresh()
     {
         try
@@ -88,8 +81,8 @@ public sealed class CummyBridge : IDisposable
             version = apiVersion.InvokeFunc();
             IsAvailable = version >= MinimumApiVersion;
             Status = !IsAvailable ? $"Off: Cummy's API is version {version}, Corruption needs {MinimumApiVersion} or later"
-                : HasLayerCount ? "Connected"
-                : "Connected. Update Cummy for the marked bonus";
+                : CanLayerSelf ? "Connected"
+                : "Connected. Update Cummy so partners' climaxes layer you and your layers count";
         }
         catch
         {
@@ -100,33 +93,17 @@ public sealed class CummyBridge : IDisposable
         ReadLayerCount();
     }
 
-#if DEBUG
-    /// Debug builds only: asks a Debug build of Cummy to layer this character, as if a partner had. Null when it can't.
-    public string? DebugLayerSelf(string partId)
+    /// Layers the local player as if that player had. Cummy's outcome, or null when Cummy is missing or too old.
+    public string? LayerSelf(string partId, string sourceName, string sourceWorld)
     {
+        if (!CanLayerSelf) return null;
         try
         {
-            return Plugin.PluginInterface.GetIpcSubscriber<string, string>("Cummy.DebugLayerSelf").InvokeFunc(partId);
+            return layerSelf.InvokeFunc(partId, sourceName, sourceWorld);
         }
         catch (Exception ex)
         {
-            Plugin.Log.Debug($"Cummy.DebugLayerSelf failed: {ex.Message}");
-            return null;
-        }
-    }
-#endif
-
-    /// Cummy's outcome, or null when the bridge is off.
-    public string? SendLayer(string name, string world, string partId)
-    {
-        if (!IsAvailable) return null;
-        try
-        {
-            return sendLayer.InvokeFunc(name, world, partId);
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Warning($"Cummy.SendLayer failed: {ex.Message}");
+            Plugin.Log.Warning($"Cummy.LayerSelf failed: {ex.Message}");
             Refresh();
             return null;
         }

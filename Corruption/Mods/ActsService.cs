@@ -151,6 +151,12 @@ public sealed class ActsService
         Save();
     }
 
+    /// Excludes or includes animations of a mod, saving and redetecting when anything changed.
+    public void SetExcluded(string modDirectory, IEnumerable<string> keys, bool excluded)
+    {
+        if (File.SetExcluded(modDirectory, keys, excluded)) Save();
+    }
+
     public void Unpick(ModPick pick)
     {
         File.Mods.Remove(pick);

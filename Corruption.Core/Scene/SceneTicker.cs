@@ -37,27 +37,3 @@ public sealed class SceneTicker
         return true;
     }
 }
-
-/// AFK: no change of emote or position for the configured time.
-public sealed class AfkTracker
-{
-    private const float MoveThreshold = 0.05f;
-
-    private PoseKey? lastPose;
-    private Vector3 lastPosition;
-    private DateTime lastChange;
-    private bool started;
-
-    public void Update(DateTime now, PoseKey? pose, Vector3 position)
-    {
-        if (!started || pose != lastPose || Vector3.Distance(position, lastPosition) > MoveThreshold)
-        {
-            started = true;
-            lastPose = pose;
-            lastPosition = position;
-            lastChange = now;
-        }
-    }
-
-    public bool IsAfk(DateTime now, double minutes) => started && (now - lastChange).TotalMinutes >= minutes;
-}

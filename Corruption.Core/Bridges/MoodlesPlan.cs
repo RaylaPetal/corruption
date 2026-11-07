@@ -1,13 +1,15 @@
 namespace Corruption.Core;
 
-public enum MoodleKind { Aroused, Marked, Watched, Bonded, Refractory, Fading }
+public enum MoodleKind { Aroused, Marked, Watched, Bonded, Refractory, Fading, Fertile, Pregnant, Craving, Unsatisfied, Recovering }
 
 /// What Corruption's Moodles statuses should be right now.
 /// <param name="Visible">False when hidden or before setup: no statuses, since they'd show the plugin.</param>
 /// <param name="InScene">A verified scene is running.</param>
 /// <param name="WithBondedPartner">The scene's partner is the formed bond.</param>
+/// <param name="Trimester">1 to 3 while pregnant, else 0.</param>
 public readonly record struct MoodlesInput(bool Visible, double Arousal, int LayersWorn, bool InScene, int Watchers,
-    bool WithBondedPartner, bool Refractory, bool Fading);
+    bool WithBondedPartner, bool Refractory, bool Fading,
+    bool Fertile = false, int Trimester = 0, bool Craving = false, bool Unsatisfied = false, bool Recovering = false);
 
 public static class MoodlesPlan
 {
@@ -26,6 +28,11 @@ public static class MoodlesPlan
         if (input.InScene && input.WithBondedPartner) plan[MoodleKind.Bonded] = 1;
         if (input.Refractory) plan[MoodleKind.Refractory] = 1;
         if (input.Fading) plan[MoodleKind.Fading] = 1;
+        if (input.Fertile) plan[MoodleKind.Fertile] = 1;
+        if (input.Trimester is >= 1 and <= 3) plan[MoodleKind.Pregnant] = input.Trimester;
+        if (input.Craving) plan[MoodleKind.Craving] = 1;
+        if (input.Unsatisfied) plan[MoodleKind.Unsatisfied] = 1;
+        if (input.Recovering) plan[MoodleKind.Recovering] = 1;
         return plan;
     }
 

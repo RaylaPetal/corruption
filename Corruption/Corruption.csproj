@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.0.0</Version>
+    <Version>0.2.0.0</Version>
     <!-- Manifest fields -->
     <Author>Rayla Petal</Author>
     <Name>Corruption</Name>
     <Punchline>Earn corruption with someone nearby while your animations play.</Punchline>
-    <Description>Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, and show it as text above your nameplate. Everything runs locally.
+    <Description>Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.
 Requires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.</Description>
     <Tags>nsfw;penumbra;scene;progression</Tags>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

@@ -40,6 +40,9 @@ public sealed class Settings : IPluginConfiguration
     /// The game's chat sound, as in <se.1> to <se.16>.
     public int RewardSound { get; set; } = 6;
 
+    /// A scene partner's counted climax layers you through your own Cummy. No pairing or tell is involved.
+    public bool LayerOnPartnerClimax { get; set; } = true;
+
     // Bridges: all off until the player turns them on.
 
     public bool TierVisualsEnabled { get; set; }

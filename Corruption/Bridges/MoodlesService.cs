@@ -31,6 +31,11 @@ public sealed class MoodlesService
         [MoodleKind.Bonded] = new Guid("c0aa7105-0000-4c0e-9a11-000000000004"),
         [MoodleKind.Refractory] = new Guid("c0aa7105-0000-4c0e-9a11-000000000005"),
         [MoodleKind.Fading] = new Guid("c0aa7105-0000-4c0e-9a11-000000000006"),
+        [MoodleKind.Fertile] = new Guid("c0aa7105-0000-4c0e-9a11-000000000007"),
+        [MoodleKind.Pregnant] = new Guid("c0aa7105-0000-4c0e-9a11-000000000008"),
+        [MoodleKind.Craving] = new Guid("c0aa7105-0000-4c0e-9a11-000000000009"),
+        [MoodleKind.Unsatisfied] = new Guid("c0aa7105-0000-4c0e-9a11-00000000000a"),
+        [MoodleKind.Recovering] = new Guid("c0aa7105-0000-4c0e-9a11-00000000000b"),
     };
 
     /// Game statuses whose icons fit, in order of preference, looked up by English name.
@@ -42,6 +47,11 @@ public sealed class MoodlesService
         [MoodleKind.Bonded] = ["Dance Partner", "Closed Position", "Kardion"],
         [MoodleKind.Refractory] = ["Weakness", "Heavy", "Slow"],
         [MoodleKind.Fading] = ["Lethargy", "Slow", "Weakness"],
+        [MoodleKind.Fertile] = ["Fertile", "Bloom", "Regen"],
+        [MoodleKind.Pregnant] = ["Well Fed", "Protect", "Regen"],
+        [MoodleKind.Craving] = ["Hungry", "Food Craving", "Haste"],
+        [MoodleKind.Unsatisfied] = ["Weakness", "Heavy", "Slow"],
+        [MoodleKind.Recovering] = ["Regen", "Rest", "Well Fed"],
     };
 
     private readonly ICallGateSubscriber<MoodleTuple, IPlayerCharacter, object> addByData;
@@ -158,7 +168,12 @@ public sealed class MoodlesService
             MoodleKind.Watched => ("Watched", "Someone's watching the scene.", Positive),
             MoodleKind.Bonded => ("Bonded", "In a scene with their bonded partner.", Positive),
             MoodleKind.Refractory => ("Refractory", "Recovering after a climax.", Negative),
-            _ => ("Fading", "Their corruption is fading.", Negative),
+            MoodleKind.Fading => ("Fading", "Their corruption is fading.", Negative),
+            MoodleKind.Fertile => ("Fertile", "Their body is ready to conceive.", Special),
+            MoodleKind.Pregnant => ($"Pregnant: {(level == 1 ? "first" : level == 2 ? "second" : "third")} trimester", "Carrying a child.", Positive),
+            MoodleKind.Craving => ("Craving", "Craving something only a scene can give.", Special),
+            MoodleKind.Unsatisfied => ("Unsatisfied", "Yesterday's craving went unmet.", Negative),
+            _ => ("Recovering", "Recovering after giving birth.", Positive),
         };
         return (TupleVersion, Ids[kind], IconFor(kind), title, description, "", -1L, type, 1, 0, 0u, Guid.Empty, 0,
             applier, "", false);

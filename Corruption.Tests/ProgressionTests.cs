@@ -4,7 +4,7 @@ namespace Corruption.Tests;
 
 public class ProgressionTests
 {
-    private static readonly Balance B = new();
+    private static readonly Balance B = TestBalance.Classic();
     private static readonly DateTime T0 = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     [Theory]

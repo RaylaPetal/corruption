@@ -51,7 +51,9 @@ public sealed class BridgeHub : IDisposable
     public void Update(DateTime now, SceneEngine engine, string selfKey)
     {
         var save = engine.Save;
-        Visuals.Update(now, settings.TierVisualsEnabled ? TierVisualPlan.Wanted(save, settings.RemoveVisualWhilePaused) : null);
+        Visuals.Update(now,
+            settings.TierVisualsEnabled ? TierVisualPlan.Wanted(save, settings.RemoveVisualWhilePaused) : null,
+            settings.TierVisualsEnabled ? PregnancyVisualPlan.Wanted(save, now, settings.RemoveVisualWhilePaused) : null);
 
         if (!settings.MoodlesEnabled) return;
         if (!leftoversCleared && Plugin.ObjectTable.LocalPlayer is not null)
@@ -60,6 +62,11 @@ public sealed class BridgeHub : IDisposable
             leftoversCleared = true;
         }
         var partner = engine.Status.Partner;
+        var p = save.Pregnancy;
+        var fertile = PregnancyBook.HasCycle(p, now)
+            && CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).Phase is CyclePhase.Fertile or CyclePhase.Ovulation;
+        var stage = PregnancyBook.StageOf(p, now);
+        var pregnant = PregnancyBook.IsPregnant(p);
         var plan = MoodlesPlan.Plan(new MoodlesInput(
             save.Setup is not null && !save.Hidden,
             save.Arousal,
@@ -68,7 +75,12 @@ public sealed class BridgeHub : IDisposable
             engine.Status.Watchers,
             partner is not null && engine.Bonds.PaysWith(partner.Key),
             Arousal.InRefractory(save, now),
-            Progression.IsFading(save, now)));
+            Progression.IsFading(save, now),
+            fertile,
+            pregnant ? (int)stage : 0,
+            pregnant && p.Craving is not null && !p.CravingMet,
+            pregnant && p.Unsatisfied,
+            stage == PregnancyStage.Recovering));
         Moodles.Update(plan, selfKey, save.Arousal, engine.LayersWorn);
     }
 

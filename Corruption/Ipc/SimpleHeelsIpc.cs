@@ -38,6 +38,7 @@ public sealed class SimpleHeelsIpc : IDisposable
         Plugin.PluginInterface.ActivePluginsChanged -= OnPluginsChanged;
         Publish(null);
         PublishExtra(null);
+        PublishBody(null);
     }
 
     private void OnPluginsChanged(IActivePluginsChangedEventArgs args) => Refresh();
@@ -55,6 +56,9 @@ public sealed class SimpleHeelsIpc : IDisposable
 
     /// Writes the local player's extra tag (stars and bond request), or removes it when null.
     public bool PublishExtra(string? value) => Write(ExtraTag.Key, value);
+
+    /// Writes the local player's body tag (pregnancy and the self-layering marker), or removes it when null.
+    public bool PublishBody(string? value) => Write(BodyTag.Key, value);
 
     private bool Write(string key, string? value)
     {
@@ -77,6 +81,14 @@ public sealed class SimpleHeelsIpc : IDisposable
     {
         if (!IsAvailable) return null;
         try { return PresenceTag.Parse(getTag.InvokeFunc(objectIndex, PresenceTag.Key)); }
+        catch { return null; }
+    }
+
+    /// Another player's body tag, or null when their client has none.
+    public BodyTag? ReadBody(int objectIndex)
+    {
+        if (!IsAvailable) return null;
+        try { return BodyTag.Parse(getTag.InvokeFunc(objectIndex, BodyTag.Key)); }
         catch { return null; }
     }
 

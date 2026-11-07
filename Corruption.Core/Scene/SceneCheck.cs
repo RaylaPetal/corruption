@@ -1,7 +1,7 @@
 namespace Corruption.Core;
 
 /// Why a scene isn't earning right now. None means it is.
-public enum SceneFailure { None, NeedsSetup, Paused, Hidden, NoKnownAct, NoPartner, PartnerTooFar, NoPartnerDeclaration, PartnerEmoteMismatch, Afk }
+public enum SceneFailure { None, NeedsSetup, Paused, Hidden, NoKnownAct, NoPartner, PartnerTooFar, NoPartnerDeclaration, PartnerEmoteMismatch, ExcludedAct }
 
 /// What the check needs, all as plain values. Declared and Observed belong to the nearest loaded partner.
 public readonly record struct SceneInput(
@@ -11,9 +11,9 @@ public readonly record struct SceneInput(
     double Distance,
     PoseKey? Declared,
     PoseKey? Observed,
-    bool Afk,
     bool NeedsSetup = false,
-    bool Hidden = false);
+    bool Hidden = false,
+    bool Excluded = false);
 
 /// The whole per-client rule. It never compares the partners' acts: each only needs one known on their own plugin.
 public static class SceneCheck
@@ -27,12 +27,11 @@ public static class SceneCheck
         if (input.NeedsSetup) return SceneFailure.NeedsSetup;
         if (input.Paused) return SceneFailure.Paused;
         if (input.Hidden) return SceneFailure.Hidden;
-        if (!input.HasKnownAct) return SceneFailure.NoKnownAct;
+        if (!input.HasKnownAct) return input.Excluded ? SceneFailure.ExcludedAct : SceneFailure.NoKnownAct;
         if (!input.PartnerLoaded) return SceneFailure.NoPartner;
         if (input.Distance > rangeYalms) return SceneFailure.PartnerTooFar;
         if (input.Declared is not { } declared) return SceneFailure.NoPartnerDeclaration;
         if (input.Observed is not { } observed || !SamePose(declared, observed)) return SceneFailure.PartnerEmoteMismatch;
-        if (input.Afk) return SceneFailure.Afk;
         return SceneFailure.None;
     }
 
@@ -52,7 +51,7 @@ public static class SceneCheck
         SceneFailure.PartnerTooFar => "Partner is too far away",
         SceneFailure.NoPartnerDeclaration => "Your partner isn't playing an act",
         SceneFailure.PartnerEmoteMismatch => "Partner isn't playing what they declared",
-        SceneFailure.Afk => "AFK: move or change emote",
+        SceneFailure.ExcludedAct => "This animation is excluded, so it doesn't count",
         _ => failure.ToString(),
     };
 }

@@ -23,12 +23,16 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
     private DateTime nextCheck = DateTime.MinValue;
     private ActEntry? current;
 
+    /// The animation playing when it's from a picked mod but excluded. Null otherwise.
+    public ActEntry? Excluded { get; private set; }
+
     public ActEntry? Update(DateTime now, PoseKey? pose, string? raceCode)
     {
         if (!penumbra.IsAvailable || pose is null)
         {
             lastPose = pose;
             current = null;
+            Excluded = null;
             return null;
         }
 
@@ -65,12 +69,22 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
 
     private ActEntry? Check(PoseKey pose, string? raceCode)
     {
+        Excluded = null;
         if (!byPose.TryGetValue(pose, out var entry)) return null;
         var root = penumbra.TryGetModDirectory();
         if (string.IsNullOrEmpty(root) || Resolve(entry.Paths) is not { } resolved) return null;
 
         foreach (var (act, candidate) in entry.Options)
-            if (ServedCheck.IsServed(root, candidate.ModDirectory, candidate.Redirects, resolved, raceCode)) return act;
+        {
+            if (!ServedCheck.IsServed(root, candidate.ModDirectory, candidate.Redirects, resolved, raceCode)) continue;
+            // What's playing is this animation, so an excluded one doesn't fall through to another candidate.
+            if (acts.File.IsExcluded(act.ModDirectory, act.ExclusionKey))
+            {
+                Excluded = act;
+                return null;
+            }
+            return act;
+        }
         return null;
     }
 
