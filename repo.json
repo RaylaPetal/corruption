@@ -1,0 +1,25 @@
+[
+  {
+    "Author": "Rayla Petal",
+    "Name": "Corruption",
+    "InternalName": "Corruption",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, and show it as text above your nameplate. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "Punchline": "Earn corruption with someone nearby while your animations play.",
+    "RepoUrl": "https://github.com/RaylaPetal/corruption",
+    "Tags": [
+      "nsfw",
+      "penumbra",
+      "scene",
+      "progression"
+    ],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.1.0.0/Corruption-0.1.0.0.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.1.0.0/Corruption-0.1.0.0.zip",
+    "Changelog": "- First release: earn XP and arousal in scenes with a nearby player, level through corruption tiers, climax into Cummy layers, prestige, bonds, goals and achievements, nameplate text, and optional tier visuals, toys and Moodles.",
+    "LastUpdate": "1794048338"
+  }
+]

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <!-- Manifest fields -->
+    <Author>Rayla Petal</Author>
+    <Name>Corruption</Name>
+    <Punchline>Earn corruption with someone nearby while your animations play.</Punchline>
+    <Description>Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, and show it as text above your nameplate. Everything runs locally.
+Requires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.</Description>
+    <Tags>nsfw;penumbra;scene;progression</Tags>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="balance.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The overlay that draws nameplate text as native game text, as in Oathbound. -->
+    <PackageReference Include="KamiToolKit" Version="1.1.2" />
+    <!-- Tier visuals: Glamourer designs on the local player, as in Oathbound. -->
+    <PackageReference Include="Glamourer.Api" Version="2.8.2" />
+    <!-- Toys: the Buttplug client for Intiface Central, as in Oathbound. -->
+    <PackageReference Include="Buttplug" Version="5.0.1" />
+    <!-- Buttplug brings its own Newtonsoft.Json. A second copy breaks IPC that passes JObjects (Oathbound hit this with
+         Glamourer), so it's compile-time only and every plugin stays on Dalamud's shared copy. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Corruption.Core\Corruption.Core.csproj" />
+    <!-- Built from source against the submodules, as Cummy does. -->
+    <ProjectReference Include="..\Penumbra.Api\Penumbra.Api.csproj" />
+    <ProjectReference Include="..\Luna\Luna\Luna.csproj" />
+    <ProjectReference Include="..\Luna\Luna.Generators\Luna.Generators.csproj" OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

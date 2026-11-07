@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Corruption.Core;
+using Dalamud.Game;
+using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Plugin.Ipc;
+using Lumina.Excel.Sheets;
+using MoodleTuple = (int Version, System.Guid Id, int IconId, string Title, string Description, string CustomVfxPath,
+    long ExpireTicks, int Type, int Stacks, int StackSteps, uint Modifiers, System.Guid ChainedStatus, int ChainTrigger,
+    string Applier, string Dispeller, bool Permanent);
+
+namespace Corruption.Bridges;
+
+/// Corruption's statuses on the local player through Moodles, applied from data so nothing is added to the player's
+/// Moodles library. Only statuses with Corruption's fixed IDs are ever touched. Framework thread.
+public sealed class MoodlesService
+{
+    /// Moodles' status tuple version this matches, as in Oathbound.
+    private const int TupleVersion = 2;
+
+    private const int Positive = 0;
+    private const int Negative = 1;
+    private const int Special = 2;
+
+    private static readonly Dictionary<MoodleKind, Guid> Ids = new()
+    {
+        [MoodleKind.Aroused] = new Guid("c0aa7105-0000-4c0e-9a11-000000000001"),
+        [MoodleKind.Marked] = new Guid("c0aa7105-0000-4c0e-9a11-000000000002"),
+        [MoodleKind.Watched] = new Guid("c0aa7105-0000-4c0e-9a11-000000000003"),
+        [MoodleKind.Bonded] = new Guid("c0aa7105-0000-4c0e-9a11-000000000004"),
+        [MoodleKind.Refractory] = new Guid("c0aa7105-0000-4c0e-9a11-000000000005"),
+        [MoodleKind.Fading] = new Guid("c0aa7105-0000-4c0e-9a11-000000000006"),
+    };
+
+    /// Game statuses whose icons fit, in order of preference, looked up by English name.
+    private static readonly Dictionary<MoodleKind, string[]> IconNames = new()
+    {
+        [MoodleKind.Aroused] = ["Seduced", "Infatuated", "Fervor", "Haste"],
+        [MoodleKind.Marked] = ["Prey", "Vulnerability Up", "Weakness"],
+        [MoodleKind.Watched] = ["Spotlight", "Watchful Eye", "Haste"],
+        [MoodleKind.Bonded] = ["Dance Partner", "Closed Position", "Kardion"],
+        [MoodleKind.Refractory] = ["Weakness", "Heavy", "Slow"],
+        [MoodleKind.Fading] = ["Lethargy", "Slow", "Weakness"],
+    };
+
+    private readonly ICallGateSubscriber<MoodleTuple, IPlayerCharacter, object> addByData;
+    private readonly ICallGateSubscriber<Guid, IPlayerCharacter, object> remove;
+    private readonly ICallGateSubscriber<List<MoodleTuple>> clientStatuses;
+    private readonly Dictionary<MoodleKind, int> applied = [];
+    private Dictionary<MoodleKind, int>? icons;
+    private bool checkedOnce;
+
+    public MoodlesService()
+    {
+        var pi = Plugin.PluginInterface;
+        addByData = pi.GetIpcSubscriber<MoodleTuple, IPlayerCharacter, object>("Moodles.AddOrUpdateMoodleByDataByPlayerV2");
+        remove = pi.GetIpcSubscriber<Guid, IPlayerCharacter, object>("Moodles.RemoveMoodleByPlayerV2");
+        clientStatuses = pi.GetIpcSubscriber<List<MoodleTuple>>("Moodles.GetClientStatusManagerInfoV2");
+    }
+
+    public bool IsAvailable
+    {
+        get
+        {
+            try { clientStatuses.InvokeFunc(); return true; }
+            catch { return false; }
+        }
+    }
+
+    /// Why statuses aren't showing, for Settings. Null when they are, or nothing has been tried.
+    public string? Problem { get; private set; }
+
+    public int AppliedCount => applied.Count;
+
+    /// Sends only what changed between the plan and what's on now.
+    public void Update(IReadOnlyDictionary<MoodleKind, int> plan, string applier, double arousal, int layers)
+    {
+        if (plan.Count == 0 && applied.Count == 0) return;
+        if (Plugin.ObjectTable.LocalPlayer is not { } me) return;
+
+        try
+        {
+            foreach (var kind in applied.Keys.Where(k => !plan.ContainsKey(k)).ToList())
+            {
+                remove.InvokeAction(Ids[kind], me);
+                applied.Remove(kind);
+            }
+            var added = false;
+            foreach (var (kind, level) in plan)
+            {
+                if (applied.TryGetValue(kind, out var was) && was == level) continue;
+                addByData.InvokeAction(Tuple(kind, level, applier, arousal, layers), me);
+                applied[kind] = level;
+                added = true;
+            }
+            if (added && !checkedOnce) CheckAccepted();
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Moodles call failed: {ex.Message}");
+            Problem = "Moodles isn't available, or is a version Corruption doesn't know.";
+            applied.Clear();
+        }
+    }
+
+    /// Moodles drops statuses quietly when other plugins aren't allowed, so look once after the first apply.
+    private void CheckAccepted()
+    {
+        checkedOnce = true;
+        var active = clientStatuses.InvokeFunc().Select(s => s.Id).ToHashSet();
+        if (applied.Keys.Any(k => active.Contains(Ids[k])))
+        {
+            Problem = null;
+            return;
+        }
+        Problem = "Moodles didn't accept Corruption's statuses. In Moodles' settings, turn on \"Allow other plugins to apply Moodles\".";
+        applied.Clear();
+    }
+
+    /// Statuses with Corruption's IDs left from an earlier session, such as after a crash or a logout that came too late
+    /// to remove them.
+    public void RemoveLeftovers()
+    {
+        if (Plugin.ObjectTable.LocalPlayer is not { } me) return;
+        try
+        {
+            var ours = Ids.Values.ToHashSet();
+            foreach (var id in clientStatuses.InvokeFunc().Select(s => s.Id).Where(ours.Contains))
+                remove.InvokeAction(id, me);
+        }
+        catch (Exception ex) { Plugin.Log.Debug($"Moodles leftover check failed: {ex.Message}"); }
+    }
+
+    /// Takes off every status Corruption put on, and nothing else.
+    public void RemoveAll()
+    {
+        checkedOnce = false;
+        if (applied.Count == 0 || Plugin.ObjectTable.LocalPlayer is not { } me)
+        {
+            applied.Clear();
+            return;
+        }
+        foreach (var kind in applied.Keys)
+        {
+            try { remove.InvokeAction(Ids[kind], me); }
+            catch (Exception ex) { Plugin.Log.Debug($"Moodles remove failed: {ex.Message}"); }
+        }
+        applied.Clear();
+    }
+
+    private MoodleTuple Tuple(MoodleKind kind, int level, string applier, double arousal, int layers)
+    {
+        var (title, description, type) = kind switch
+        {
+            MoodleKind.Aroused => ($"Aroused {Roman(level)}", $"Arousal at {PlateComposer.ArousalNumber(arousal)}%.", Special),
+            MoodleKind.Marked => ("Marked", layers == 1 ? "Wearing 1 layer." : $"Wearing {layers} layers.", Special),
+            MoodleKind.Watched => ("Watched", "Someone's watching the scene.", Positive),
+            MoodleKind.Bonded => ("Bonded", "In a scene with their bonded partner.", Positive),
+            MoodleKind.Refractory => ("Refractory", "Recovering after a climax.", Negative),
+            _ => ("Fading", "Their corruption is fading.", Negative),
+        };
+        return (TupleVersion, Ids[kind], IconFor(kind), title, description, "", -1L, type, 1, 0, 0u, Guid.Empty, 0,
+            applier, "", false);
+    }
+
+    private static string Roman(int step) => step switch { 1 => "I", 2 => "II", 3 => "III", 4 => "IV", _ => "V" };
+
+    private int IconFor(MoodleKind kind)
+    {
+        icons ??= ResolveIcons();
+        return icons.TryGetValue(kind, out var icon) ? icon : 0;
+    }
+
+    /// As Oathbound's ResolveIconIds: the first named status that exists, falling back to any status with an icon.
+    private static Dictionary<MoodleKind, int> ResolveIcons()
+    {
+        var result = new Dictionary<MoodleKind, int>();
+        try
+        {
+            var sheet = Plugin.DataManager.GetExcelSheet<Status>(ClientLanguage.English);
+            var byName = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in sheet)
+            {
+                if (row.Icon == 0) continue;
+                byName.TryAdd(row.Name.ExtractText(), row.Icon);
+            }
+            var fallback = byName.Values.FirstOrDefault();
+            foreach (var (kind, names) in IconNames)
+            {
+                var icon = names.Select(n => byName.GetValueOrDefault(n)).FirstOrDefault(i => i != 0);
+                result[kind] = (int)(icon != 0 ? icon : fallback);
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Couldn't read status icons: {ex.Message}");
+        }
+        return result;
+    }
+}

@@ -1,0 +1,50 @@
+{
+  "TickXp": 6,
+  "ArousalPerTick": 3,
+
+  "XpPerOwnTier": 0.05,
+  "XpPerPartnerTierAbove": 0.1,
+  "PartnerFactorCap": 1.3,
+  "XpPerWatcher": 0.1,
+  "WatcherFactorCap": 1.5,
+  "XpPerStreakDay": 0.05,
+  "StreakFactorCap": 1.3,
+
+  "WatchRadiusYalms": 15,
+  "WatchCloseYalms": 8,
+  "WatchFacingDegrees": 60,
+
+  "FatigueGraceMinutes": 10,
+  "FatigueStep": 0.1,
+  "FatigueFloor": 0.2,
+  "FatigueForgetMinutes": 5,
+
+  "CurveBase": 100,
+  "CurveFactor": 10,
+  "CurveExponent": 1.5,
+  "LevelCap": 100,
+
+  "FirstPartnerXp": 200,
+  "FirstActXp": 100,
+  "ClimaxXp": 150,
+  "PartnerClimaxShare": 0.5,
+  "LayerXp": 75,
+
+  "ArousalPerCorruptionTier": 0.05,
+  "ArousalDecayStep": 1,
+  "ArousalDecaySeconds": 30,
+  "ManualClimaxMinimum": 70,
+  "ArousalAfterClimax": 20,
+  "RefractorySeconds": 60,
+  "RefractoryGainFactor": 0.5,
+
+  "TickSeconds": 10,
+  "SceneRangeYalms": 3,
+  "AfkMinutes": 15,
+  "SceneEndSeconds": 30,
+  "PartnerClimaxRecencySeconds": 30,
+  "PartnerClimaxLimitSeconds": 60,
+  "LayerWindowSeconds": 10,
+  "LayerDelaySeconds": 2,
+  "SaveIntervalSeconds": 60
+}

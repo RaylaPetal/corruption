@@ -1,0 +1,58 @@
+namespace Corruption.Core;
+
+/// Why a scene isn't earning right now. None means it is.
+public enum SceneFailure { None, NeedsSetup, Paused, Hidden, NoKnownAct, NoPartner, PartnerTooFar, NoPartnerDeclaration, PartnerEmoteMismatch, Afk }
+
+/// What the check needs, all as plain values. Declared and Observed belong to the nearest loaded partner.
+public readonly record struct SceneInput(
+    bool Paused,
+    bool HasKnownAct,
+    bool PartnerLoaded,
+    double Distance,
+    PoseKey? Declared,
+    PoseKey? Observed,
+    bool Afk,
+    bool NeedsSetup = false,
+    bool Hidden = false);
+
+/// The whole per-client rule. It never compares the partners' acts: each only needs one known on their own plugin.
+public static class SceneCheck
+{
+    /// When true, sit and doze variants must match too. If in-game testing shows other players' variants read
+    /// unreliably, set this false to compare the emote alone.
+    public const bool CompareVariant = true;
+
+    public static SceneFailure Evaluate(in SceneInput input, double rangeYalms)
+    {
+        if (input.NeedsSetup) return SceneFailure.NeedsSetup;
+        if (input.Paused) return SceneFailure.Paused;
+        if (input.Hidden) return SceneFailure.Hidden;
+        if (!input.HasKnownAct) return SceneFailure.NoKnownAct;
+        if (!input.PartnerLoaded) return SceneFailure.NoPartner;
+        if (input.Distance > rangeYalms) return SceneFailure.PartnerTooFar;
+        if (input.Declared is not { } declared) return SceneFailure.NoPartnerDeclaration;
+        if (input.Observed is not { } observed || !SamePose(declared, observed)) return SceneFailure.PartnerEmoteMismatch;
+        if (input.Afk) return SceneFailure.Afk;
+        return SceneFailure.None;
+    }
+
+    private static bool SamePose(PoseKey declared, PoseKey observed)
+#pragma warning disable CS0162 // The other branch is the documented fallback for CompareVariant.
+        => CompareVariant ? declared == observed : declared.EmoteMode == observed.EmoteMode;
+#pragma warning restore CS0162
+
+    public static string Describe(SceneFailure failure) => failure switch
+    {
+        SceneFailure.None => "Earning",
+        SceneFailure.NeedsSetup => "Finish your profile setup in /corr",
+        SceneFailure.Paused => "Paused",
+        SceneFailure.Hidden => "You're hidden, so scenes can't earn",
+        SceneFailure.NoKnownAct => "No known act playing",
+        SceneFailure.NoPartner => "Nobody nearby with Corruption",
+        SceneFailure.PartnerTooFar => "Partner is too far away",
+        SceneFailure.NoPartnerDeclaration => "Your partner isn't playing an act",
+        SceneFailure.PartnerEmoteMismatch => "Partner isn't playing what they declared",
+        SceneFailure.Afk => "AFK: move or change emote",
+        _ => failure.ToString(),
+    };
+}

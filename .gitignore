@@ -1,0 +1,71 @@
+# AI agent / tooling state
+.cline/
+.clinerules/
+.claude/
+.agents/
+openspec/
+
+
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm64/
+*.nupkg
+*.snupkg
+TestResults/
+*.binlog
+artifacts/
+packages/
+*.nuget.props
+*.nuget.targets
+
+# DalamudPackager output
+latest.zip
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+*.DotSettings.user
+.fleet/
+*.code-workspace
+.history/
+*.sln.iml
+
+# Python (tools/)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+._*
+.directory
+.Trash-*/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*~
+*.bak
+*.orig
+*.rej
+.env
+.env.*

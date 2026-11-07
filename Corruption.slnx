@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/Luna/">
+    <Project Path="Luna/Luna.Generators/Luna.Generators.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="Luna/Luna/Luna.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Project Path="Corruption/Corruption.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Corruption.Core/Corruption.Core.csproj" />
+  <Project Path="Corruption.Tests/Corruption.Tests.csproj" />
+  <Project Path="Penumbra.Api/Penumbra.Api.csproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>
