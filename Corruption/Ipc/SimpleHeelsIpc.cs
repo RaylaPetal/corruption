@@ -39,6 +39,7 @@ public sealed class SimpleHeelsIpc : IDisposable
         Publish(null);
         PublishExtra(null);
         PublishBody(null);
+        PublishTitle(null);
     }
 
     private void OnPluginsChanged(IActivePluginsChangedEventArgs args) => Refresh();
@@ -59,6 +60,9 @@ public sealed class SimpleHeelsIpc : IDisposable
 
     /// Writes the local player's body tag (pregnancy and the self-layering marker), or removes it when null.
     public bool PublishBody(string? value) => Write(BodyTag.Key, value);
+
+    /// Writes the local player's title tag (the equipped title's id), or removes it when null.
+    public bool PublishTitle(string? value) => Write(TitleTag.Key, value);
 
     private bool Write(string key, string? value)
     {
@@ -89,6 +93,14 @@ public sealed class SimpleHeelsIpc : IDisposable
     {
         if (!IsAvailable) return null;
         try { return BodyTag.Parse(getTag.InvokeFunc(objectIndex, BodyTag.Key)); }
+        catch { return null; }
+    }
+
+    /// Another player's title id, or null when they have none or their client has no titles.
+    public string? ReadTitle(int objectIndex)
+    {
+        if (!IsAvailable) return null;
+        try { return TitleTag.Parse(getTag.InvokeFunc(objectIndex, TitleTag.Key))?.Id; }
         catch { return null; }
     }
 

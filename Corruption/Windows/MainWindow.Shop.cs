@@ -31,30 +31,81 @@ public sealed partial class MainWindow
         DrawActiveEffects(save, now);
         DrawInventory(engine, now);
 
-        Theme.Heading(FontAwesomeIcon.Store, "For sale");
-        foreach (var item in ItemBook.Offered(save))
+        foreach (var (category, name) in ItemCatalog.Categories)
         {
-            Theme.CardBox($"item{item.Id}", () =>
-            {
-                Theme.Icon(ItemIcons.Of(item.Id), item.Role == ItemRole.Anyone ? Theme.Violet : Theme.Pink);
-                ImGui.SameLine();
-                ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted(item.Name);
-                ImGui.SameLine();
-                Theme.Pill(ItemIcons.Lasts(item), Theme.Muted);
-                var label = $"{item.Price} Sins";
-                Theme.AlignRight(Theme.IconButtonWidth(FontAwesomeIcon.ShoppingCart, label));
-                var afford = save.Wallet.Sins >= item.Price;
-                if (!afford) ImGui.BeginDisabled();
-                if (Theme.PrimaryButton(FontAwesomeIcon.ShoppingCart, $"{label}##buy{item.Id}"))
-                    shopMessage = engine.BuyItem(item.Id) ?? $"Bought {item.Name}. It's in your inventory.";
-                if (!afford) ImGui.EndDisabled();
-                if (!afford && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                    ImGui.SetTooltip($"You need {item.Price - save.Wallet.Sins} more Sins.");
-                Theme.MutedText(item.Effect);
-            });
+            var items = ItemBook.Offered(save).Where(i => ItemCatalog.CategoryOf(i) == category).ToList();
+            if (items.Count == 0) continue;
+            if (!ImGui.CollapsingHeader($"{name}###shop{category}", ImGuiTreeNodeFlags.DefaultOpen)) continue;
+            foreach (var item in items) DrawShopItem(engine, item);
         }
         if (!save.Pregnancy.Enabled) Theme.MutedWrapped("Turn pregnancy on in Settings for fertility and pregnancy items.");
+
+        DrawShopTitles(engine);
+    }
+
+    private void DrawShopItem(SceneEngine engine, ItemDef item)
+    {
+        var save = engine.Save;
+        Theme.CardBox($"item{item.Id}", () =>
+        {
+            Theme.Icon(ItemIcons.Of(item.Id), item.Role == ItemRole.Anyone ? Theme.Violet : Theme.Pink);
+            ImGui.SameLine();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(item.Name);
+            ImGui.SameLine();
+            Theme.Pill(ItemIcons.Lasts(item), Theme.Muted);
+            var price = ItemBook.PriceFor(save, item);
+            var label = $"{price} Sins";
+            Theme.AlignRight(Theme.IconButtonWidth(FontAwesomeIcon.ShoppingCart, label));
+            var afford = save.Wallet.Sins >= price;
+            if (!afford) ImGui.BeginDisabled();
+            if (Theme.PrimaryButton(FontAwesomeIcon.ShoppingCart, $"{label}##buy{item.Id}"))
+                shopMessage = engine.BuyItem(item.Id) ?? $"Bought {item.Name}. It's in your inventory.";
+            if (!afford) ImGui.EndDisabled();
+            if (!afford && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip($"You need {price - save.Wallet.Sins} more Sins.");
+            Theme.MutedText(item.Effect);
+        });
+    }
+
+    /// Titles for sale: bought once and kept, worn from Profile.
+    private void DrawShopTitles(SceneEngine engine)
+    {
+        var save = engine.Save;
+        if (!ImGui.CollapsingHeader("Titles###shopTitles", ImGuiTreeNodeFlags.DefaultOpen)) return;
+        Theme.MutedWrapped("Yours for good once bought. Wear one from the title picker on Profile: only the one you wear gives its bonus.");
+        foreach (var title in TitleCatalog.All.Where(t => t.Source == TitleSource.Shop))
+        {
+            var color = new System.Numerics.Vector4(PlateComposer.TitleColor(title), 1f);
+            Theme.CardBox($"title{title.Id}", () =>
+            {
+                Theme.Icon(FontAwesomeIcon.Crown, color);
+                ImGui.SameLine();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextColored(color, title.Name);
+                if (TitleBook.IsUnlocked(save, title.Id))
+                {
+                    var state = TitleBook.Equipped(save)?.Id == title.Id ? "Wearing" : "Owned";
+                    Theme.AlignRight(Theme.PillWidth(state));
+                    Theme.Pill(state, Theme.Good);
+                }
+                else
+                {
+                    var label = $"{title.Price} Sins";
+                    Theme.AlignRight(Theme.IconButtonWidth(FontAwesomeIcon.ShoppingCart, label));
+                    var refusal = TitleBook.BuyRefusal(save, title);
+                    if (refusal is not null) ImGui.BeginDisabled();
+                    if (Theme.PrimaryButton(FontAwesomeIcon.ShoppingCart, $"{label}##buy{title.Id}"))
+                        shopMessage = engine.BuyTitle(title.Id) ?? $"Bought the {title.Name} title. Wear it from Profile.";
+                    if (refusal is not null)
+                    {
+                        ImGui.EndDisabled();
+                        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.SetTooltip(refusal);
+                    }
+                }
+                Theme.MutedText(title.IsCosmetic ? "Just for show, in a colour of its own" : title.Effect);
+            }, stripe: color);
+        }
     }
 
     private static void DrawActiveEffects(CharacterSave save, DateTime now)

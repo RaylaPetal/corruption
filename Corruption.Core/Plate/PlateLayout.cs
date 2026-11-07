@@ -24,6 +24,11 @@ public static class PlateLayout
         };
     }
 
+    /// The screen Y of the bottom of the drawn text, with the same values as <see cref="DrawnTop"/>.
+    public static float DrawnBottom(float boxTop, float boxHeight, int alignment, float measuredHeight, int lines, float fontHeight)
+        => DrawnTop(boxTop, boxHeight, alignment, measuredHeight, lines, fontHeight)
+           + MathF.Max(measuredHeight, lines * fontHeight * LineHeightPerFontUnit);
+
     /// Lines in a game text: a carriage return or the game's encoded newline ends one.
     public static int CountLines(ReadOnlySpan<byte> text)
     {

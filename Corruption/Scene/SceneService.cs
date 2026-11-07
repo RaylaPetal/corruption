@@ -123,16 +123,21 @@ public sealed class SceneService : IDisposable, IEngineHost
         var texts = new PlateTexts(settings.PlateTemplate, settings.PlateActTemplate, settings.PlateClimaxTemplate,
             settings.PlateCycleSeconds, PlateClimaxSeconds);
         var labels = new Dictionary<uint, RenderedPlate>();
-        if (settings.PlateShowOwn)
-            labels[me.EntityId] = PlateComposer.ComposeNow(now, texts, engine.OwnPlate, engine.OwnPlateScene);
+        var titles = settings.TitlePosition != TitlePosition.Off;
 
-        if (settings.PlateShowPartners)
+        // With the text turned off, the title can still show on its own.
+        RenderedPlate? Label(bool showText, PlateValues values, PlateScene scene)
         {
-            foreach (var (entityId, player) in nearby)
-            {
-                if (entityId != 0 && engine.PlateOf(player.Player) is { } values)
-                    labels[entityId] = PlateComposer.ComposeNow(now, texts, values, engine.PlateSceneOf(player.Player));
-            }
+            var label = showText ? PlateComposer.ComposeNow(now, texts, values, scene) : titles ? PlateComposer.TitleOnly(values) : null;
+            return titles || label is null ? label : label with { Title = null };
+        }
+
+        if (Label(settings.PlateShowOwn, engine.OwnPlate, engine.OwnPlateScene) is { } own) labels[me.EntityId] = own;
+        foreach (var (entityId, player) in nearby)
+        {
+            if (entityId != 0 && engine.PlateOf(player.Player) is { } values
+                && Label(settings.PlateShowPartners, values, engine.PlateSceneOf(player.Player)) is { } label)
+                labels[entityId] = label;
         }
         plates.Current = labels;
     }
@@ -149,6 +154,7 @@ public sealed class SceneService : IDisposable, IEngineHost
         heels.Publish(null);
         heels.PublishExtra(null);
         heels.PublishBody(null);
+        heels.PublishTitle(null);
         if (id == 0) return;
         cummy.ReadLayerCount();
 
@@ -175,11 +181,11 @@ public sealed class SceneService : IDisposable, IEngineHost
             if (distance > TagReadRangeYalms || heels.Read(pc.ObjectIndex) is not { } tag) continue;
             var player = new PeerRecord { Name = pc.Name.TextValue, World = pc.HomeWorld.Value.Name.ExtractText() };
             nearby.Add((pc.EntityId, new VisiblePlayer(player, distance, PoseReader.Read(pc), tag, heels.ReadExtra(pc.ObjectIndex),
-                heels.ReadBody(pc.ObjectIndex))));
+                heels.ReadBody(pc.ObjectIndex), heels.ReadTitle(pc.ObjectIndex))));
         }
 #if DEBUG
         if (DebugPartnerActive)
-            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra, DebugBody)));
+            nearby.Add((0, new VisiblePlayer(new PeerRecord { Name = DebugName, World = DebugWorld }, DebugDistance, DebugTag.Pose, DebugTag, DebugExtra, DebugBody, DebugTitle)));
 #endif
         return nearby;
     }
@@ -237,6 +243,14 @@ public sealed class SceneService : IDisposable, IEngineHost
     public bool PublishExtraTag(string? value) => heels.PublishExtra(value);
 
     public bool PublishBodyTag(string? value) => heels.PublishBody(value);
+
+    public bool PublishTitleTag(string? value) => heels.PublishTitle(value);
+
+    /// A scene long enough to be worth it gets a summary popup. The Last scene card shows every scene.
+    public void SceneEnded(SceneSummary summary)
+    {
+        if (SceneSummaries.WorthAPopup(summary)) celebrate(SceneSummaries.Reward(summary));
+    }
 
     public string? LayerSelf(PeerRecord source, string partId)
     {
@@ -300,6 +314,7 @@ public sealed class SceneService : IDisposable, IEngineHost
     public PresenceTag DebugTag { get; set; } = new(new PoseKey(50, 0), 30, 40, 0, false);
     public ExtraTag? DebugExtra { get; set; }
     public BodyTag? DebugBody { get; set; } = BodyTag.Empty;
+    public string? DebugTitle { get; set; }
 
     private readonly List<string> debugLog = [];
 

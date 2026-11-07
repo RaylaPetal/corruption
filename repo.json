@@ -4,7 +4,7 @@
     "Name": "Corruption",
     "InternalName": "Corruption",
     "AssemblyVersion": "0.2.1.0",
-    "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
+    "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "Punchline": "Earn corruption with someone nearby while your animations play.",
@@ -19,7 +19,7 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.2.1.0/Corruption-0.2.1.0.zip",
     "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.2.1.0/Corruption-0.2.1.0.zip",
-    "Changelog": "- A welcome window walks you through setup once: difficulty, decay, climax and arousal gain, then your anatomy, pregnancy, Cummy layering, the safeword and what shows. Characters set up before it see it once too, and Settings can open it again.\n- The HUD shows by itself during a scene with a partner, even with it turned off. Change it in Settings.\n- Fixed the HUD's top row overlapping, and long messages and names stretching it.",
+    "Changelog": "- Titles: unlock them from levels, prestige and achievements, or buy some in the shop. Wear one from Profile: it shows over your nameplate (above the text, below your name, or off) and gives a small bonus that suits it. It can't change during a scene.\n- Tiered achievements (Insatiable II and III and more) and four hidden ones.\n- Ten new goals. You're only given goals you can meet.\n- Moon events from Eorzea's moon: a Full Moon speeds arousal, and a New Moon pays more Sins for scene time.\n- A summary popup when a scene ends, and the last scene on Profile.\n- Partner history and titles on Nearby, with a list of past partners.\n- Popups for new tiers and titles.\n- The shop is grouped into sections.\n- The integrations now show in a footer on every page.",
     "LastUpdate": "1794065856"
   }
 ]

@@ -54,11 +54,33 @@ public sealed class CharacterSave
     /// The longest verified scene, start to last passing check.
     public double LongestSceneSeconds { get; set; }
 
+    /// The most verified seconds in one scene, gaps and pauses left out. For Marathon.
+    public double LongestVerifiedSceneSeconds { get; set; }
+
+    /// The most watchers at once during a verified scene. For Crowd Pleaser.
+    public int PeakWatchers { get; set; }
+
+    /// Different Full Moons with a verified tick, and the cycle of the last one counted. For Moon-Touched.
+    public int FullMoonsSeen { get; set; }
+    public long LastFullMoonCycle { get; set; } = long.MinValue;
+
     /// Items owned, by id, and items working now.
     public Dictionary<string, int> Inventory { get; set; } = [];
     public Dictionary<string, ActiveEffect> Effects { get; set; } = [];
 
     public PregnancyState Pregnancy { get; set; } = new();
+
+    /// The last scene's summary, for the Profile page. Null before the first.
+    public SceneSummary? LastScene { get; set; }
+
+    /// Each partner's history, keyed `Name@World`.
+    public Dictionary<string, PartnerRecord> Partners { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// True once older per-partner scene counts were turned into records.
+    public bool PartnersSeeded { get; set; }
+
+    /// Unlocked titles and the equipped one. Prestige keeps them; a reset clears them, bought ones too.
+    public TitleSave Titles { get; set; } = new();
 
     /// Verified scene time with the bonded partner, which sets the bond level.
     public double BondSeconds { get; set; }
@@ -79,6 +101,10 @@ public sealed class CharacterSave
         RefractoryUntilUtc = default;
         StreakDays = 0;
         LastSceneDayUtc = default;
+        LongestVerifiedSceneSeconds = 0;
+        PeakWatchers = 0;
+        FullMoonsSeen = 0;
+        LastFullMoonCycle = long.MinValue;
         Goals = new GoalSave();
         SeenPartners.Clear();
         SeenActs.Clear();
@@ -90,6 +116,11 @@ public sealed class CharacterSave
         Inventory.Clear();
         Effects.Clear();
         Pregnancy = new PregnancyState();
+        LastScene = null;
+        Partners.Clear();
+        PartnersSeeded = true;
+        // Nothing is earned after a reset, so there's nothing to unlock silently either.
+        Titles = new TitleSave { Initialized = true };
     }
 }
 

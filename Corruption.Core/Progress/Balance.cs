@@ -61,6 +61,11 @@ public sealed class Balance
     public double PartnerClimaxLimitSeconds { get; set; } = 60;
     public double SaveIntervalSeconds { get; set; } = 60;
 
+    /// Eorzean days added before working out the moon's phase, to line it up with the game's moon.
+    public int MoonOffsetDays { get; set; }
+    public double FullMoonArousalFactor { get; set; } = 1.1;
+    public double NewMoonSceneSinsFactor { get; set; } = 1.5;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNameCaseInsensitive = true,

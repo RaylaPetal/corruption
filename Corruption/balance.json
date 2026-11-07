@@ -49,5 +49,9 @@
   "SceneEndSeconds": 30,
   "PartnerClimaxRecencySeconds": 30,
   "PartnerClimaxLimitSeconds": 60,
-  "SaveIntervalSeconds": 60
+  "SaveIntervalSeconds": 60,
+
+  "MoonOffsetDays": 0,
+  "FullMoonArousalFactor": 1.1,
+  "NewMoonSceneSinsFactor": 1.5
 }

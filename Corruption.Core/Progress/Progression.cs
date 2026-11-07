@@ -46,10 +46,11 @@ public static class Progression
         return new XpResult(gained, after != before ? after : null);
     }
 
-    /// 1.0 through the grace period, then one step down per whole extra minute, to the floor.
-    public static double Fatigue(TimeSpan onThisAct, Balance b)
+    /// 1.0 through the grace period, then one step down per whole extra minute, to the floor. A title can lengthen the
+    /// grace by <paramref name="extraGraceMinutes"/>.
+    public static double Fatigue(TimeSpan onThisAct, Balance b, double extraGraceMinutes = 0)
     {
-        var extra = Math.Floor(onThisAct.TotalMinutes - b.FatigueGraceMinutes);
+        var extra = Math.Floor(onThisAct.TotalMinutes - b.FatigueGraceMinutes - extraGraceMinutes);
         return extra <= 0 ? 1.0 : Math.Max(b.FatigueFloor, 1.0 - extra * b.FatigueStep);
     }
 
@@ -100,28 +101,33 @@ public static class Progression
     /// What multiplies a verified tick's XP, from everything around the scene rather than the animation.
     /// <paramref name="bondLevel"/>: the bond's level when the partner is the formed bond and their tag still names
     /// this player, else 0. <paramref name="layersWorn"/>: Cummy layer stages worn. <paramref name="stars"/>: prestige.
-    public static TickFactors Factors(int level, int? partnerLevel, int watchers, int streakDays, double fatigue, Balance b,
-        int bondLevel = 0, int layersWorn = 0, int stars = 0)
+    /// <paramref name="title"/>: the equipped title's bonus, which can raise caps and adds its own factor.
+    public static TickFactors Factors(int level, int? partnerLevel, double watchers, int streakDays, double fatigue, Balance b,
+        int bondLevel = 0, int layersWorn = 0, int stars = 0, TitleBonus? title = null, bool fullMoon = false)
     {
+        title ??= TitleBonus.None;
         var own = (int)TierOf(level);
         var above = partnerLevel is { } other ? Math.Max(0, (int)TierOf(other) - own) : 0;
         return new TickFactors(
             1 + b.XpPerOwnTier * own,
             Math.Min(b.PartnerFactorCap, 1 + b.XpPerPartnerTierAbove * above),
-            WatchFactor(watchers, b),
-            Math.Min(b.StreakFactorCap, 1 + b.XpPerStreakDay * Math.Max(0, streakDays - 1)),
+            WatchFactor(watchers, b, title.WatcherCap),
+            Math.Min(title.StreakCap ?? b.StreakFactorCap, 1 + b.XpPerStreakDay * Math.Max(0, streakDays - 1)),
             fatigue,
             BondFactor(bondLevel, b),
-            MarkedFactor(layersWorn, b),
-            PrestigeRules.Factor(stars, b));
+            MarkedFactor(layersWorn, b, title.MarkedCap),
+            PrestigeRules.Factor(stars, b),
+            Title: title.TickXp * (fullMoon ? title.FullMoonTickXp : 1));
     }
 
     public static double BondFactor(int bondLevel, Balance b)
         => bondLevel <= 0 ? 1 : bondLevel >= BondLevels.DevotedLevel ? b.DevotedBondFactor : b.BondedFactor;
 
-    public static double MarkedFactor(int layersWorn, Balance b) => Math.Min(b.MarkedFactorCap, 1 + b.XpPerLayerWorn * Math.Max(0, layersWorn));
+    public static double MarkedFactor(int layersWorn, Balance b, double? cap = null)
+        => Math.Min(cap ?? b.MarkedFactorCap, 1 + b.XpPerLayerWorn * Math.Max(0, layersWorn));
 
-    public static double WatchFactor(int watchers, Balance b) => Math.Min(b.WatcherFactorCap, 1 + b.XpPerWatcher * Math.Max(0, watchers));
+    public static double WatchFactor(double watchers, Balance b, double? cap = null)
+        => Math.Min(cap ?? b.WatcherFactorCap, 1 + b.XpPerWatcher * Math.Max(0, watchers));
 
     /// Counts today toward the streak. Each missed day halves it rather than ending it, unless
     /// <paramref name="protectDay"/> says a Streak Charm covers that day.
@@ -140,11 +146,11 @@ public static class Progression
 
 /// Each factor of a tick's XP. 1 means no effect.
 public readonly record struct TickFactors(double Level, double Partner, double Watchers, double Streak, double Fatigue,
-    double Bonded = 1, double Marked = 1, double Prestige = 1, double Items = 1, double Pregnancy = 1)
+    double Bonded = 1, double Marked = 1, double Prestige = 1, double Items = 1, double Pregnancy = 1, double Title = 1)
 {
     public static readonly TickFactors None = new(1, 1, 1, 1, 1);
 
-    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy;
+    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy * Title;
 }
 
 /// Who counts as watching: near the scene, and either targeting it or close by and facing it. Only a count is used, and
@@ -166,9 +172,9 @@ public static class WatcherCheck
 
 public static class Arousal
 {
-    public static double Gain(Tier corruption, int watchers, bool refractory, Balance b)
+    public static double Gain(Tier corruption, double watchers, bool refractory, Balance b, double? watcherCap = null)
     {
-        var gain = b.ArousalPerTick * (1 + b.ArousalPerCorruptionTier * (int)corruption) * Progression.WatchFactor(watchers, b);
+        var gain = b.ArousalPerTick * (1 + b.ArousalPerCorruptionTier * (int)corruption) * Progression.WatchFactor(watchers, b, watcherCap);
         return refractory ? gain * b.RefractoryGainFactor : gain;
     }
 

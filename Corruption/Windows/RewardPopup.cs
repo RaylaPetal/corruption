@@ -11,7 +11,8 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace Corruption.Windows;
 
-/// Celebrates a completed goal or achievement: one popup at a time near the top of the screen, with a game sound.
+/// Celebrates a goal, achievement, new tier, title or finished scene: one popup at a time near the top of the screen,
+/// with a game sound.
 public sealed class RewardPopup : Window
 {
     private const float ShowSeconds = 5f;
@@ -35,6 +36,8 @@ public sealed class RewardPopup : Window
 
     public void Show(GoalReward reward)
     {
+        // The scene summary has its own switch, and no sound of its own when it's off.
+        if (reward.Kind == RewardKind.Scene && !settings.ShowScenePopup) return;
         if (!settings.ShowRewardPopup)
         {
             if (settings.PlayRewardSound) PlaySound(settings);
@@ -81,6 +84,9 @@ public sealed class RewardPopup : Window
         {
             RewardKind.Achievement => (FontAwesomeIcon.Trophy, Theme.Warning, "Achievement unlocked"),
             RewardKind.Weekly => (FontAwesomeIcon.CalendarAlt, Theme.Violet, "Weekly goal complete"),
+            RewardKind.Tier => (FontAwesomeIcon.Fire, Theme.TierColor(Enum.TryParse<Tier>(reward.Title, out var tier) ? tier : Tier.Pure), "New tier"),
+            RewardKind.Title => (FontAwesomeIcon.Crown, Theme.Warning, "Title unlocked"),
+            RewardKind.Scene => (FontAwesomeIcon.Heart, Theme.Pink, "Scene over"),
             _ => (FontAwesomeIcon.Sun, Theme.Pink, "Daily goal complete"),
         };
 
@@ -91,10 +97,16 @@ public sealed class RewardPopup : Window
         ImGui.SameLine();
         ImGui.BeginGroup();
         ImGui.TextColored(color, heading);
-        ImGui.SetWindowFontScale(1.2f);
-        ImGui.TextUnformatted(reward.Title);
-        ImGui.SetWindowFontScale(1f);
-        Theme.MutedText($"+{reward.Xp:0} XP");
+        if (reward.Kind != RewardKind.Scene)
+        {
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextUnformatted(reward.Title);
+            ImGui.SetWindowFontScale(1f);
+        }
+        if (reward.Xp > 0) Theme.MutedText($"+{reward.Xp:0} XP");
+        if (reward.Detail is { } detail)
+            foreach (var line in detail.Split('\n'))
+                Theme.MutedText(line);
         ImGui.EndGroup();
     }
 }

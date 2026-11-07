@@ -218,3 +218,20 @@ public class ItemTests
         Assert.Equal(2, r.Save.Effects[ItemIds.CumMagnet].UsesLeft);
     }
 }
+
+public class ShopCategoryTests
+{
+    [Theory]
+    [InlineData(ItemIds.Aphrodisiac, ItemCategory.Scene)]
+    [InlineData(ItemIds.FatigueSalve, ItemCategory.Scene)]
+    [InlineData(ItemIds.AfterglowWine, ItemCategory.Climax)]
+    [InlineData(ItemIds.StreakCharm, ItemCategory.Climax)]
+    [InlineData(ItemIds.VirilityTonic, ItemCategory.Fertility)]
+    [InlineData(ItemIds.CravingTreat, ItemCategory.PregnancyCare)]
+    public void ItemsSitInTheirSection(string id, ItemCategory category)
+        => Assert.Equal(category, ItemCatalog.CategoryOf(ItemCatalog.Find(id)!));
+
+    [Fact]
+    public void EverySectionHasItems()
+        => Assert.All(ItemCatalog.Categories, c => Assert.Contains(ItemCatalog.All, i => ItemCatalog.CategoryOf(i) == c.Category));
+}

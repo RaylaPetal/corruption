@@ -115,15 +115,18 @@ public static class PregnancyBook
         p.CravingSeconds = 0;
     }
 
-    /// The chance a breeder's credited climax leads to conception now, from 0 to 0.9.
-    public static double ConceptionChance(CharacterSave save, DateTime now, bool partnerVirile, int bondLevel, bool blocked)
+    /// The chance a breeder's credited climax leads to conception now, from 0 to 0.9. <paramref name="titleFactor"/> is the
+    /// carrier's own title and the partner's title together.
+    public static double ConceptionChance(CharacterSave save, DateTime now, bool partnerVirile, int bondLevel, bool blocked,
+        double titleFactor = 1)
     {
         var p = save.Pregnancy;
         if (blocked || !HasCycle(p, now) || ItemBook.PreventsConception(save, now)) return 0;
         var chance = CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).ConceptionChance
                      * ItemBook.ConceptionFactor(save, now)
                      * (partnerVirile ? VirileFactor : 1)
-                     * (bondLevel >= BondLevels.FertileLevel ? FertileBondFactor : 1);
+                     * (bondLevel >= BondLevels.FertileLevel ? FertileBondFactor : 1)
+                     * titleFactor;
         // The natural odds stop at 90%; the player's own multiplier can take them to certainty.
         var factor = Math.Clamp(p.ChanceFactor, MinChanceFactor, MaxChanceFactor);
         return Math.Min(1, Math.Min(ConceptionCap, chance) * factor);

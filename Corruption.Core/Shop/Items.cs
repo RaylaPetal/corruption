@@ -5,6 +5,9 @@ public enum ItemKind { Timed, Counted, Instant }
 /// Who can be offered an item. Carry and Breed need pregnancy on with that role.
 public enum ItemRole { Anyone, Carry, Breed }
 
+/// Where an item sits in the shop, as the spec groups them.
+public enum ItemCategory { Scene, Climax, Fertility, PregnancyCare }
+
 public sealed record ItemDef(string Id, string Name, int Price, ItemKind Kind, ItemRole Role, string Effect,
     TimeSpan? Duration = null, int Uses = 0, string? Opposite = null);
 
@@ -37,6 +40,23 @@ public static class ItemIds
 
 public static class ItemCatalog
 {
+    /// The shop's sections, in order, with their names.
+    public static readonly IReadOnlyList<(ItemCategory Category, string Name)> Categories =
+    [
+        (ItemCategory.Scene, "Scenes"),
+        (ItemCategory.Climax, "Climax and upkeep"),
+        (ItemCategory.Fertility, "Fertility"),
+        (ItemCategory.PregnancyCare, "Pregnancy care"),
+    ];
+
+    public static ItemCategory CategoryOf(ItemDef item) => item.Id switch
+    {
+        ItemIds.Aphrodisiac or ItemIds.NumbingBalm or ItemIds.LustIncense or ItemIds.Perfume or ItemIds.FatigueSalve => ItemCategory.Scene,
+        ItemIds.FertilityCharm or ItemIds.VirilityTonic or ItemIds.Contraceptive => ItemCategory.Fertility,
+        ItemIds.MorningAfter or ItemIds.HormoneTea or ItemIds.SwiftLabour or ItemIds.CravingTreat => ItemCategory.PregnancyCare,
+        _ => ItemCategory.Climax,
+    };
+
     private static TimeSpan Minutes(int m) => TimeSpan.FromMinutes(m);
 
     public static readonly IReadOnlyList<ItemDef> All =
@@ -79,13 +99,17 @@ public static class ItemBook
 
     public static int Owned(CharacterSave save, string id) => save.Inventory.GetValueOrDefault(id);
 
+    /// What an item costs this character: the equipped title can take a share off, rounded up.
+    public static int PriceFor(CharacterSave save, ItemDef item) => (int)Math.Ceiling(item.Price * TitleBook.Bonus(save).ItemPrice - 1e-9);
+
     /// Null when bought, otherwise why not.
     public static string? Buy(CharacterSave save, string id)
     {
         if (save.Setup is null) return "Finish your profile setup first.";
         if (ItemCatalog.Find(id) is not { } item) return "That item doesn't exist.";
         if (!IsOffered(save, item)) return $"{item.Name} needs pregnancy turned on with the right role.";
-        if (!Sins.TrySpend(save.Wallet, item.Price)) return $"You need {item.Price - save.Wallet.Sins} more Sins for {item.Name}.";
+        var price = PriceFor(save, item);
+        if (!Sins.TrySpend(save.Wallet, price)) return $"You need {price - save.Wallet.Sins} more Sins for {item.Name}.";
         save.Inventory[id] = Owned(save, id) + 1;
         return null;
     }

@@ -5,10 +5,19 @@ using System.Text.RegularExpressions;
 
 namespace Corruption.Core;
 
-public readonly record struct PlateValues(int Level, double Arousal, int Prestige = 0)
+/// <param name="TitleId">The equipped title's id, or null. It may be one this version doesn't know, which shows nothing.</param>
+public readonly record struct PlateValues(int Level, double Arousal, int Prestige = 0, string? TitleId = null)
 {
     public Tier Tier => Progression.TierOf(Level);
+
+    public TitleDef? Title => TitleCatalog.Find(TitleId);
 }
+
+/// Where the title line goes: just above the plate text, just below the name, or nowhere.
+public enum TitlePosition { Above, Below, Off }
+
+/// The title line: its text and colour. It doesn't change with arousal or glow.
+public sealed record PlateTitle(string Text, Vector3 Color);
 
 /// The user's three texts, and how they cycle.
 public readonly record struct PlateTexts(string Steady, string Act, string Climax, double CycleSeconds, double ClimaxSeconds);
@@ -16,8 +25,9 @@ public readonly record struct PlateTexts(string Steady, string Act, string Clima
 /// What a character is doing, for choosing their text.
 public readonly record struct PlateScene(bool InAct, DateTime? LastClimaxUtc);
 
-/// The text over a nameplate, with its colour and, at high arousal, a glowing outline.
-public sealed record RenderedPlate(string Text, Vector3 Color, Vector3? Glow);
+/// The text over a nameplate, with its colour and, at high arousal, a glowing outline, and the title line if there is
+/// one. Empty text means only the title shows.
+public sealed record RenderedPlate(string Text, Vector3 Color, Vector3? Glow, PlateTitle? Title = null);
 
 public static partial class PlateComposer
 {
@@ -34,7 +44,7 @@ public static partial class PlateComposer
 
     private static readonly Vector3 Red = new(0.95f, 0.1f, 0.15f);
 
-    private static readonly string[] KnownTokens = ["tier", "level", "arousal", "arousalBar", "prestige"];
+    private static readonly string[] KnownTokens = ["tier", "level", "arousal", "arousalBar", "prestige", "title"];
 
     [GeneratedRegex(@"\{([A-Za-z]+)\}")]
     private static partial Regex TokenPattern();
@@ -47,6 +57,7 @@ public static partial class PlateComposer
             "arousal" => ArousalNumber(values.Arousal).ToString(CultureInfo.InvariantCulture),
             "arousalBar" => ArousalBar(values.Arousal),
             "prestige" => PrestigeRules.Label(values.Prestige),
+            "title" => values.Title?.Name ?? "",
             _ => match.Value,
         });
 
@@ -67,8 +78,33 @@ public static partial class PlateComposer
     public static RenderedPlate Compose(string template, PlateValues values, bool forceGlow = false)
     {
         var t = (float)Math.Clamp(values.Arousal / 100, 0, 1);
-        return new RenderedPlate(Render(template, values), Vector3.Lerp(TierColor(values.Tier), Red, t), forceGlow || values.Arousal >= GlowFrom ? Red : null);
+        return new RenderedPlate(Render(template, values), Vector3.Lerp(TierColor(values.Tier), Red, t), forceGlow || values.Arousal >= GlowFrom ? Red : null,
+            TitleOf(values));
     }
+
+    /// The title line alone, for a plate whose text is turned off. Null without a known title.
+    public static RenderedPlate? TitleOnly(PlateValues values)
+        => TitleOf(values) is { } title ? new RenderedPlate("", Vector3.One, null, title) : null;
+
+    public static PlateTitle? TitleOf(PlateValues values) => values.Title is { } title ? new PlateTitle(title.Name, TitleColor(title)) : null;
+
+    private static readonly Vector3 Gold = new(0.98f, 0.76f, 0.28f);
+    private static readonly Vector3 StarGold = new(1f, 0.9f, 0.55f);
+    private static readonly Vector3 Silver = new(0.82f, 0.85f, 0.93f);
+    private static readonly Vector3 Rose = new(0.98f, 0.55f, 0.7f);
+    private static readonly Vector3 UnholyRed = new(0.8f, 0.08f, 0.22f);
+
+    /// By source: level titles in their tier's colour, stars pale gold, achievements gold, hidden and moon silver, shop
+    /// rose, and Unholy its own deep red.
+    public static Vector3 TitleColor(TitleDef title) => title.Source switch
+    {
+        _ when title.Id == TitleCatalog.Unholy => UnholyRed,
+        TitleSource.Level => TierColor(Progression.TierOf(title.Level)),
+        TitleSource.Prestige => StarGold,
+        TitleSource.Achievement => Gold,
+        TitleSource.Hidden or TitleSource.Moon => Silver,
+        _ => Rose,
+    };
 
     /// The text showing right now. The steady text alone when arousal means nothing. During an act, or with any arousal
     /// left, it cycles between arousal and the steady text. Just after a climax it cycles between the climax text, which goes first, and arousal.

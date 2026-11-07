@@ -21,6 +21,9 @@ public sealed class Settings : IPluginConfiguration
     public float PlateScale { get; set; } = 1f;
     public float PlateOffsetY { get; set; }
 
+    /// Where the equipped title shows, for every plate this client draws.
+    public TitlePosition TitlePosition { get; set; } = TitlePosition.Above;
+
     public bool ShowHud { get; set; } = true;
 
     /// Shows the HUD while a scene with a partner is running, even with ShowHud off.
@@ -38,6 +41,9 @@ public sealed class Settings : IPluginConfiguration
     public bool SafewordAlt { get; set; }
 
     public bool ShowRewardPopup { get; set; } = true;
+
+    /// The summary popup when a scene of a minute or more ends.
+    public bool ShowScenePopup { get; set; } = true;
     public bool PlayRewardSound { get; set; } = true;
 
     /// The game's chat sound, as in <se.1> to <se.16>.

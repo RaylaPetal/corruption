@@ -79,6 +79,16 @@ public class FakeHost : IEngineHost
 
     public List<string?> ExtraTags { get; } = [];
     public List<string?> BodyTags { get; } = [];
+    public List<string?> TitleTags { get; } = [];
+    public List<SceneSummary> Scenes { get; } = [];
+
+    public void SceneEnded(SceneSummary summary) => Scenes.Add(summary);
+
+    public bool PublishTitleTag(string? value)
+    {
+        if (TagsWork) TitleTags.Add(value);
+        return TagsWork;
+    }
 
     public bool PublishBodyTag(string? value)
     {
@@ -142,6 +152,7 @@ public sealed class EngineRig
     public PresenceTag BobTag = new(BobPose, 1, 0, 0, false);
     public ExtraTag? BobExtra;
     public BodyTag? BobBody = BodyTag.Empty;
+    public string? BobTitle;
     public int LayersWorn;
     public string? SelfKey = "Alice A@W";
 
@@ -162,7 +173,7 @@ public sealed class EngineRig
             // Move a little, as a player would.
             var position = new Vector3((Now - T0).Minutes % 2, 0, 0);
             Engine.Sample(Now, new SceneSample(Playing ? Act : null, Playing ? Act.Pose : null, position,
-                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody)] : [], Watchers, LayersWorn, SelfKey));
+                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle)] : [], Watchers, LayersWorn, SelfKey));
             Now = Now.AddSeconds(1);
         }
     }
@@ -794,8 +805,8 @@ public class SceneEngineTests
     {
         var r = new EngineRig();
         r.Run(25);
-        Assert.Single(r.Host.Notes, n => n.Contains("First Taste"));
-        Assert.Equal(RewardKind.Achievement, Assert.Single(r.Host.Celebrated).Kind);
+        Assert.Single(r.Host.Notes, n => n.Contains("Achievement unlocked: First Taste"));
+        Assert.Single(r.Host.Celebrated, c => c.Kind == RewardKind.Achievement);
         Assert.Contains("first_taste", r.Save.Goals.Achievements);
     }
 
@@ -838,8 +849,8 @@ public class SceneEngineTests
         r.Run(1);
         Assert.Contains(r.Host.Notes, n => n.Contains("Daily goal done"));
         Assert.Equal((150 + 50) * 1.5, r.Save.Xp - before, 6);
-        var reward = Assert.Single(r.Host.Celebrated);
-        Assert.Equal((RewardKind.Daily, "Climax", 75.0), (reward.Kind, reward.Title, reward.Xp));
+        var reward = Assert.Single(r.Host.Celebrated, c => c.Kind == RewardKind.Daily);
+        Assert.Equal(("Climax", 75.0), (reward.Title, reward.Xp));
     }
 
     [Fact]

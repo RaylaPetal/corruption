@@ -38,6 +38,11 @@ public sealed unsafe class PlateOverlay : OverlayNode
     private readonly PlateLabels labels;
     private readonly TextNode?[] nodes = new TextNode?[AddonNamePlate.NumNamePlateObjects];
     private readonly RenderedPlate?[] shownOn = new RenderedPlate?[AddonNamePlate.NumNamePlateObjects];
+    private readonly TextNode?[] titleNodes = new TextNode?[AddonNamePlate.NumNamePlateObjects];
+    private readonly PlateTitle?[] titleShownOn = new PlateTitle?[AddonNamePlate.NumNamePlateObjects];
+
+    /// The title is a little smaller than the plate text, so the two read as a pair.
+    private const float TitleScale = 0.85f;
     private bool failed;
 
     public PlateOverlay(Settings settings, PlateLabels labels)
@@ -108,8 +113,11 @@ public sealed unsafe class PlateOverlay : OverlayNode
         }
 
         for (var i = 0; i < shown.Length; i++)
-            if (!shown[i] && nodes[i] is { IsVisible: true } node)
-                node.IsVisible = false;
+        {
+            if (shown[i]) continue;
+            if (nodes[i] is { IsVisible: true } node) node.IsVisible = false;
+            if (titleNodes[i] is { IsVisible: true } title) title.IsVisible = false;
+        }
     }
 
     /// By default the label matches the name's size and sits just above everything the name's text node draws, which
@@ -133,18 +141,65 @@ public sealed unsafe class PlateOverlay : OverlayNode
         var width = fontSize * WidthPerFontUnit;
         var centerX = res->ScreenX + res->Width * plateScale / 2f;
 
+        // The plate text's top, or where it would be: an Above title stacks on it, or takes its place when there's no text.
+        var textY = drawnTop - height - (Gap + settings.PlateOffsetY) * plateScale;
         var node = Node(index);
-        if (shownOn[index] != label)
+        var hasText = label.Text.Length > 0;
+        if (hasText)
         {
-            shownOn[index] = label;
-            node.String = label.Text;
-            node.TextColor = new Vector4(label.Color, 1f);
-            node.TextOutlineColor = label.Glow is { } glow ? new Vector4(glow, 1f) : Edge;
+            if (shownOn[index] != label)
+            {
+                shownOn[index] = label;
+                node.String = label.Text;
+                node.TextColor = new Vector4(label.Color, 1f);
+                node.TextOutlineColor = label.Glow is { } glow ? new Vector4(glow, 1f) : Edge;
+            }
+            node.FontSize = (byte)fontSize;
+            node.Size = new Vector2(width, height);
+            node.Position = new Vector2(centerX - width / 2f, textY);
+            node.IsVisible = true;
         }
-        node.FontSize = (byte)fontSize;
-        node.Size = new Vector2(width, height);
-        node.Position = new Vector2(centerX - width / 2f, drawnTop - height - (Gap + settings.PlateOffsetY) * plateScale);
-        node.IsVisible = true;
+        else if (node.IsVisible)
+        {
+            node.IsVisible = false;
+            shownOn[index] = null;
+        }
+
+        var titleNode = TitleNode(index);
+        if (label.Title is not { } title || settings.TitlePosition == TitlePosition.Off)
+        {
+            titleNode.IsVisible = false;
+            titleShownOn[index] = null;
+        }
+        else
+        {
+            if (titleShownOn[index] != title)
+            {
+                titleShownOn[index] = title;
+                titleNode.String = title.Text;
+                titleNode.TextColor = new Vector4(title.Color, 1f);
+                titleNode.TextOutlineColor = Edge;
+            }
+            var titleSize = Math.Max(MinFontSize, fontSize * TitleScale);
+            var titleHeight = titleSize * 1.3f;
+            float titleY;
+            if (settings.TitlePosition == TitlePosition.Below)
+            {
+                var drawnBottom = PlateLayout.DrawnBottom(res->ScreenY, res->Height * plateScale, alignment, textHeight * plateScale, lines,
+                    nameText->FontSize * plateScale);
+                titleY = drawnBottom + (Gap + settings.PlateOffsetY) * plateScale;
+                titleNode.AlignmentType = AlignmentType.Top;
+            }
+            else
+            {
+                titleY = hasText ? textY - titleHeight : drawnTop - titleHeight - (Gap + settings.PlateOffsetY) * plateScale;
+                titleNode.AlignmentType = AlignmentType.Bottom;
+            }
+            titleNode.FontSize = (byte)titleSize;
+            titleNode.Size = new Vector2(width, titleHeight);
+            titleNode.Position = new Vector2(centerX - width / 2f, titleY);
+            titleNode.IsVisible = true;
+        }
 
         labels.Diagnostics = $"plate scale {plateScale:0.00}, name font {nameText->FontSize}, alignment {alignment}, "
                            + $"box {res->Width}x{res->Height} at {res->ScreenX:0},{res->ScreenY:0}, drawn {textWidth}x{textHeight}, {lines} lines, top {drawnTop:0}, label font {fontSize:0}";
@@ -158,9 +213,13 @@ public sealed unsafe class PlateOverlay : OverlayNode
         return scale;
     }
 
-    private TextNode Node(int index)
+    private TextNode Node(int index) => NodeIn(nodes, index);
+
+    private TextNode TitleNode(int index) => NodeIn(titleNodes, index);
+
+    private TextNode NodeIn(TextNode?[] array, int index)
     {
-        ref var node = ref nodes[index];
+        ref var node = ref array[index];
         if (node is null)
         {
             node = new TextNode
@@ -179,7 +238,9 @@ public sealed unsafe class PlateOverlay : OverlayNode
         for (var i = 0; i < nodes.Length; i++)
         {
             if (nodes[i] is { IsVisible: true } node) node.IsVisible = false;
+            if (titleNodes[i] is { IsVisible: true } title) title.IsVisible = false;
             shownOn[i] = null;
+            titleShownOn[i] = null;
         }
     }
 }

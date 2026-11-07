@@ -73,6 +73,19 @@ public sealed class HudWindow : Window
         if (ImGuiComponents.IconButton(FontAwesomeIcon.Bars)) openMainWindow();
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open Corruption");
 
+        // The title, and a moon event while one is on.
+        var title = TitleBook.Equipped(save);
+        var moon = engine.MoonAt(DateTime.UtcNow);
+        if (title is not null)
+            ImGui.TextColored(new Vector4(PlateComposer.TitleColor(title), 1f), title.Name);
+        if (moon.IsEvent)
+        {
+            if (title is not null) ImGui.SameLine();
+            Theme.Icon(FontAwesomeIcon.Moon, Theme.VioletSoft);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"{EorzeaMoon.Name(moon.Phase)}: {EorzeaMoon.Effect(moon.Phase, balance)}. {MainWindow.Left(moon.PhaseEndsUtc - DateTime.UtcNow)} left.");
+        }
+
         // Row 2: the bars, exactly the HUD's width.
         Theme.XpBar(save.Xp, Progression.XpToNext(save.Level, balance), width: width);
         Theme.ArousalBar(save.Arousal, width: width);

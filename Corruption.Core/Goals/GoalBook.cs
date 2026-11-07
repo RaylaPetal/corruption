@@ -21,7 +21,8 @@ public enum GoalKind
     ClimaxesTogether,
 }
 
-public sealed record GoalDef(string Id, string Text, GoalKind Kind, long Target, double Xp);
+/// <param name="Eligible">Whether a character can meet this goal now; null for anyone. Checked only when goals are picked.</param>
+public sealed record GoalDef(string Id, string Text, GoalKind Kind, long Target, double Xp, Func<CharacterSave, bool>? Eligible = null);
 
 public sealed class GoalState
 {
@@ -50,19 +51,29 @@ public sealed class GoalSave
     public HashSet<string> WeekSeen { get; set; } = [];
 }
 
-public sealed record AchievementDef(string Id, string Name, string Text, double Xp, long Target, Func<CharacterSave, long> Progress);
+/// <param name="Hidden">Shown as "???" until earned.</param>
+/// <param name="Series">The first tier's id, for tiers after the first: only the next unearned tier is shown.</param>
+public sealed record AchievementDef(string Id, string Name, string Text, double Xp, long Target, Func<CharacterSave, long> Progress,
+    bool Hidden = false, string? Series = null);
 
-public enum RewardKind { Daily, Weekly, Achievement }
+/// What a popup celebrates. Stored nowhere, so new kinds can go anywhere.
+public enum RewardKind { Daily, Weekly, Achievement, Tier, Title, Scene }
 
-/// Something just completed. Title is the bare name, for a popup; Message is the sentence for the chat log.
-public sealed record GoalReward(RewardKind Kind, string Title, string Message, double Xp);
+/// Something just completed. Title is the bare name, for a popup; Message is the sentence for the chat log. Detail is
+/// more for the popup, one line each: a title's bonus, or a scene's totals.
+public sealed record GoalReward(RewardKind Kind, string Title, string Message, double Xp, string? Detail = null);
 
 public static class GoalCatalog
 {
     public const int DailyCount = 3;
     public const int WeeklyCount = 3;
 
-    /// Every goal can be met with just Corruption: layers need a Cummy pairing, so they're only achievements.
+    private static bool Pregnant(CharacterSave s) => s.Pregnancy.Enabled && PregnancyBook.IsPregnant(s.Pregnancy);
+
+    private static bool TogetherBond(CharacterSave s) => s.BondFormed && BondLevels.LevelOf(s.BondSeconds) >= BondLevels.TogetherLevel;
+
+    /// Every goal can be met with just Corruption: layers need a Cummy pairing, so they're only achievements. Goals that
+    /// need pregnancy or a bond are only picked for characters who have them.
     public static readonly IReadOnlyList<GoalDef> Daily =
     [
         new("d_scene15", "Spend 15 minutes in scenes", GoalKind.SceneSeconds, 15 * 60, 75),
@@ -72,6 +83,11 @@ public static class GoalCatalog
         new("d_partnerclimax", "Be there when a partner climaxes", GoalKind.PartnerClimaxes, 1, 50),
         new("d_watched", "Be watched for 5 minutes", GoalKind.WatchedSeconds, 5 * 60, 100),
         new("d_variety", "Play 3 different animations", GoalKind.DistinctAnimations, 3, 75),
+        new("d_edge", "Hold at 100 arousal for 2 minutes", GoalKind.EdgedSeconds, 2 * 60, 100),
+        new("d_item", "Use an item", GoalKind.ItemsUsed, 1, 50),
+        new("d_crowd", "Be watched by 3 or more for 3 minutes", GoalKind.CrowdSeconds, 3 * 60, 125),
+        new("d_craving", "Satisfy today's craving", GoalKind.CravingsSatisfied, 1, 75, Pregnant),
+        new("d_together", "Climax together with your bonded partner", GoalKind.ClimaxesTogether, 1, 100, TogetherBond),
     ];
 
     public static readonly IReadOnlyList<GoalDef> Weekly =
@@ -83,6 +99,11 @@ public static class GoalCatalog
         new("w_variety", "Play 10 different animations", GoalKind.DistinctAnimations, 10, 400),
         new("w_partners", "Have scenes with 2 different partners", GoalKind.DistinctPartners, 2, 400),
         new("w_days", "Have a scene on 4 different days", GoalKind.ActiveDays, 4, 500),
+        new("w_edge", "Hold at 100 arousal for 10 minutes", GoalKind.EdgedSeconds, 10 * 60, 500),
+        new("w_items", "Use 5 items", GoalKind.ItemsUsed, 5, 400),
+        new("w_crowd", "Be watched by 3 or more for 15 minutes", GoalKind.CrowdSeconds, 15 * 60, 600),
+        new("w_cravings", "Satisfy 4 cravings", GoalKind.CravingsSatisfied, 4, 500, Pregnant),
+        new("w_together", "Climax together 3 times", GoalKind.ClimaxesTogether, 3, 600, TogetherBond),
     ];
 
     private static long Stat(CharacterSave save, GoalKind kind)
@@ -113,7 +134,39 @@ public static class GoalCatalog
         new("soulmates", "Soulmates", "Reach bond level 5", 1500, 5, s => s.BondFormed ? BondLevels.LevelOf(s.BondSeconds) : 0),
         new("big_spender", "Big Spender", "Spend 1,000 Sins in the shop", 500, 1000, s => s.Wallet.SpentTotal),
         new("devout", "Devout", "Check in 14 days in a row", 750, 14, s => s.Wallet.CheckInStreak),
+
+        // Higher tiers. Only the next one is shown until it's earned.
+        new("insatiable_2", "Insatiable II", "Climax 250 times", 2000, 250, s => Stat(s, GoalKind.Climaxes), Series: "insatiable"),
+        new("insatiable_3", "Insatiable III", "Climax 500 times", 2500, 500, s => Stat(s, GoalKind.Climaxes), Series: "insatiable"),
+        new("well_travelled_2", "Well Travelled II", "Have scenes with 25 different partners", 1000, 25, s => s.SeenPartners.Count, Series: "well_travelled"),
+        new("well_travelled_3", "Well Travelled III", "Have scenes with 50 different partners", 1500, 50, s => s.SeenPartners.Count, Series: "well_travelled"),
+        new("shameless_2", "Shameless II", "Spend 5 hours watched by 3 or more people", 2000, 5 * 3600, s => Stat(s, GoalKind.CrowdSeconds), Series: "shameless"),
+        new("shameless_3", "Shameless III", "Spend 10 hours watched by 3 or more people", 2500, 10 * 3600, s => Stat(s, GoalKind.CrowdSeconds), Series: "shameless"),
+
+        // Hidden until earned.
+        new("marathon", "Marathon", "Have a single scene of 60 minutes", 750, 3600, s => (long)s.LongestVerifiedSceneSeconds, Hidden: true),
+        new("crowd_pleaser", "Crowd Pleaser", "Be watched by 6 or more at once", 750, 6, s => s.PeakWatchers, Hidden: true),
+        new("in_sync", "In Sync", "Climax together 10 times", 1000, 10, s => Stat(s, GoalKind.ClimaxesTogether), Hidden: true),
+        new("glutton", "Glutton", "Satisfy 10 cravings", 500, 10, s => Stat(s, GoalKind.CravingsSatisfied), Hidden: true),
+
+        new("moon_touched", "Moon-Touched", "Have scenes during 5 different Full Moons", 750, 5, s => s.FullMoonsSeen),
     ];
+
+    public static AchievementDef? FindAchievement(string id) => Achievements.FirstOrDefault(a => a.Id == id);
+
+    /// What the Goals page lists: everything earned, plus the next unearned tier of each series. Higher tiers stay out of
+    /// sight until the one before is earned.
+    public static IEnumerable<AchievementDef> Shown(CharacterSave save)
+    {
+        var earned = save.Goals.Achievements;
+        foreach (var achievement in Achievements)
+        {
+            if (earned.Contains(achievement.Id)) { yield return achievement; continue; }
+            var series = achievement.Series ?? achievement.Id;
+            var tiers = Achievements.Where(a => a.Id == series || a.Series == series).ToList();
+            if (tiers.First(a => !earned.Contains(a.Id)) == achievement) yield return achievement;
+        }
+    }
 
     public static GoalDef? Find(string id) => Daily.Concat(Weekly).FirstOrDefault(g => g.Id == id);
 }
@@ -156,7 +209,7 @@ public sealed class GoalBook(CharacterSave save)
     private List<GoalState> Pick(IReadOnlyList<GoalDef> pool, int count, string period)
     {
         var random = new Random(Data.Seed ^ StableHash(period));
-        var shuffled = pool.ToArray();
+        var shuffled = pool.Where(g => g.Eligible?.Invoke(save) != false).ToArray();
         random.Shuffle(shuffled);
         return shuffled.Take(count).Select(g => new GoalState { Id = g.Id }).ToList();
     }
