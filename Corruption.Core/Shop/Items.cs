@@ -6,7 +6,7 @@ public enum ItemKind { Timed, Counted, Instant }
 public enum ItemRole { Anyone, Carry, Breed }
 
 /// Where an item sits in the shop, as the spec groups them.
-public enum ItemCategory { Scene, Climax, Fertility, PregnancyCare }
+public enum ItemCategory { Scene, Climax, Solo, Fertility, PregnancyCare }
 
 public sealed record ItemDef(string Id, string Name, int Price, ItemKind Kind, ItemRole Role, string Effect,
     TimeSpan? Duration = null, int Uses = 0, string? Opposite = null);
@@ -36,6 +36,10 @@ public static class ItemIds
     public const string HormoneTea = "hormone_tea";
     public const string SwiftLabour = "swift_labour";
     public const string CravingTreat = "craving_treat";
+    public const string Toy = "toy";
+    public const string DoNotDisturb = "do_not_disturb";
+    public const string VanityMirror = "vanity_mirror";
+    public const string AfterglowCandle = "afterglow_candle";
 }
 
 public static class ItemCatalog
@@ -45,6 +49,7 @@ public static class ItemCatalog
     [
         (ItemCategory.Scene, "Scenes"),
         (ItemCategory.Climax, "Climax and upkeep"),
+        (ItemCategory.Solo, "Alone time"),
         (ItemCategory.Fertility, "Fertility"),
         (ItemCategory.PregnancyCare, "Pregnancy care"),
     ];
@@ -54,6 +59,7 @@ public static class ItemCatalog
         ItemIds.Aphrodisiac or ItemIds.NumbingBalm or ItemIds.LustIncense or ItemIds.Perfume or ItemIds.FatigueSalve => ItemCategory.Scene,
         ItemIds.FertilityCharm or ItemIds.VirilityTonic or ItemIds.Contraceptive => ItemCategory.Fertility,
         ItemIds.MorningAfter or ItemIds.HormoneTea or ItemIds.SwiftLabour or ItemIds.CravingTreat => ItemCategory.PregnancyCare,
+        ItemIds.Toy or ItemIds.DoNotDisturb or ItemIds.VanityMirror or ItemIds.AfterglowCandle => ItemCategory.Solo,
         _ => ItemCategory.Climax,
     };
 
@@ -77,6 +83,10 @@ public static class ItemCatalog
         new(ItemIds.HormoneTea, "Hormone Tea", 60, ItemKind.Instant, ItemRole.Carry, "Moves your cycle to the start of its fertile window"),
         new(ItemIds.SwiftLabour, "Swift Labour", 120, ItemKind.Instant, ItemRole.Carry, "Takes 2 days off the rest of your pregnancy"),
         new(ItemIds.CravingTreat, "Craving Treat", 25, ItemKind.Instant, ItemRole.Carry, "Satisfies today's craving"),
+        new(ItemIds.Toy, "Toy", 50, ItemKind.Timed, ItemRole.Anyone, "Arousal builds 1.3× as fast in solo scenes", Minutes(30)),
+        new(ItemIds.DoNotDisturb, "Do Not Disturb Sign", 60, ItemKind.Instant, ItemRole.Anyone, "20 more minutes of solo time today"),
+        new(ItemIds.VanityMirror, "Vanity Mirror", 50, ItemKind.Timed, ItemRole.Anyone, "Solo scenes count one more watcher", Minutes(60)),
+        new(ItemIds.AfterglowCandle, "Afterglow Candle", 70, ItemKind.Counted, ItemRole.Anyone, "Your next climaxes alone pay full XP", Uses: 2),
     ];
 
     public static ItemDef? Find(string id) => All.FirstOrDefault(i => i.Id == id);
@@ -175,6 +185,9 @@ public static class ItemBook
     public static double TickXpFactor(CharacterSave save, DateTime now) => IsActive(save, ItemIds.LustIncense, now) ? 1.25 : 1;
 
     public static int WatcherMultiplier(CharacterSave save, DateTime now) => IsActive(save, ItemIds.Perfume, now) ? 2 : 1;
+
+    /// A Toy speeds arousal this much, alone.
+    public const double ToyArousal = 1.3;
 
     public static bool NoFatigue(CharacterSave save, DateTime now) => IsActive(save, ItemIds.FatigueSalve, now);
 

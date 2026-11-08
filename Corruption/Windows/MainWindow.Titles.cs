@@ -40,7 +40,7 @@ public sealed partial class MainWindow
             {
                 ImGui.TextColored(new Vector4(PlateComposer.TitleColor(equipped), 1f), equipped.Name);
                 ImGui.SameLine();
-                Theme.MutedText(equipped.IsCosmetic ? "Just for show" : equipped.Effect);
+                Theme.MutedWrapped(equipped.IsCosmetic ? "Just for show" : equipped.Effect);
             }
             if (locked is not null)
             {
@@ -86,7 +86,7 @@ public sealed partial class MainWindow
         if (owned) ImGui.TextColored(new Vector4(PlateComposer.TitleColor(title), 1f), title.Name);
         else ImGui.TextColored(Theme.Muted, title.Name);
         ImGui.SameLine();
-        Theme.MutedText(title.IsCosmetic ? "Just for show" : title.Effect);
+        Theme.MutedWrapped(title.IsCosmetic ? "Just for show" : title.Effect);
 
         if (equipped?.Id == title.Id)
         {

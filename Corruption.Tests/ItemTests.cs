@@ -20,7 +20,7 @@ public class ItemTests
     }
 
     [Fact]
-    public void SixteenItems() => Assert.Equal(16, ItemCatalog.All.Count);
+    public void TwentyItems() => Assert.Equal(20, ItemCatalog.All.Count);
 
     [Fact]
     public void BuyingTakesThePrice()
@@ -44,12 +44,12 @@ public class ItemTests
     public void PregnancyItemsNeedTheRole()
     {
         var save = Rich();
-        Assert.Equal(9, ItemBook.Offered(save).Count());
+        Assert.Equal(13, ItemBook.Offered(save).Count());
         Assert.NotNull(ItemBook.Buy(save, ItemIds.FertilityCharm));
         save.Pregnancy = new PregnancyState { Enabled = true, CanBreed = true };
         Assert.Equal([ItemIds.VirilityTonic], ItemBook.Offered(save).Where(i => i.Role != ItemRole.Anyone).Select(i => i.Id));
         save.Pregnancy.CanCarry = true;
-        Assert.Equal(16, ItemBook.Offered(save).Count());
+        Assert.Equal(20, ItemBook.Offered(save).Count());
     }
 
     [Fact]
@@ -228,6 +228,10 @@ public class ShopCategoryTests
     [InlineData(ItemIds.StreakCharm, ItemCategory.Climax)]
     [InlineData(ItemIds.VirilityTonic, ItemCategory.Fertility)]
     [InlineData(ItemIds.CravingTreat, ItemCategory.PregnancyCare)]
+    [InlineData(ItemIds.Toy, ItemCategory.Solo)]
+    [InlineData(ItemIds.DoNotDisturb, ItemCategory.Solo)]
+    [InlineData(ItemIds.VanityMirror, ItemCategory.Solo)]
+    [InlineData(ItemIds.AfterglowCandle, ItemCategory.Solo)]
     public void ItemsSitInTheirSection(string id, ItemCategory category)
         => Assert.Equal(category, ItemCatalog.CategoryOf(ItemCatalog.Find(id)!));
 

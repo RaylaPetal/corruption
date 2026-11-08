@@ -102,6 +102,7 @@ public sealed class SceneService : IDisposable, IEngineHost
             Nearby = labelled.Select(l => l.Player).ToList();
             var self = $"{me.Name.TextValue}@{me.HomeWorld.Value.Name.ExtractText()}";
             engine.LayerOnPartnerClimax = settings.LayerOnPartnerClimax;
+            engine.LayerSelfWhenAlone = settings.LayerSelfWhenAlone;
             engine.Sample(now, new SceneSample(act, pose, me.Position, Nearby, CountWatchers(me, engine.Status.Partner),
                 cummy.LayerCount, self, detector.Excluded));
             UpdatePlates(engine, me, labelled);
@@ -264,6 +265,9 @@ public sealed class SceneService : IDisposable, IEngineHost
 #endif
         return outcome;
     }
+
+    public IReadOnlyList<string>? AimSelf(Anatomy anatomy)
+        => Plugin.ObjectTable.LocalPlayer is { } me ? AimFrom(me, me, anatomy) : null;
 
     public IReadOnlyList<string>? AimParts(PeerRecord giver, Anatomy anatomy)
     {

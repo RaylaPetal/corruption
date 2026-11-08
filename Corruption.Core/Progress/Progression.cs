@@ -152,11 +152,11 @@ public static class Progression
 /// Each factor of a tick's XP. 1 means no effect.
 public readonly record struct TickFactors(double Level, double Partner, double Watchers, double Streak, double Fatigue,
     double Bonded = 1, double Marked = 1, double Prestige = 1, double Items = 1, double Pregnancy = 1, double Title = 1,
-    double Persona = 1)
+    double Persona = 1, double Solo = 1)
 {
     public static readonly TickFactors None = new(1, 1, 1, 1, 1);
 
-    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy * Title * Persona;
+    public double Total => Level * Partner * Watchers * Streak * Fatigue * Bonded * Marked * Prestige * Items * Pregnancy * Title * Persona * Solo;
 }
 
 /// Who counts as watching: near the scene, and either targeting it or close by and facing it. Only a count is used, and

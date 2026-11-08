@@ -67,7 +67,7 @@ public sealed partial class MainWindow
             ImGui.SameLine();
             ImGui.TextUnformatted($"{wallet.Sins} Sins");
             ImGui.SameLine();
-            Theme.MutedText(wallet.CheckInStreak > 1
+            Theme.MutedWrapped(wallet.CheckInStreak > 1
                 ? $"Checked in {wallet.CheckInStreak} days in a row. Scenes pay 1 Sin a minute."
                 : "Scenes pay 1 Sin a minute.");
         }, stripe: color);
@@ -151,7 +151,7 @@ public sealed partial class MainWindow
             {
                 Theme.Icon(FontAwesomeIcon.Lock, Theme.Faint);
                 ImGui.SameLine();
-                Theme.MutedText($"Level {level + 1} in {ProfileTimers.Describe(next)} of scenes together: {BondLevels.QuirkOf(level + 1)}");
+                Theme.MutedWrapped($"Level {level + 1} in {ProfileTimers.Describe(next)} of scenes together: {BondLevels.QuirkOf(level + 1)}");
             }
         }, stripe: Theme.Pink);
     }
@@ -224,7 +224,7 @@ public sealed partial class MainWindow
                 slot.Store.TryGetValue(slot.Key, out var choice);
                 ImGui.TextColored(slot.Color, slot.Label);
                 ImGui.SameLine(150 * Scale);
-                Theme.MutedText(choice is null ? "Nothing" : $"{(choice.Kind == VisualKind.Glamourer ? "Design" : "Mod")}: {choice.Name}{OptionsText(choice)}");
+                Theme.MutedWrapped(choice is null ? "Nothing" : $"{(choice.Kind == VisualKind.Glamourer ? "Design" : "Mod")}: {choice.Name}{OptionsText(choice)}");
             }
             if (save.Pregnancy.Enabled && save.Pregnancy.CanCarry)
                 Theme.MutedWrapped("A trimester's visual goes on over your tier's while you're in that trimester, and comes off at the birth.");
@@ -369,6 +369,13 @@ public sealed partial class MainWindow
                 settings.Save();
             }
             Theme.MutedWrapped("Your own Cummy layers you on a random part when your scene partner's climax counts. No pairing is needed, and the parts you block in Cummy are still skipped.");
+            var self = settings.LayerSelfWhenAlone;
+            if (ImGui.Checkbox("Layer yourself when you climax alone", ref self))
+            {
+                settings.LayerSelfWhenAlone = self;
+                settings.Save();
+            }
+            Theme.MutedWrapped("In a solo scene, your climax lands on you: the groin with a vagina, otherwise the part nearest your genitals, usually a hand.");
             if (!cummy.CanLayerSelf) ImGui.TextColored(Theme.Warning, cummy.Status);
 
             ImGuiHelpers.ScaledDummy(2f);
@@ -413,7 +420,7 @@ public sealed partial class MainWindow
                 Theme.StatusPill("Connected", Theme.Good);
                 ImGui.SameLine();
                 ImGui.AlignTextToFramePadding();
-                Theme.MutedText($"{(toys.DeviceCount == 1 ? "1 device" : $"{toys.DeviceCount} devices")}, now at {bridges.ToyIntensity:P0}");
+                Theme.MutedWrapped($"{(toys.DeviceCount == 1 ? "1 device" : $"{toys.DeviceCount} devices")}, now at {bridges.ToyIntensity:P0}");
             }
             else if (toys.IsConnecting)
             {

@@ -52,6 +52,9 @@ public sealed class Settings : IPluginConfiguration
     /// A scene partner's counted climax layers you through your own Cummy. No pairing or tell is involved.
     public bool LayerOnPartnerClimax { get; set; } = true;
 
+    /// A solo climax layers you through your own Cummy.
+    public bool LayerSelfWhenAlone { get; set; } = true;
+
     // Bridges: all off until the player turns them on.
 
     public bool TierVisualsEnabled { get; set; }

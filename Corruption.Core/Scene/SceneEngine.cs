@@ -28,6 +28,9 @@ public interface IEngineHost
     /// character's bones can't be read, such as when the giver isn't drawn.
     IReadOnlyList<string>? AimParts(PeerRecord giver, Anatomy anatomy);
 
+    /// The local character's own parts from nearest to farthest from their own genitals. Null when the bones can't be read.
+    IReadOnlyList<string>? AimSelf(Anatomy anatomy);
+
     void Notify(string text);
 
     /// A goal or achievement was completed, with the XP it actually paid.
@@ -67,7 +70,8 @@ public sealed record SceneStatus(
     double LastTickXp,
     int Watchers,
     TickFactors Factors,
-    ActEntry? Excluded = null)
+    ActEntry? Excluded = null,
+    bool Solo = false)
 {
     public static readonly SceneStatus Empty = new(SceneState.Idle, SceneFailure.NoKnownAct, null, null, null, 1, 0, 0, TickFactors.None);
 }
@@ -126,6 +130,9 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private DateTime nextFadeCheck = DateTime.MinValue;
 
     private bool verified;
+
+    /// The verified scene this second is solo: no partner, a solo-marked act.
+    private bool solo;
     private ActEntry? verifiedAct;
     private PeerRecord? nearestInRange;
 
@@ -215,6 +222,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             PartnerBook.Seed(save);
         }
         watchers = sample.Watchers;
+        selfKey = sample.SelfKey;
         layersWorn = Math.Max(0, sample.LayersWorn);
         ItemBook.Expire(save, now);
 
@@ -233,7 +241,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             : sample.Visible.Count > 0 ? sample.Visible.MinBy(v => v.Distance) : null;
         nearestInRange = nearest is { } n && n.Distance <= balance.SceneRangeYalms ? n.Player : null;
 
-        var failure = SceneCheck.Evaluate(new SceneInput(
+        var (failure, isSolo) = SceneCheck.Check(new SceneInput(
             save.Paused,
             sample.OwnAct is not null,
             nearest is not null,
@@ -242,9 +250,12 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             nearest?.Pose,
             save.Setup is null,
             save.Hidden,
-            sample.OwnAct is null && sample.Excluded is not null), balance.SceneRangeYalms);
+            sample.OwnAct is null && sample.Excluded is not null,
+            sample.OwnAct?.Solo == true,
+            SoloBook.SecondsLeft(save, now, ModifierBook.For(save)) > 0), balance.SceneRangeYalms);
 
         verified = failure == SceneFailure.None;
+        solo = verified && isSolo;
         verifiedAct = verified ? sample.OwnAct : null;
 
         if (verified)
@@ -256,15 +267,17 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
                 fatigueStart = now;
             }
             lastPassUtc = now;
-            var partnerKey = nearest!.Value.Player.Key;
+            // A solo scene has no partner. One arriving later joins the same scene.
+            var partnerKey = solo ? null : nearest!.Value.Player.Key;
             if (sceneStarted is null)
             {
                 sceneStarted = now;
                 sceneVerifiedSeconds = 0;
                 tally = new SceneSummary { StartedUtc = now };
                 tallySinsAtStart = save.Wallet.EarnedTotal;
-                goals.RecordPartnerScene(partnerKey);
+                if (partnerKey is not null) goals.RecordPartnerScene(partnerKey);
             }
+            if (solo) SoloBook.Spend(save, now);
             sceneVerifiedSeconds++;
             if (save.PentUpSecondsLeft > 0) save.PentUpSecondsLeft = Math.Max(0, save.PentUpSecondsLeft - 1);
             save.LongestVerifiedSceneSeconds = Math.Max(save.LongestVerifiedSceneSeconds, sceneVerifiedSeconds);
@@ -273,12 +286,15 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             {
                 tally.VerifiedSeconds = sceneVerifiedSeconds;
                 tally.PeakWatchers = Math.Max(tally.PeakWatchers, watchers);
-                if (!tally.Partners.Contains(partnerKey, StringComparer.OrdinalIgnoreCase))
+                if (partnerKey is not null)
                 {
-                    tally.Partners.Add(partnerKey);
-                    PartnerBook.Started(save, partnerKey, now);
+                    if (!tally.Partners.Contains(partnerKey, StringComparer.OrdinalIgnoreCase))
+                    {
+                        tally.Partners.Add(partnerKey);
+                        PartnerBook.Started(save, partnerKey, now);
+                    }
+                    PartnerBook.Together(save, partnerKey, now, 1);
                 }
-                PartnerBook.Together(save, partnerKey, now, 1);
             }
         }
         else if (sceneStarted is not null && (now - lastPassUtc).TotalSeconds >= balance.SceneEndSeconds)
@@ -291,12 +307,12 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             lastSave = now;
         }
 
-        var partner = nearest?.Player;
+        var partner = solo ? null : nearest?.Player;
         var fatigue = verified && !ItemBook.NoFatigue(save, now)
             ? Progression.Fatigue(now - fatigueStart, balance, ModifierBook.For(save).FatigueGraceMinutes)
             : 1.0;
-        if (ticker.Sample(now, verified, partner?.Key, sample.OwnAct?.Key, balance.TickSeconds))
-            AwardTick(now, sample.OwnAct!, partner!, fatigue);
+        if (ticker.Sample(now, verified, solo ? SoloRules.TickerKey : partner?.Key, sample.OwnAct?.Key, balance.TickSeconds))
+            AwardTick(now, sample.OwnAct!, partner, fatigue);
 
         if (dirty && (now - lastSave).TotalSeconds >= balance.SaveIntervalSeconds)
         {
@@ -306,7 +322,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         }
 
         Status = new SceneStatus(StateOf(failure), failure, partner, sample.OwnAct, sceneStarted, fatigue, lastTickXp, watchers, lastFactors,
-            sample.OwnAct is null ? sample.Excluded : null);
+            sample.OwnAct is null ? sample.Excluded : null, solo);
         PublishTag(now, sample.OwnAct?.Pose);
         PayRewards();
         SyncTitles();
@@ -451,9 +467,10 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         host.SaveProgress();
     }
 
-    private void AwardTick(DateTime now, ActEntry act, PeerRecord partner, double fatigue)
+    /// <paramref name="partner"/> is null for a solo tick.
+    private void AwardTick(DateTime now, ActEntry act, PeerRecord? partner, double fatigue)
     {
-        lastTickPartner = partner.Key;
+        lastTickPartner = partner?.Key;
         lastTickUtc = now;
         var title = ModifierBook.For(save);
         // Back after a day or more: a Hypersexual character is Pent Up until they've had a while in scenes again.
@@ -462,29 +479,30 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         save.LastVerifiedUtc = now;
 
         Progression.UpdateStreak(save, now, () => ItemBook.TrySpendUse(save, ItemIds.StreakCharm), title.StreakEndsOnMiss);
-        var bondLevel = Bonds.LevelWith(partner.Key);
-        var seenWatchers = watchers * ItemBook.WatcherMultiplier(save, now) * title.WatcherCount;
-        lastFactors = Progression.Factors(save.Level, PlateOf(partner)?.Level, seenWatchers, save.StreakDays, fatigue, balance,
+        var bondLevel = partner is null ? 0 : Bonds.LevelWith(partner.Key);
+        var seenWatchers = SeenWatchers(now, title, partner is null);
+        lastFactors = Progression.Factors(save.Level, partner is null ? null : PlateOf(partner)?.Level, seenWatchers, save.StreakDays, fatigue, balance,
             bondLevel, layersWorn, save.Prestige, title, FullMoonAt(now)) with
             {
                 Items = ItemBook.TickXpFactor(save, now),
                 Pregnancy = PregnancyBook.TickXpFactor(save.Pregnancy),
                 Persona = PersonaTickFactor(partner, title),
+                Solo = partner is null ? SoloRules.TickXp * title.SoloTickXp : 1,
             };
         var xp = balance.TickXp * lastFactors.Total;
-        if (save.SeenPartners.Add(partner.Key)) xp += balance.FirstPartnerXp * title.FirstPartnerXp;
+        if (partner is not null && save.SeenPartners.Add(partner.Key)) xp += balance.FirstPartnerXp * title.FirstPartnerXp;
         if (save.SeenActs.Add(act.Key)) xp += balance.FirstActXp * title.FirstActXp;
         lastTickXp = xp;
         GiveXp(xp);
         RecordTick(now, act, partner);
         CountFullMoon(now);
-        GrowBond(partner);
+        if (partner is not null) GrowBond(partner);
         Sins.ForScene(save.Wallet, balance.TickSeconds * title.SceneSins * SceneSinsMoonFactor(now));
 
         var refractory = Arousal.InRefractory(save, now);
         var tier = Progression.TierOf(save.Level);
         save.Arousal = Math.Min(100, save.Arousal + Arousal.Gain(tier, seenWatchers, refractory, balance, title.WatcherCap)
-            * (save.Setup?.ArousalGain ?? 1) * ArousalFactor(now, bondLevel));
+            * (save.Setup?.ArousalGain ?? 1) * ArousalFactor(now, bondLevel) * (partner is null ? SoloArousalFactor(now, title) : 1));
         save.ArousalAnchorUtc = now;
         dirty = true;
 
@@ -503,15 +521,68 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
 
     /// The personality's and traits' part of a tick: their own factor, quiet scenes, time away from the bond, Pent Up
     /// and chemistry with the partner.
-    private double PersonaTickFactor(PeerRecord partner, Modifiers mods)
+    private double PersonaTickFactor(PeerRecord? partner, Modifiers mods)
     {
-        var awayFromBond = save.BondFormed && save.BondWith is { } bond && !string.Equals(bond, partner.Key, StringComparison.OrdinalIgnoreCase);
+        // Alone isn't time away from the bond, and has no one to have chemistry with.
+        var awayFromBond = partner is not null && save.BondFormed && save.BondWith is { } bond
+                           && !string.Equals(bond, partner.Key, StringComparison.OrdinalIgnoreCase);
         return mods.PersonaTickXp
                * (watchers == 0 ? mods.QuietTickXp : 1)
                * (awayFromBond ? mods.AwayFromBondTickXp : 1)
                * (IsPentUp ? PersonaCatalog.PentUpXp : 1)
-               * (HasChemistryWith(partner) ? PersonaCatalog.ChemistryXp : 1);
+               * (partner is not null && HasChemistryWith(partner) ? PersonaCatalog.ChemistryXp : 1);
     }
+
+    /// Watchers as a tick counts them: each one weighed by items, titles and the persona, and alone, a Vanity Mirror
+    /// counts as one more.
+    private double SeenWatchers(DateTime now, Modifiers mods, bool alone)
+        => (watchers + (alone && ItemBook.IsActive(save, ItemIds.VanityMirror, now) ? 1 : 0))
+           * ItemBook.WatcherMultiplier(save, now) * mods.WatcherCount * (alone ? mods.SoloWatcherCount : 1);
+
+    /// What speeds arousal only alone: a Toy, and solo titles.
+    private double SoloArousalFactor(DateTime now, Modifiers mods)
+        => mods.SoloArousal * (ItemBook.IsActive(save, ItemIds.Toy, now) ? ItemBook.ToyArousal : 1);
+
+    /// The verified scene right now is solo.
+    public bool IsSolo => solo;
+
+    /// "Layer yourself when you climax alone", from Settings.
+    public bool LayerSelfWhenAlone { get; set; } = true;
+
+    /// This character as `Name@World`, from the last sample, so a solo climax can name them as its source.
+    private string? selfKey;
+
+    /// A solo climax layers this character, aimed from their own genitals. Pays no layer XP.
+    private void LayerSelfAlone()
+    {
+        if (!LayerSelfWhenAlone || selfKey is not { } key || key.IndexOf('@') is not (> 0 and var at)) return;
+        var self = new PeerRecord { Name = key[..at], World = key[(at + 1)..] };
+        foreach (var part in SelfAimOrder(save.Anatomy, host.AimSelf(save.Anatomy)))
+        {
+            var outcome = host.LayerSelf(self, part);
+            if (outcome is "layered" or "advanced") return;
+            // A full or blocked part moves on to the next nearest, as with a partner.
+            if (outcome is not ("blocked" or "full")) return;
+        }
+    }
+
+    /// Where a solo climax lands. A vagina gets the groin first. Otherwise the groin is left out, since its anchor sits
+    /// at the genitals and would always be nearest; the next nearest is usually a hand. Without bones, Cummy's order.
+    public static IReadOnlyList<string> SelfAimOrder(Anatomy anatomy, IReadOnlyList<string>? aimed)
+    {
+        var order = (aimed is { Count: > 0 } ? aimed : CummyParts.All).ToList();
+        if (anatomy == Anatomy.Vagina)
+        {
+            order.Remove(PregnancyBook.GroinPart);
+            order.Insert(0, PregnancyBook.GroinPart);
+            return order;
+        }
+        order.Remove(PregnancyBook.GroinPart);
+        return order;
+    }
+
+    /// Solo seconds left today.
+    public double SoloSecondsLeft(DateTime now) => SoloBook.SecondsLeft(save, now, ModifierBook.For(save));
 
     /// Pent Up right now, with the verified seconds it has left.
     public bool IsPentUp => save.PentUpSecondsLeft > 0 && ModifierBook.For(save).PentUp;
@@ -572,16 +643,17 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         host.Notify($"You and {partner.Name} climaxed together. +{sins} Sins.");
     }
 
-    private void RecordTick(DateTime now, ActEntry act, PeerRecord partner)
+    private void RecordTick(DateTime now, ActEntry act, PeerRecord? partner)
     {
         CravingsFromTick(now, act, partner);
         var seconds = (long)balance.TickSeconds;
         goals.Record(GoalKind.SceneSeconds, seconds);
+        if (partner is null) goals.Record(GoalKind.SoloSeconds, seconds);
         if (watchers > 0) goals.Record(GoalKind.WatchedSeconds, seconds);
         if (watchers >= 3) goals.Record(GoalKind.CrowdSeconds, seconds);
         if (save.Arousal >= 100) goals.Record(GoalKind.EdgedSeconds, (long)Math.Round(seconds * ModifierBook.For(save).EdgedCount));
         goals.RecordOnce(GoalKind.DistinctAnimations, act.Key);
-        goals.RecordOnce(GoalKind.DistinctPartners, partner.Key);
+        if (partner is not null) goals.RecordOnce(GoalKind.DistinctPartners, partner.Key);
         goals.RecordOnce(GoalKind.ActiveDays, now.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
     }
 
@@ -607,7 +679,8 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         }
     }
 
-    private void FireClimax(DateTime now, PeerRecord partner)
+    /// <paramref name="partner"/> is null for a climax alone.
+    private void FireClimax(DateTime now, PeerRecord? partner)
     {
         lastOwnClimax = now;
         ownClimaxCount++;
@@ -615,21 +688,31 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         Crave(now, CravingKind.Climax);
         goals.Record(GoalKind.Climaxes);
         var mods = ModifierBook.For(save);
-        GiveXp(balance.ClimaxXp * mods.ClimaxXp);
+        var share = 1.0;
+        if (partner is null)
+        {
+            // Alone pays half, unless an Afterglow Candle use makes it whole.
+            share = (ItemBook.TrySpendUse(save, ItemIds.AfterglowCandle) ? 1 : SoloRules.ClimaxXp) * mods.SoloClimaxXp;
+            goals.Record(GoalKind.SoloClimaxes);
+            if (watchers >= 3) save.CaughtInTheAct++;
+        }
+        GiveXp(balance.ClimaxXp * mods.ClimaxXp * share);
         save.Arousal = mods.ArousalAfterClimax ?? balance.ArousalAfterClimax;
         save.ArousalAnchorUtc = now;
         save.RefractoryUntilUtc = now.AddSeconds(RefractorySeconds(now, partner));
 
-        // The partner's own client layers them when it credits this climax, so nothing is sent from here.
+        // The partner's own client layers them when it credits this climax, so nothing is sent from here. Alone, this
+        // client layers its own character.
         host.Notify("You climaxed.");
-        CheckTogether(now, partner);
+        if (partner is not null) CheckTogether(now, partner);
+        else LayerSelfAlone();
         host.SaveProgress();
     }
 
-    private double RefractorySeconds(DateTime now, PeerRecord partner)
+    private double RefractorySeconds(DateTime now, PeerRecord? partner)
     {
         var seconds = balance.RefractorySeconds * ItemBook.RefractoryFactor(save, now) * ModifierBook.For(save).Refractory;
-        if (Bonds.LevelWith(partner.Key) >= BondLevels.DevotedLevel) seconds /= 2;
+        if (partner is not null && Bonds.LevelWith(partner.Key) >= BondLevels.DevotedLevel) seconds /= 2;
         return Math.Max(balance.MinimumRefractorySeconds, seconds);
     }
 
@@ -688,7 +771,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     public string? TryManualClimax(DateTime now)
     {
         if (save.Paused) return "You're paused.";
-        if (!verified || verifiedAct is null || nearestInRange is null) return "There's no verified scene right now.";
+        if (!verified || verifiedAct is null || (nearestInRange is null && !solo)) return "There's no verified scene right now.";
         if (Arousal.InRefractory(save, now)) return "You're still recovering from the last one.";
         // A title can lower the threshold for free, and a personality can raise every threshold. A Hair Trigger lowers it
         // further, and is only spent when it's needed.
@@ -699,7 +782,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (save.Arousal < minimum)
             return $"Your arousal needs to be at least {minimum:0} (it's {Math.Floor(save.Arousal):0}).";
         if (save.Arousal < free) ItemBook.TrySpendUse(save, ItemIds.HairTrigger);
-        FireClimax(now, nearestInRange);
+        FireClimax(now, solo ? null : nearestInRange);
         return null;
     }
 
@@ -824,7 +907,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         host.SaveProgress();
     }
 
-    private void CravingsFromTick(DateTime now, ActEntry act, PeerRecord partner)
+    private void CravingsFromTick(DateTime now, ActEntry act, PeerRecord? partner)
     {
         var p = save.Pregnancy;
         if (!PregnancyBook.IsPregnant(p) || p.Craving is not { } craving || p.CravingMet) return;
@@ -832,7 +915,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         var newToday = !save.Goals.DaySeen.Contains($"{GoalKind.DistinctAnimations}:{act.Key}");
         var met = craving switch
         {
-            CravingKind.BondedScene => Bonds.PaysWith(partner.Key),
+            CravingKind.BondedScene => partner is not null && Bonds.PaysWith(partner.Key),
             CravingKind.TenMinutes => p.CravingSeconds >= CravingBook.TenMinutesSeconds,
             CravingKind.Watched => watchers > 0,
             CravingKind.NewAnimation => newToday,
@@ -941,13 +1024,22 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         return null;
     }
 
-    /// Instant items act on pregnancy. Null when it applied, otherwise why not.
+    /// A Do Not Disturb Sign: 20 more solo minutes today. Always useful, so never refused.
+    private string? AddSoloTime(DateTime now)
+    {
+        SoloBook.Rollover(save, now);
+        save.SoloBonusSecondsToday += SoloBook.SignSeconds;
+        return null;
+    }
+
+    /// Instant items act on pregnancy or solo time. Null when it applied, otherwise why not.
     private string? UseInstant(ItemDef item, DateTime now) => item.Id switch
     {
         ItemIds.MorningAfter => PregnancyBook.MorningAfter(save.Pregnancy, now),
         ItemIds.HormoneTea => PregnancyBook.HormoneTea(save.Pregnancy, now),
         ItemIds.SwiftLabour => PregnancyBook.SwiftLabour(save.Pregnancy),
         ItemIds.CravingTreat => SatisfyCraving(now) ? null : "You have no craving to satisfy right now.",
+        ItemIds.DoNotDisturb => AddSoloTime(now),
         _ => $"{item.Name} can't be used right now.",
     };
 

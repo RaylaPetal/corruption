@@ -46,23 +46,18 @@ public sealed partial class MainWindow
                 ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(nearby.Player.Name);
                 ImGui.SameLine();
-                Theme.MutedText($"@{nearby.Player.World}");
-                ImGui.SameLine();
-                Theme.Pill($"{tier} ♥ Lv. {tag.Level}", Theme.TierColor(tier));
+                Theme.MutedWrapped($"@{nearby.Player.World}");
+                Theme.NextPill($"{tier} ♥ Lv. {tag.Level}", Theme.TierColor(tier));
                 if (engine.StarsOf(nearby.Player) is > 0 and var stars)
                 {
-                    ImGui.SameLine();
-                    Theme.Pill(PrestigeRules.Label(stars, balance.StarsWithBonus), Theme.Warning);
+                    Theme.NextPill(PrestigeRules.Label(stars, balance.StarsWithBonus), Theme.Warning);
                 }
                 if (TitleCatalog.Find(engine.TitleOf(nearby.Player)) is { } title)
                 {
-                    ImGui.SameLine();
-                    Theme.Pill(title.Name, new System.Numerics.Vector4(PlateComposer.TitleColor(title), 1f));
+                    Theme.NextPill(title.Name, new System.Numerics.Vector4(PlateComposer.TitleColor(title), 1f));
                 }
-                ImGui.SameLine();
-                Theme.Pill($"{tag.Arousal}%", Theme.Pink);
-                ImGui.SameLine();
-                Theme.Pill(tag.Paused ? "Paused" : tag.Pose is not null ? "In an act" : "Idle", tag.Paused ? Theme.Danger : tag.Pose is not null ? Theme.Good : Theme.Muted);
+                Theme.NextPill($"{tag.Arousal}%", Theme.Pink);
+                Theme.NextPill(tag.Paused ? "Paused" : tag.Pose is not null ? "In an act" : "Idle", tag.Paused ? Theme.Danger : tag.Pose is not null ? Theme.Good : Theme.Muted);
                 var distance = $"{nearby.Distance:0.#} y";
                 Theme.AlignRight(ImGui.CalcTextSize(distance).X);
                 ImGui.AlignTextToFramePadding();
@@ -124,10 +119,10 @@ public sealed partial class MainWindow
             if (at > 0)
             {
                 ImGui.SameLine();
-                Theme.MutedText(key[at..]);
+                Theme.MutedWrapped(key[at..]);
             }
             ImGui.SameLine();
-            Theme.MutedText(History(record));
+            Theme.MutedWrapped(History(record));
         }
         ImGui.TreePop();
     }

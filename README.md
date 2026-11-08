@@ -14,7 +14,7 @@ Each client checks these for itself, once a second. A tick of XP and arousal lan
 4. You can see them playing the emote they declared.
 5. You're within 3 yalms of each other.
 
-Your animations don't need to match, or even come from the same mod. Playing alone earns nothing. The HUD says which condition is failing. A quiet scene builds to a climax in about 11 minutes.
+Your animations don't need to match, or even come from the same mod. Playing alone earns nothing, unless the mod is marked to count alone (see Solo scenes below). The HUD says which condition is failing. A quiet scene builds to a climax in about 11 minutes.
 
 ## Using it
 
@@ -25,6 +25,7 @@ Your animations don't need to match, or even come from the same mod. Playing alo
 - **Shop** sells items for Sins, which you earn from a daily check-in, scenes, levels, goals and achievements: faster or slower arousal, XP incense, a refractory cut, a streak charm and more, plus pregnancy items.
 - **Titles:** reaching levels 10, 25, 50, 75 and 100, prestiging, and earning achievements each unlock a title, and the shop sells a few for Sins. Wear one from **Profile**: it shows over your nameplate and gives a small bonus that suits it. *Insatiable* shortens your refractory period, *Shameless* raises the watcher bonus, *Devout* adds to your check-in, and so on. Only the one you wear counts, and you can't change it during a scene or while you recover from a climax. Prestige keeps your titles. A profile reset clears them, bought ones too.
 - **Scene summary:** when a scene of a minute or more ends, a popup sums it up: its length, XP, Sins, climaxes, the most watchers at once, and who it was with. The last one stays on **Profile**. Turn the popup off in **Settings**.
+- **Solo scenes:** in **Acts**, tick **Counts alone** on a mod you want to count by yourself. Its animations then earn with nobody nearby, at half the XP for ticks and climaxes, for up to 45 minutes a day. After that, solo scenes earn nothing until the next UTC day. A partner with Corruption in an act still makes it a normal scene at the full rate. A climax alone layers you through your own Cummy: the groin with a vagina, otherwise the part nearest your genitals, usually a hand. Turn that off in **Settings → Cummy**. The shop's **Alone time** section sells a Toy, a Do Not Disturb Sign (20 more solo minutes today), a Vanity Mirror and an Afterglow Candle. There are solo goals, the *Self-Love*, *Hands-On*, *Self-Sufficient* and *Me Time* achievements (and a hidden one), each with a title that helps alone, and a *Lone Wolf* title in the shop.
 - **Moon events** follow Eorzea's own moon, so everyone shares them with no server. During a Full Moon arousal builds 1.1x as fast, and during a New Moon scene time pays 1.5x Sins. Each phase lasts 4 hours 40 minutes of real time. The header and HUD show the moon and when the next event starts.
 - **Nearby** lists who's around with Corruption, with their title and your history together (scenes, time together and when you were last together), plus a list of past partners. **Hide me** there, or `/corr hide`, stops other players seeing you have it. Scenes can't earn while you're hidden.
 - `/corr hud` toggles the HUD. `/corr plate` toggles your nameplate text. `/corr climax` climaxes by hand at 70 arousal or more (40 with a Hair Trigger); at 100 it happens by itself.

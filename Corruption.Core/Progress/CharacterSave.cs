@@ -60,6 +60,15 @@ public sealed class CharacterSave
     /// The most watchers at once during a verified scene. For Crowd Pleaser.
     public int PeakWatchers { get; set; }
 
+    /// The UTC day solo time is counted for, the verified solo seconds spent that day, and extra seconds from Do Not
+    /// Disturb Signs that day.
+    public DateTime SoloDayUtc { get; set; }
+    public double SoloSecondsToday { get; set; }
+    public double SoloBonusSecondsToday { get; set; }
+
+    /// Solo climaxes with 3 or more watching. For Caught in the Act.
+    public int CaughtInTheAct { get; set; }
+
     /// Verified seconds of scenes left before a Hypersexual character stops being Pent Up. 0 when they aren't.
     public double PentUpSecondsLeft { get; set; }
 
@@ -108,6 +117,10 @@ public sealed class CharacterSave
         PeakWatchers = 0;
         FullMoonsSeen = 0;
         PentUpSecondsLeft = 0;
+        SoloDayUtc = default;
+        SoloSecondsToday = 0;
+        SoloBonusSecondsToday = 0;
+        CaughtInTheAct = 0;
         LastFullMoonCycle = long.MinValue;
         Goals = new GoalSave();
         SeenPartners.Clear();

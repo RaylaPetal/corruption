@@ -54,7 +54,7 @@ public sealed partial class MainWindow
         {
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText("Reading mods...");
+            Theme.MutedWrapped("Reading mods...");
         }
         if (newCount > 0)
         {
@@ -78,6 +78,10 @@ public sealed partial class MainWindow
     private static string CountsOf(ModRow mod)
         => mod.Countable == 1 ? "1 animation" : $"{mod.Countable} animations";
 
+    /// The next item on a mod's row, or on the next line lined up under the mod's name when it wouldn't fit.
+    private static void WrapAfterName(float width)
+        => Theme.SameLineOrWrap(width, ImGui.GetFrameHeight() + ImGui.GetStyle().ItemInnerSpacing.X);
+
     private void DrawMod(ModRow mod)
     {
         if (mod.Countable == 0)
@@ -95,11 +99,11 @@ public sealed partial class MainWindow
         {
             var picked = false;
             if (ImGui.Checkbox($"{mod.Name}##mod", ref picked)) acts.Pick(mod);
-            ImGui.SameLine();
+            WrapAfterName(Theme.PillWidth(CountsOf(mod)));
             Theme.Pill(CountsOf(mod), Theme.Violet);
             if (acts.IsNew(mod))
             {
-                ImGui.SameLine();
+                WrapAfterName(Theme.PillWidth("new"));
                 Theme.Pill("new", Theme.Warning);
             }
             return;
@@ -107,14 +111,19 @@ public sealed partial class MainWindow
 
         var on = true;
         if (ImGui.Checkbox($"{mod.Name}##mod", ref on)) acts.Unpick(pick);
-        ImGui.SameLine();
+        WrapAfterName(Theme.PillWidth(CountsOf(mod)));
         Theme.Pill(CountsOf(mod), Theme.Pink);
         if (mod.NotLooping > 0)
         {
-            ImGui.SameLine();
+            WrapAfterName(Theme.PillWidth($"{mod.NotLooping} can't count"));
             Theme.Pill($"{mod.NotLooping} can't count", Theme.Faint);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("These emotes don't loop, so they can't count as acts.");
         }
+        WrapAfterName(Theme.CheckboxWidth("Counts alone"));
+        var solo = pick.Solo;
+        if (ImGui.Checkbox("Counts alone##solo", ref solo)) acts.SetSolo(mod.Directory, solo);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Its animations also earn with nobody nearby, as a solo scene: half the XP, up to 45 minutes a day. With a partner they count as usual.");
         DrawExclusionToggle(mod);
     }
 }

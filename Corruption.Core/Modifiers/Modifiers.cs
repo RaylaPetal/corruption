@@ -112,6 +112,16 @@ public sealed record Modifiers
     /// Gets Pent Up after a day without a scene.
     public bool PentUp { get; init; }
 
+    // ── Solo scenes only ───────────────────────────────────────────────────────
+
+    public double SoloTickXp { get; init; } = 1;
+    public double SoloClimaxXp { get; init; } = 1;
+    public double SoloArousal { get; init; } = 1;
+    public double SoloWatcherCount { get; init; } = 1;
+
+    /// Minutes added to the daily solo budget.
+    public double SoloBudgetMinutes { get; init; }
+
     public double PriceFactorFor(string itemId) => ItemPrice * ItemPriceFor.GetValueOrDefault(itemId, 1);
 
     /// Several sources as one: factors multiply, added values add, caps and set values take the highest, and the manual
@@ -172,6 +182,11 @@ public sealed record Modifiers
             ItemDuration = Product(m => m.ItemDuration),
             CheckInBonus = all.Sum(m => m.CheckInBonus),
             PentUp = all.Any(m => m.PentUp),
+            SoloTickXp = Product(m => m.SoloTickXp),
+            SoloClimaxXp = Product(m => m.SoloClimaxXp),
+            SoloArousal = Product(m => m.SoloArousal),
+            SoloWatcherCount = Product(m => m.SoloWatcherCount),
+            SoloBudgetMinutes = Sum(m => m.SoloBudgetMinutes),
         };
     }
 }

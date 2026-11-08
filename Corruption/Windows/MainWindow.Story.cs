@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             var father = birth.FatherKey.Length > 0 ? birth.FatherKey.Split('@')[0] : "unknown";
             ImGui.TextUnformatted($"{birth.BornUtc.ToLocalTime():d MMM yyyy}");
             ImGui.SameLine();
-            Theme.MutedText($"father {father}, after {(birth.BornUtc - birth.ConceivedUtc).TotalDays:0} days");
+            Theme.MutedWrapped($"father {father}, after {(birth.BornUtc - birth.ConceivedUtc).TotalDays:0} days");
         }
         ImGuiHelpers.ScaledDummy(4f);
     }
@@ -101,10 +101,12 @@ public sealed partial class MainWindow
         ImGui.SameLine();
         ImGui.TextColored(color, title);
 
-        var width = 104f * Scale;
+        // Every tile in a section is as wide as its widest label or value needs, so a long label like "partners'
+        // climaxes" fits and the row still lines up. Never wider than the window.
+        var available = ImGui.GetContentRegionAvail().X;
+        var width = MathF.Min(available, MathF.Max(104f * Scale, tiles.Max(t => TileContentWidth(t.Value, t.Label)) + 16f * Scale));
         var height = 46f * Scale;
         var gap = 6f * Scale;
-        var available = ImGui.GetContentRegionAvail().X;
         var startX = ImGui.GetCursorPosX();
         for (var i = 0; i < tiles.Length; i++)
         {
@@ -115,6 +117,15 @@ public sealed partial class MainWindow
             }
             Tile(tiles[i].Value, tiles[i].Label, color, new Vector2(width, height));
         }
+    }
+
+    /// The width a tile's text needs: its label, or its value at the value's larger size.
+    private static float TileContentWidth(string value, string label)
+    {
+        ImGui.SetWindowFontScale(1.25f);
+        var valueWidth = ImGui.CalcTextSize(value).X;
+        ImGui.SetWindowFontScale(1f);
+        return MathF.Max(valueWidth, ImGui.CalcTextSize(label).X);
     }
 
     private static void Tile(string value, string label, Vector4 color, Vector2 size)

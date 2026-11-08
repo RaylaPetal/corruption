@@ -48,7 +48,7 @@ public static class SceneSummaries
         if (summary.PartnerClimaxes > 0) events.Add(Count(summary.PartnerClimaxes, "partner climax", "partner climaxes"));
         if (summary.PeakWatchers > 0) events.Add($"up to {Count(summary.PeakWatchers, "watcher", "watchers")}");
         if (events.Count > 0) lines.Add(string.Join(" · ", events));
-        if (summary.Partners.Count > 0) lines.Add($"With {Partners(summary)}");
+        lines.Add(summary.Partners.Count > 0 ? $"With {Partners(summary)}" : "Alone");
         return lines;
     }
 

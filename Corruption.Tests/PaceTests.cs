@@ -123,6 +123,51 @@ public class PaceTests
         Assert.True(events < ticks, $"events {events:0} vs ticks {ticks:0}");
     }
 
+    [Fact]
+    public void ASoloDayIsCappedAndHalfRate()
+    {
+        // Ten quiet minutes alone, and ten with a partner, from the same start: alone earns half.
+        static double TenMinutes(bool alone)
+        {
+            var r = Quiet();
+            r.BobVisible = !alone;
+            r.Act.Solo = true;
+            r.Save.Setup!.AutoClimax = false;
+            var xp = 0.0;
+            var lastXp = r.Save.Xp;
+            var lastLevel = r.Save.Level;
+            for (var second = 0; second < 600; second++)
+            {
+                r.Run(1);
+                xp += Gained(r, ref lastXp, ref lastLevel);
+            }
+            return xp;
+        }
+        Assert.Equal(TenMinutes(alone: false) / 2, TenMinutes(alone: true), 6);
+
+        // A whole day alone, the budget and an hour more: the last hour earns nothing.
+        var day = Quiet();
+        day.BobVisible = false;
+        day.Act.Solo = true;
+        var other = new ActEntry { ModDirectory = "m", Option = "other", EmoteMode = 50, Solo = true };
+        day.Save.SeenActs.Add(other.Key);
+        var first = day.Act;
+        var budgetXp = 0.0;
+        var afterXp = 0.0;
+        var last = day.Save.Xp;
+        var level = day.Save.Level;
+        for (var second = 0; second < 45 * 60 + 3600; second++)
+        {
+            day.Act = second / 600 % 2 == 0 ? first : other;
+            day.Run(1);
+            var gained = Gained(day, ref last, ref level);
+            if (second < 45 * 60) budgetXp += gained;
+            else afterXp += gained;
+        }
+        Assert.True(budgetXp > 0);
+        Assert.Equal(0, afterXp, 6);
+    }
+
     /// XP gained since the last call, counting whole levels.
     private static double Gained(EngineRig r, ref double lastXp, ref int lastLevel)
     {

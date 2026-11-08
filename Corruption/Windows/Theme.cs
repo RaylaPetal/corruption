@@ -217,6 +217,27 @@ internal static class Theme
 
     public static float PillWidth(string text) => ImGui.CalcTextSize(text).X + 16f * Scale;
 
+    /// Stays on this line when the next item, <paramref name="width"/> wide, fits; otherwise starts the next line,
+    /// <paramref name="indent"/> in from where the line started.
+    public static void SameLineOrWrap(float width, float indent = 0)
+    {
+        ImGui.SameLine();
+        if (ImGui.GetContentRegionAvail().X >= width) return;
+        ImGui.NewLine();
+        if (indent > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+    }
+
+    /// A pill after the last item, on the next line when it wouldn't fit.
+    public static void NextPill(string text, Vector4 color)
+    {
+        SameLineOrWrap(PillWidth(text));
+        Pill(text, color);
+    }
+
+    /// How wide a checkbox with this label is.
+    public static float CheckboxWidth(string label)
+        => ImGui.GetFrameHeight() + ImGui.GetStyle().ItemInnerSpacing.X + ImGui.CalcTextSize(label.Split("##")[0]).X;
+
     /// A small rounded badge, centred on a frame-height line.
     public static void Pill(string text, Vector4 color)
     {

@@ -122,7 +122,7 @@ public sealed partial class MainWindow
                 ImGui.SameLine();
                 ImGui.TextUnformatted(item.Name);
                 ImGui.SameLine();
-                Theme.MutedText($"{ItemIcons.Remaining(effect, now)}: {item.Effect}");
+                Theme.MutedWrapped($"{ItemIcons.Remaining(effect, now)}: {item.Effect}");
             }
         }, stripe: Theme.Violet);
     }

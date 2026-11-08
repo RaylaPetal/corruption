@@ -48,7 +48,7 @@ public sealed partial class MainWindow
             if (goal.Done) ImGui.TextColored(Theme.Good, def.Text);
             else ImGui.TextUnformatted(def.Text);
             ImGui.SameLine();
-            Theme.MutedText($"+{def.Xp:0} XP");
+            Theme.MutedWrapped($"+{def.Xp:0} XP");
             if (!goal.Done)
                 Theme.GradientBar((float)goal.Progress / def.Target, Theme.VioletDeep, Theme.Pink, ProgressText(def.Kind, goal.Progress, def.Target), 14f * Scale);
         }
@@ -62,13 +62,13 @@ public sealed partial class MainWindow
         {
             ImGui.TextColored(Theme.Faint, "???");
             ImGui.SameLine();
-            Theme.MutedText("A hidden achievement");
+            Theme.MutedWrapped("A hidden achievement");
             return;
         }
         if (earned) ImGui.TextColored(Theme.PinkSoft, achievement.Name);
         else ImGui.TextUnformatted(achievement.Name);
         ImGui.SameLine();
-        Theme.MutedText(achievement.Text);
+        Theme.MutedWrapped(achievement.Text);
         if (TitleCatalog.Find(achievement.Id) is { } title)
         {
             ImGui.SameLine();

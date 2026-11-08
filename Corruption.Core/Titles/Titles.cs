@@ -85,10 +85,17 @@ public static partial class TitleCatalog
 
         Earned("moon_touched", "Moon-Touched", "Scene XP ×1.08 during a Full Moon", new Modifiers { FullMoonTickXp = 1.08 }, TitleSource.Moon),
 
+        Earned("self_love", "Self-Love", "5 more minutes of solo time a day", new Modifiers { SoloBudgetMinutes = 5 }),
+        Earned("hands_on", "Hands-On", "Climaxes alone pay ×1.5 XP", new Modifiers { SoloClimaxXp = 1.5 }),
+        Earned("self_sufficient", "Self-Sufficient", "Solo scenes pay ×1.2 XP", new Modifiers { SoloTickXp = 1.2 }),
+        Earned("me_time", "Me Time", "15 more minutes of solo time a day", new Modifiers { SoloBudgetMinutes = 15 }),
+        Earned("caught_in_the_act", "Caught in the Act", "Watchers count ×1.5 in solo scenes", new Modifiers { SoloWatcherCount = 1.5 }, TitleSource.Hidden),
+
         Shop("shop_tease", "Tease", 400, "/corr climax works from 60 arousal", new Modifiers { ManualClimaxMinimum = 60 }),
         Shop("shop_harlot", "Harlot", 500, "Scene time pays ×1.25 Sins", new Modifiers { SceneSins = 1.25 }),
         Shop("shop_tireless", "Tireless", 600, "Fatigue starts 3 minutes later", new Modifiers { FatigueGraceMinutes = 3 }),
         Shop("shop_unholy", "Unholy", 2000, "", Modifiers.None),
+        Shop("shop_lone_wolf", "Lone Wolf", 800, "Arousal builds ×1.15 as fast in solo scenes", new Modifiers { SoloArousal = 1.15 }),
     ];
 
     public const string Unholy = "shop_unholy";

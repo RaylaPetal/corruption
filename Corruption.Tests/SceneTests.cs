@@ -112,6 +112,11 @@ public class FakeHost : IEngineHost
     /// Parts by distance, as the bones would give them. Null means the bones couldn't be read.
     public IReadOnlyList<string>? Aim { get; set; }
 
+    /// Parts on yourself by distance from your own genitals, for a solo climax. Null means the bones couldn't be read.
+    public IReadOnlyList<string>? SelfAim { get; set; }
+
+    public IReadOnlyList<string>? AimSelf(Anatomy anatomy) => SelfAim;
+
     /// The giver's anatomy, as the last aim was asked for.
     public Anatomy? AimedFrom { get; private set; }
 

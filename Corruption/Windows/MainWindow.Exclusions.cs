@@ -23,9 +23,9 @@ public sealed partial class MainWindow
     private void DrawExclusionToggle(ModRow mod)
     {
         var excluded = acts.File.ExcludedCount(mod.Directory);
-        ImGui.SameLine();
         var open = exclusionMod == mod.Directory;
         var label = excluded == 0 ? "Exclude some" : $"{excluded} excluded";
+        WrapAfterName(Theme.IconButtonWidth(open ? FontAwesomeIcon.ChevronUp : FontAwesomeIcon.Ban, label));
         if (ImGuiComponents.IconButtonWithText(open ? FontAwesomeIcon.ChevronUp : FontAwesomeIcon.Ban, $"{label}##excl"))
         {
             exclusionMod = open ? null : mod.Directory;

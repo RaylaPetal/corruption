@@ -12,6 +12,9 @@ public sealed class ActEntry
     public uint EmoteMode { get; set; }
     public byte Variant { get; set; }
 
+    /// Its mod is marked "Counts alone", so it can earn in a solo scene.
+    public bool Solo { get; set; }
+
     public PoseKey Pose => new(EmoteMode, Variant);
 
     public string Key => KeyOf(ModDirectory, Group, Option, Pose);
@@ -38,6 +41,9 @@ public sealed class ModPick
     public string ModDirectory { get; set; } = "";
     public string ModName { get; set; } = "";
 
+    /// "Counts alone": its animations can earn in a solo scene. Missing in files from before solo scenes, so false.
+    public bool Solo { get; set; }
+
     public ActEntry ActFor(string group, string option, PoseKey pose) => new()
     {
         ModDirectory = ModDirectory,
@@ -46,6 +52,7 @@ public sealed class ModPick
         Option = option,
         EmoteMode = pose.EmoteMode,
         Variant = pose.Variant,
+        Solo = Solo,
     };
 }
 
@@ -96,6 +103,15 @@ public sealed class ActsFile
 
     public ModPick? Find(string modDirectory)
         => Mods.FirstOrDefault(m => string.Equals(m.ModDirectory, modDirectory, StringComparison.OrdinalIgnoreCase));
+
+    /// Marks a picked mod "Counts alone", or not. True when anything changed. An unpicked mod has no mark to set; unpicking
+    /// removes the pick, and its mark with it.
+    public bool SetSolo(string modDirectory, bool solo)
+    {
+        if (Find(modDirectory) is not { } pick || pick.Solo == solo) return false;
+        pick.Solo = solo;
+        return true;
+    }
 
     /// Turns per-animation picks into per-mod ones: a mod with a picked animation stays picked. True when anything
     /// changed, so the caller can save.

@@ -19,6 +19,8 @@ public enum GoalKind
     ItemsUsed,
     CravingsSatisfied,
     ClimaxesTogether,
+    SoloSeconds,
+    SoloClimaxes,
 }
 
 /// <param name="Eligible">Whether a character can meet this goal now; null for anyone. Checked only when goals are picked.</param>
@@ -72,6 +74,9 @@ public static class GoalCatalog
 
     private static bool TogetherBond(CharacterSave s) => s.BondFormed && BondLevels.LevelOf(s.BondSeconds) >= BondLevels.TogetherLevel;
 
+    /// Solo goals only for someone who has played alone, since they need a mod marked "Counts alone".
+    private static bool HadSolo(CharacterSave s) => Stat(s, GoalKind.SoloSeconds) > 0;
+
     /// Every goal can be met with just Corruption: layers need a Cummy pairing, so they're only achievements. Goals that
     /// need pregnancy or a bond are only picked for characters who have them.
     public static readonly IReadOnlyList<GoalDef> Daily =
@@ -88,6 +93,8 @@ public static class GoalCatalog
         new("d_crowd", "Be watched by 3 or more for 3 minutes", GoalKind.CrowdSeconds, 3 * 60, 125),
         new("d_craving", "Satisfy today's craving", GoalKind.CravingsSatisfied, 1, 75, Pregnant),
         new("d_together", "Climax together with your bonded partner", GoalKind.ClimaxesTogether, 1, 100, TogetherBond),
+        new("d_solo_climax", "Climax alone", GoalKind.SoloClimaxes, 1, 75, HadSolo),
+        new("d_solo15", "Spend 15 minutes in solo scenes", GoalKind.SoloSeconds, 15 * 60, 50, HadSolo),
     ];
 
     public static readonly IReadOnlyList<GoalDef> Weekly =
@@ -104,6 +111,8 @@ public static class GoalCatalog
         new("w_crowd", "Be watched by 3 or more for 15 minutes", GoalKind.CrowdSeconds, 15 * 60, 600),
         new("w_cravings", "Satisfy 4 cravings", GoalKind.CravingsSatisfied, 4, 500, Pregnant),
         new("w_together", "Climax together 3 times", GoalKind.ClimaxesTogether, 3, 600, TogetherBond),
+        new("w_solo_climax", "Climax alone 5 times", GoalKind.SoloClimaxes, 5, 450, HadSolo),
+        new("w_solo120", "Spend 2 hours in solo scenes", GoalKind.SoloSeconds, 120 * 60, 500, HadSolo),
     ];
 
     private static long Stat(CharacterSave save, GoalKind kind)
@@ -150,6 +159,13 @@ public static class GoalCatalog
         new("glutton", "Glutton", "Satisfy 10 cravings", 500, 10, s => Stat(s, GoalKind.CravingsSatisfied), Hidden: true),
 
         new("moon_touched", "Moon-Touched", "Have scenes during 5 different Full Moons", 750, 5, s => s.FullMoonsSeen),
+
+        // Alone.
+        new("self_love", "Self-Love", "Climax alone", 250, 1, s => Stat(s, GoalKind.SoloClimaxes)),
+        new("hands_on", "Hands-On", "Climax alone 25 times", 750, 25, s => Stat(s, GoalKind.SoloClimaxes)),
+        new("self_sufficient", "Self-Sufficient", "Climax alone 100 times", 1500, 100, s => Stat(s, GoalKind.SoloClimaxes), Series: "hands_on"),
+        new("me_time", "Me Time", "Spend 5 hours in solo scenes", 1000, 5 * 3600, s => Stat(s, GoalKind.SoloSeconds)),
+        new("caught_in_the_act", "Caught in the Act", "Climax alone while 3 or more watch", 750, 1, s => s.CaughtInTheAct, Hidden: true),
     ];
 
     public static AchievementDef? FindAchievement(string id) => Achievements.FirstOrDefault(a => a.Id == id);

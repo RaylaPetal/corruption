@@ -40,7 +40,7 @@ public sealed partial class MainWindow
             ImGui.SameLine();
             ImGui.TextColored(color, status.State switch
             {
-                SceneState.Earning => status.Partner is { } with ? $"In a scene with {with.Name}" : "In a scene",
+                SceneState.Earning => status.Solo ? "In a scene alone" : status.Partner is { } with ? $"In a scene with {with.Name}" : "In a scene",
                 SceneState.Paused => "Paused",
                 SceneState.Waiting => SceneCheck.Describe(status.Failure),
                 _ => "No scene right now",
@@ -68,23 +68,30 @@ public sealed partial class MainWindow
                 if (status.SceneStartedUtc is { } started)
                 {
                     var elapsed = DateTime.UtcNow - started;
-                    ImGui.SameLine();
-                    Theme.Pill($"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}", Theme.Muted);
+                    Theme.NextPill($"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}", Theme.Muted);
                 }
                 if (status.Fatigue < 1)
                 {
-                    ImGui.SameLine();
-                    Theme.Pill($"Fatigue {status.Fatigue:P0}", Theme.Warning);
+                    Theme.NextPill($"Fatigue {status.Fatigue:P0}", Theme.Warning);
                 }
                 if (Arousal.InRefractory(save, DateTime.UtcNow))
                 {
-                    ImGui.SameLine();
-                    Theme.Pill("Recovering", Theme.PinkSoft);
+                    Theme.NextPill("Recovering", Theme.PinkSoft);
+                }
+                if (act.Solo)
+                {
+                    var left = engine.SoloSecondsLeft(DateTime.UtcNow);
+                    Theme.NextPill(left > 0 ? $"{Math.Ceiling(left / 60):0} min alone left today" : "No solo time left today",
+                        left > 0 ? Theme.VioletSoft : Theme.Warning);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("This mod counts alone: half the XP, up to your solo time each day. With a partner it counts as usual.");
                 }
             }
 
             DrawExcludeCurrent(engine);
             if (status.State == SceneState.Earning) DrawBonuses(engine);
+            if (status.State == SceneState.Waiting && status.Failure == SceneFailure.SoloBudgetSpent)
+                Theme.MutedWrapped("A partner with Corruption in an act can still make it a scene, at the full rate.");
             if (status.State == SceneState.Waiting && ImGui.TreeNode("Scene checks"))
             {
                 DrawConditions(status);
@@ -114,26 +121,22 @@ public sealed partial class MainWindow
         // A title whose bonus isn't scene XP still shows, so the player can see it's working.
         if (TitleBook.Equipped(save) is { IsCosmetic: false } title && factors.Title <= 1)
         {
-            ImGui.SameLine();
-            Theme.Pill(title.Name, Theme.Warning);
+            Theme.NextPill(title.Name, Theme.Warning);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(title.Effect);
         }
         if (status.Partner is { } partner && engine.HasChemistryWith(partner))
         {
-            ImGui.SameLine();
-            Theme.Pill($"Chemistry x{PersonaCatalog.ChemistryXp:0.##}", Theme.Pink);
+            Theme.NextPill($"Chemistry x{PersonaCatalog.ChemistryXp:0.##}", Theme.Pink);
         }
         if (engine.IsPentUp)
         {
-            ImGui.SameLine();
-            Theme.Pill($"Pent Up, {Math.Ceiling(save.PentUpSecondsLeft / 60):0}m left", Theme.Warning);
+            Theme.NextPill($"Pent Up, {Math.Ceiling(save.PentUpSecondsLeft / 60):0}m left", Theme.Warning);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"A day without a scene: ×{PersonaCatalog.PentUpXp:0.##} XP until you've had more time in scenes.");
         }
         var moon = engine.MoonAt(DateTime.UtcNow);
         if (moon.IsEvent)
         {
-            ImGui.SameLine();
-            Theme.Pill(EorzeaMoon.Name(moon.Phase), Theme.VioletSoft);
+            Theme.NextPill(EorzeaMoon.Name(moon.Phase), Theme.VioletSoft);
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(EorzeaMoon.Effect(moon.Phase, balance));
         }
     }
@@ -159,8 +162,7 @@ public sealed partial class MainWindow
     private static void Bonus(string label, double factor, Vector4 color)
     {
         if (factor <= 1) return;
-        ImGui.SameLine();
-        Theme.Pill($"{label} x{factor:0.##}", color);
+        Theme.NextPill($"{label} x{factor:0.##}", color);
     }
 
     private void DrawProfileCard(SceneEngine engine)
@@ -175,33 +177,31 @@ public sealed partial class MainWindow
             Theme.Pill(setup.Difficulty.ToString(), Theme.Pink);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText(ProfileSetup.Describe(setup.Difficulty));
+            Theme.MutedWrapped(ProfileSetup.Describe(setup.Difficulty));
 
             Theme.Pill($"Decay: {setup.Decay}", Theme.Violet);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText(ProfileSetup.Describe(setup.Decay));
+            Theme.MutedWrapped(ProfileSetup.Describe(setup.Decay));
 
             Theme.Pill(setup.AutoClimax ? "Climax: automatic" : "Climax: by hand", Theme.PinkSoft);
 
             Theme.Pill($"Arousal gain: {setup.ArousalGain:0.##}x", Theme.Pink);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText($"About {ClimaxMinutes(setup.ArousalGain):0.#} minutes to climax in a quiet scene.");
+            Theme.MutedWrapped($"About {ClimaxMinutes(setup.ArousalGain):0.#} minutes to climax in a quiet scene.");
 
             DrawPersona(save);
 
             ImGuiHelpers.ScaledDummy(2f);
             Theme.Icon(FontAwesomeIcon.Lock, Theme.Faint);
             ImGui.SameLine();
-            Theme.MutedText("Locked until you reset your profile in Settings.");
+            Theme.MutedWrapped("Locked until you reset your profile in Settings.");
 
             ImGuiHelpers.ScaledDummy(2f);
             Theme.Pill($"{save.SeenPartners.Count} partners met", Theme.PinkSoft);
-            ImGui.SameLine();
-            Theme.Pill($"{save.SeenActs.Count} animations tried", Theme.Violet);
-            ImGui.SameLine();
-            Theme.Pill(save.StreakDays == 1 ? "1 day streak" : $"{save.StreakDays} day streak", Theme.Good);
+            Theme.NextPill($"{save.SeenActs.Count} animations tried", Theme.Violet);
+            Theme.NextPill(save.StreakDays == 1 ? "1 day streak" : $"{save.StreakDays} day streak", Theme.Good);
         });
     }
 
@@ -213,7 +213,7 @@ public sealed partial class MainWindow
         Theme.Pill(save.Setup?.Personality is null ? "Personality: not chosen yet" : $"Personality: {personality.Name}", Theme.Violet);
         ImGui.SameLine();
         ImGui.AlignTextToFramePadding();
-        Theme.MutedText(personality.Upside.Length == 0
+        Theme.MutedWrapped(personality.Upside.Length == 0
             ? save.Setup?.Personality is null ? "Plays as Easygoing until you choose, in the welcome window." : "No bonus and no drawback"
             : $"{personality.Upside}. {personality.Downside}.");
         foreach (var trait in PersonaBook.Traits(save))
@@ -222,7 +222,7 @@ public sealed partial class MainWindow
             Theme.Pill(trait.Name, active ? Theme.PinkSoft : Theme.Faint);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText(active ? $"{trait.Upside}. {trait.Downside}."
+            Theme.MutedWrapped(active ? $"{trait.Upside}. {trait.Downside}."
                 : trait.Role == ItemRole.Carry ? "Needs the carry role: turn pregnancy on as a carrier in Settings."
                 : "Needs the breed role: turn pregnancy on as a breeder in Settings.");
         }
@@ -249,6 +249,13 @@ public sealed partial class MainWindow
             ImGui.SameLine();
             ImGui.TextColored(passed ? Theme.Text : failed ? Theme.Warning : Theme.Faint, Conditions[i].Text);
         }
+
+        // A solo act can also earn without the partner conditions, while there's solo time left today.
+        if (status.Act?.Solo != true) return;
+        var spent = status.Failure == SceneFailure.SoloBudgetSpent;
+        Theme.Icon(spent ? FontAwesomeIcon.TimesCircle : FontAwesomeIcon.CheckCircle, spent ? Theme.Warning : Theme.Good);
+        ImGui.SameLine();
+        ImGui.TextColored(spent ? Theme.Warning : Theme.Text, "Or alone, with solo time left today");
     }
 
     private string SafewordName()

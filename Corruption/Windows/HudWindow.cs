@@ -98,6 +98,12 @@ public sealed class HudWindow : Window
         if (status.State is SceneState.Waiting or SceneState.Paused) ImGui.TextColored(stateColor, SceneCheck.Describe(status.Failure));
 
         if (status.Partner is { } partner) Line(FontAwesomeIcon.UserFriends, partner.Name, Theme.PinkSoft);
+        else if (status.Act is { Solo: true })
+        {
+            var soloLeft = engine.SoloSecondsLeft(DateTime.UtcNow);
+            Line(FontAwesomeIcon.User, soloLeft > 0 ? $"Alone, {Math.Ceiling(soloLeft / 60):0} min left" : "Alone, no time left today",
+                soloLeft > 0 ? Theme.VioletSoft : Theme.Warning);
+        }
         if (status.Act is { } act) Line(FontAwesomeIcon.Fire, act.DisplayName, Theme.VioletSoft);
         if (engine.IsPentUp)
             Line(FontAwesomeIcon.Fire, $"Pent Up, {Math.Ceiling(save.PentUpSecondsLeft / 60):0}m left", Theme.Warning);

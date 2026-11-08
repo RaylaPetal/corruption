@@ -157,6 +157,12 @@ public sealed class ActsService
         if (File.SetExcluded(modDirectory, keys, excluded)) Save();
     }
 
+    /// "Counts alone" on a picked mod.
+    public void SetSolo(string modDirectory, bool solo)
+    {
+        if (File.SetSolo(modDirectory, solo)) Save();
+    }
+
     public void Unpick(ModPick pick)
     {
         File.Mods.Remove(pick);

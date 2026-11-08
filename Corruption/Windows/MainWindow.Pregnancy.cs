@@ -231,7 +231,7 @@ public sealed partial class MainWindow
                     ImGui.SetNextItemWidth(160 * Scale);
                     ImGui.SliderInt("Today's cycle day", ref draftCycleDay, 1, CycleClock.Length);
                     ImGui.SameLine();
-                    Theme.MutedText(CycleClock.PhaseOf(draftCycleDay).Phase.ToString());
+                    Theme.MutedWrapped(CycleClock.PhaseOf(draftCycleDay).Phase.ToString());
                 }
                 if (Theme.PrimaryButton(FontAwesomeIcon.Check, "Turn on")
                     && engine.EnablePregnancy(draftCarry, draftBreed, draftCycleDay, DateTime.UtcNow) is { } refusal)
@@ -242,7 +242,7 @@ public sealed partial class MainWindow
             Theme.Pill(p.CanCarry && p.CanBreed ? "Can carry and breed" : p.CanCarry ? "Can carry" : "Can breed", Theme.Pink);
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
-            Theme.MutedText($"{p.Births} {(p.Births == 1 ? "birth" : "births")} so far");
+            Theme.MutedWrapped($"{p.Births} {(p.Births == 1 ? "birth" : "births")} so far");
             if (p.CanCarry)
             {
                 var factor = (float)p.ChanceFactor;

@@ -25,6 +25,10 @@ public static class ItemIcons
         ItemIds.HormoneTea => FontAwesomeIcon.MugHot,
         ItemIds.SwiftLabour => FontAwesomeIcon.Forward,
         ItemIds.CravingTreat => FontAwesomeIcon.Cookie,
+        ItemIds.Toy => FontAwesomeIcon.Magic,
+        ItemIds.DoNotDisturb => FontAwesomeIcon.DoorClosed,
+        ItemIds.VanityMirror => FontAwesomeIcon.Eye,
+        ItemIds.AfterglowCandle => FontAwesomeIcon.Fire,
         _ => FontAwesomeIcon.Gem,
     };
 

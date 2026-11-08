@@ -1,7 +1,11 @@
 namespace Corruption.Core;
 
 /// Why a scene isn't earning right now. None means it is.
-public enum SceneFailure { None, NeedsSetup, Paused, Hidden, NoKnownAct, NoPartner, PartnerTooFar, NoPartnerDeclaration, PartnerEmoteMismatch, ExcludedAct }
+public enum SceneFailure
+{
+    None, NeedsSetup, Paused, Hidden, NoKnownAct, NoPartner, PartnerTooFar, NoPartnerDeclaration, PartnerEmoteMismatch, ExcludedAct,
+    SoloBudgetSpent,
+}
 
 /// What the check needs, all as plain values. Declared and Observed belong to the nearest loaded partner.
 public readonly record struct SceneInput(
@@ -13,7 +17,9 @@ public readonly record struct SceneInput(
     PoseKey? Observed,
     bool NeedsSetup = false,
     bool Hidden = false,
-    bool Excluded = false);
+    bool Excluded = false,
+    bool SoloAct = false,
+    bool SoloBudgetLeft = true);
 
 /// The whole per-client rule. It never compares the partners' acts: each only needs one known on their own plugin.
 public static class SceneCheck
@@ -22,7 +28,19 @@ public static class SceneCheck
     /// unreliably, set this false to compare the emote alone.
     public const bool CompareVariant = true;
 
-    public static SceneFailure Evaluate(in SceneInput input, double rangeYalms)
+    public static SceneFailure Evaluate(in SceneInput input, double rangeYalms) => Check(input, rangeYalms).Failure;
+
+    /// The scene's outcome: why it isn't earning, or None; and whether it earns as a solo scene. A duo scene always
+    /// wins. Only when a partner condition fails does a solo act earn alone, and only with solo time left today.
+    public static (SceneFailure Failure, bool Solo) Check(in SceneInput input, double rangeYalms)
+    {
+        var duo = Duo(input, rangeYalms);
+        if (duo is not (SceneFailure.NoPartner or SceneFailure.PartnerTooFar or SceneFailure.NoPartnerDeclaration
+            or SceneFailure.PartnerEmoteMismatch) || !input.SoloAct) return (duo, false);
+        return input.SoloBudgetLeft ? (SceneFailure.None, true) : (SceneFailure.SoloBudgetSpent, false);
+    }
+
+    private static SceneFailure Duo(in SceneInput input, double rangeYalms)
     {
         if (input.NeedsSetup) return SceneFailure.NeedsSetup;
         if (input.Paused) return SceneFailure.Paused;
@@ -52,6 +70,7 @@ public static class SceneCheck
         SceneFailure.NoPartnerDeclaration => "Your partner isn't playing an act",
         SceneFailure.PartnerEmoteMismatch => "Partner isn't playing what they declared",
         SceneFailure.ExcludedAct => "This animation is excluded, so it doesn't count",
+        SceneFailure.SoloBudgetSpent => "Your solo time for today is used up",
         _ => failure.ToString(),
     };
 }
