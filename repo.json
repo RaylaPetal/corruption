@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.0.1",
+    "AssemblyVersion": "0.3.1.0",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -17,9 +17,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.1/Corruption-0.3.0.1.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.0.1/Corruption-0.3.0.1.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
     "Changelog": "- Solo scenes: tick \"Counts alone\" on a mod in Acts, and its animations earn with nobody nearby, at half the XP for up to 45 minutes a day. A partner joining makes it a normal scene. Climaxing alone layers you through your own Cummy.\n- An \"Alone time\" shop section: Toy, Do Not Disturb Sign, Vanity Mirror and Afterglow Candle.\n- Solo goals, five solo achievements (one hidden), each with a title that helps alone, and a Lone Wolf title in the shop.\n- Text no longer gets cut off: Acts rows, pills and descriptions wrap to the window, and Your story tiles fit their labels.",
-    "LastUpdate": "1794079826"
+    "LastUpdate": "1794153185"
   }
 ]
