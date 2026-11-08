@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.1.0",
+    "AssemblyVersion": "0.3.1.1",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -17,9 +17,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.1/Corruption-0.3.1.1.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.1/Corruption-0.3.1.1.zip",
     "Changelog": "- Climax mode and arousal gain can now be changed any time on the Profile page, without a reset. Difficulty, decay and your personality stay locked.\n- Goals to hold at 100 arousal are only given when you climax by hand, since automatic climax fires at 100.",
-    "LastUpdate": "1794153185"
+    "LastUpdate": "1794176592"
   }
 ]
