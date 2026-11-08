@@ -4,7 +4,8 @@ public enum Difficulty { Relaxed, Normal, Hard }
 
 public enum DecayMode { Off, Gentle, Normal, Harsh }
 
-/// What the player chooses the first time. Nothing here changes afterward without a profile reset.
+/// What the player chooses the first time. Difficulty, decay and the persona change only with a profile reset; climax
+/// mode and arousal gain can be changed any time from the Profile page.
 public sealed class ProfileSetup
 {
     public const double MinArousalGain = 0.25;

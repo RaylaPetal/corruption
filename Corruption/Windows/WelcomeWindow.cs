@@ -270,7 +270,8 @@ public sealed class WelcomeWindow : Window
         {
             Theme.Icon(FontAwesomeIcon.Lock, Theme.Warning);
             ImGui.SameLine();
-            ImGui.TextColored(Theme.Warning, "These are locked once you finish, until you reset your profile.");
+            ImGui.TextColored(Theme.Warning, "Difficulty and decay are locked once you finish, until you reset your profile.");
+            Theme.MutedWrapped("Climax and arousal gain can be changed any time later, on the Profile page.");
         });
         Theme.CardBox("difficulty", () =>
         {

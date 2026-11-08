@@ -74,6 +74,9 @@ public static class GoalCatalog
 
     private static bool TogetherBond(CharacterSave s) => s.BondFormed && BondLevels.LevelOf(s.BondSeconds) >= BondLevels.TogetherLevel;
 
+    /// Holding at 100 only works by hand: automatic climax fires the moment arousal reaches 100.
+    private static bool ClimaxesByHand(CharacterSave s) => s.Setup?.AutoClimax == false;
+
     /// Solo goals only for someone who has played alone, since they need a mod marked "Counts alone".
     private static bool HadSolo(CharacterSave s) => Stat(s, GoalKind.SoloSeconds) > 0;
 
@@ -88,7 +91,7 @@ public static class GoalCatalog
         new("d_partnerclimax", "Be there when a partner climaxes", GoalKind.PartnerClimaxes, 1, 50),
         new("d_watched", "Be watched for 5 minutes", GoalKind.WatchedSeconds, 5 * 60, 100),
         new("d_variety", "Play 3 different animations", GoalKind.DistinctAnimations, 3, 75),
-        new("d_edge", "Hold at 100 arousal for 2 minutes", GoalKind.EdgedSeconds, 2 * 60, 100),
+        new("d_edge", "Hold at 100 arousal for 2 minutes", GoalKind.EdgedSeconds, 2 * 60, 100, ClimaxesByHand),
         new("d_item", "Use an item", GoalKind.ItemsUsed, 1, 50),
         new("d_crowd", "Be watched by 3 or more for 3 minutes", GoalKind.CrowdSeconds, 3 * 60, 125),
         new("d_craving", "Satisfy today's craving", GoalKind.CravingsSatisfied, 1, 75, Pregnant),
@@ -106,7 +109,7 @@ public static class GoalCatalog
         new("w_variety", "Play 10 different animations", GoalKind.DistinctAnimations, 10, 400),
         new("w_partners", "Have scenes with 2 different partners", GoalKind.DistinctPartners, 2, 400),
         new("w_days", "Have a scene on 4 different days", GoalKind.ActiveDays, 4, 500),
-        new("w_edge", "Hold at 100 arousal for 10 minutes", GoalKind.EdgedSeconds, 10 * 60, 500),
+        new("w_edge", "Hold at 100 arousal for 10 minutes", GoalKind.EdgedSeconds, 10 * 60, 500, ClimaxesByHand),
         new("w_items", "Use 5 items", GoalKind.ItemsUsed, 5, 400),
         new("w_crowd", "Be watched by 3 or more for 15 minutes", GoalKind.CrowdSeconds, 15 * 60, 600),
         new("w_cravings", "Satisfy 4 cravings", GoalKind.CravingsSatisfied, 4, 500, Pregnant),

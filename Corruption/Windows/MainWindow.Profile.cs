@@ -184,19 +184,37 @@ public sealed partial class MainWindow
             ImGui.AlignTextToFramePadding();
             Theme.MutedWrapped(ProfileSetup.Describe(setup.Decay));
 
-            Theme.Pill(setup.AutoClimax ? "Climax: automatic" : "Climax: by hand", Theme.PinkSoft);
-
-            Theme.Pill($"Arousal gain: {setup.ArousalGain:0.##}x", Theme.Pink);
-            ImGui.SameLine();
-            ImGui.AlignTextToFramePadding();
-            Theme.MutedWrapped($"About {ClimaxMinutes(setup.ArousalGain):0.#} minutes to climax in a quiet scene.");
-
             DrawPersona(save);
 
             ImGuiHelpers.ScaledDummy(2f);
             Theme.Icon(FontAwesomeIcon.Lock, Theme.Faint);
             ImGui.SameLine();
-            Theme.MutedWrapped("Locked until you reset your profile in Settings.");
+            Theme.MutedWrapped("These are locked until you reset your profile in Settings.");
+
+            // Climax mode and arousal gain aren't locked: change them whenever.
+            ImGuiHelpers.ScaledDummy(4f);
+            Theme.Icon(FontAwesomeIcon.SlidersH, Theme.PinkSoft);
+            ImGui.SameLine();
+            ImGui.TextColored(Theme.PinkSoft, "Change any time");
+
+            ImGui.AlignTextToFramePadding();
+            Theme.MutedText("Climax");
+            ImGui.SameLine(110 * Scale);
+            var climax = setup.AutoClimax ? 0 : 1;
+            if (Theme.Choice("profileClimax", ["Automatic at 100", "By hand only"], ref climax)) engine.SetAutoClimax(climax == 0);
+            Theme.MutedWrapped(setup.AutoClimax
+                ? "You climax when arousal reaches 100, or earlier with /corr climax."
+                : "Only /corr climax does it, from 70 arousal. Arousal holds at 100 until you do, which edging goals need.");
+
+            ImGui.AlignTextToFramePadding();
+            Theme.MutedText("Arousal gain");
+            ImGui.SameLine(110 * Scale);
+            var gain = (float)setup.ArousalGain;
+            ImGui.SetNextItemWidth(200 * Scale);
+            ImGui.SliderFloat("##profileGain", ref gain, (float)ProfileSetup.MinArousalGain, (float)ProfileSetup.MaxArousalGain, "%.2fx");
+            if (ImGui.IsItemDeactivatedAfterEdit()) engine.SetArousalGain(gain);
+            else if (ImGui.IsItemActive()) setup.ArousalGain = Math.Round(gain, 2);
+            Theme.MutedWrapped($"About {ClimaxMinutes(setup.ArousalGain):0.#} minutes to climax in a quiet scene.");
 
             ImGuiHelpers.ScaledDummy(2f);
             Theme.Pill($"{save.SeenPartners.Count} partners met", Theme.PinkSoft);

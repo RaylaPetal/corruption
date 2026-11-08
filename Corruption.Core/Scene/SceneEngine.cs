@@ -989,6 +989,22 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         return null;
     }
 
+    /// Profile: climax automatically at 100, or only by hand. Can change any time.
+    public void SetAutoClimax(bool auto)
+    {
+        if (save.Setup is not { } setup || setup.AutoClimax == auto) return;
+        setup.AutoClimax = auto;
+        host.SaveProgress();
+    }
+
+    /// Profile: how fast arousal builds, within the setup's range. Can change any time.
+    public void SetArousalGain(double gain)
+    {
+        if (save.Setup is not { } setup) return;
+        setup.ArousalGain = Math.Round(Math.Clamp(gain, ProfileSetup.MinArousalGain, ProfileSetup.MaxArousalGain), 2);
+        host.SaveProgress();
+    }
+
     /// Settings: what this character has, sent to partners in the body tag.
     public void SetAnatomy(Anatomy anatomy)
     {

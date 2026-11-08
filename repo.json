@@ -19,7 +19,7 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
     "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.1.0/Corruption-0.3.1.0.zip",
-    "Changelog": "- Solo scenes: tick \"Counts alone\" on a mod in Acts, and its animations earn with nobody nearby, at half the XP for up to 45 minutes a day. A partner joining makes it a normal scene. Climaxing alone layers you through your own Cummy.\n- An \"Alone time\" shop section: Toy, Do Not Disturb Sign, Vanity Mirror and Afterglow Candle.\n- Solo goals, five solo achievements (one hidden), each with a title that helps alone, and a Lone Wolf title in the shop.\n- Text no longer gets cut off: Acts rows, pills and descriptions wrap to the window, and Your story tiles fit their labels.",
+    "Changelog": "- Climax mode and arousal gain can now be changed any time on the Profile page, without a reset. Difficulty, decay and your personality stay locked.\n- Goals to hold at 100 arousal are only given when you climax by hand, since automatic climax fires at 100.",
     "LastUpdate": "1794153185"
   }
 ]

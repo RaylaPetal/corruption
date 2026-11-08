@@ -233,3 +233,65 @@ public class AchievementListTests
         Assert.Equal(GoalCatalog.Achievements.Count, Shown(save).Count);
     }
 }
+
+public class EdgingGoalTests
+{
+    private static readonly DateTime T0 = new(2026, 1, 7, 12, 0, 0, DateTimeKind.Utc);
+
+    private static HashSet<string> Offered(bool autoClimax)
+    {
+        var save = new CharacterSave { Setup = new ProfileSetup { AutoClimax = autoClimax }, Goals = { Seed = 1 } };
+        var book = new GoalBook(save);
+        var seen = new HashSet<string>();
+        for (var day = 0; day < 700; day++)
+        {
+            book.Roll(T0.AddDays(day));
+            foreach (var goal in save.Goals.Daily.Concat(save.Goals.Weekly)) seen.Add(goal.Id);
+        }
+        return seen;
+    }
+
+    [Fact]
+    public void AutomaticClimaxNeverGetsEdgingGoals()
+    {
+        var seen = Offered(autoClimax: true);
+        Assert.DoesNotContain("d_edge", seen);
+        Assert.DoesNotContain("w_edge", seen);
+    }
+
+    [Fact]
+    public void ClimaxByHandGetsThem()
+    {
+        var seen = Offered(autoClimax: false);
+        Assert.Contains("d_edge", seen);
+        Assert.Contains("w_edge", seen);
+    }
+
+    [Fact]
+    public void ClimaxModeAndGainCanChangeAfterSetup()
+    {
+        var r = new EngineRig { Playing = false };
+        r.Engine.SetAutoClimax(false);
+        Assert.False(r.Save.Setup!.AutoClimax);
+        r.Engine.SetArousalGain(2.5);
+        Assert.Equal(2.5, r.Save.Setup.ArousalGain);
+        r.Engine.SetArousalGain(10);
+        Assert.Equal(ProfileSetup.MaxArousalGain, r.Save.Setup.ArousalGain);
+        r.Engine.SetArousalGain(0);
+        Assert.Equal(ProfileSetup.MinArousalGain, r.Save.Setup.ArousalGain);
+    }
+
+    [Fact]
+    public void ByHandArousalHoldsAtTheTopAndEdgingCounts()
+    {
+        var r = new EngineRig();
+        r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
+        r.Engine.SetAutoClimax(false);
+        r.Run(1);
+        r.Save.Arousal = 100;
+        r.Run(60);
+        Assert.Equal(100, r.Save.Arousal);
+        Assert.DoesNotContain("You climaxed.", r.Host.Notes);
+        Assert.True(r.Save.Goals.Stats["EdgedSeconds"] >= 50);
+    }
+}
