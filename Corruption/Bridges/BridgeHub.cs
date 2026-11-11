@@ -80,7 +80,8 @@ public sealed class BridgeHub : IDisposable
             pregnant ? (int)stage : 0,
             pregnant && p.Craving is not null && !p.CravingMet,
             pregnant && p.Unsatisfied,
-            stage == PregnancyStage.Recovering));
+            stage == PregnancyStage.Recovering,
+            engine.DrippingHoles));
         Moodles.Update(plan, selfKey, save.Arousal, engine.LayersWorn);
     }
 

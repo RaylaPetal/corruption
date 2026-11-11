@@ -69,6 +69,15 @@ public sealed record Modifiers
     /// Licking a partner clean pays this much more XP.
     public double LickXp { get; init; } = 1;
 
+    /// A creampie pays this much more XP.
+    public double CreampieXp { get; init; } = 1;
+
+    /// How many stages each dripping hole counts as in the marked factor, instead of the default 3. Cummy version 6 only.
+    public double? HoleStages { get; init; }
+
+    /// Arousal gained when a creampie is refreshed while still dripping.
+    public double RefreshArousal { get; init; }
+
     /// How much each watcher counts.
     public double WatcherCount { get; init; } = 1;
 
@@ -170,6 +179,9 @@ public sealed record Modifiers
             MarkedPerLayer = Highest(m => m.MarkedPerLayer),
             FaceWeight = Highest(m => m.FaceWeight),
             LickXp = Product(m => m.LickXp),
+            CreampieXp = Product(m => m.CreampieXp),
+            HoleStages = Highest(m => m.HoleStages),
+            RefreshArousal = Sum(m => m.RefreshArousal),
             WatcherCount = Product(m => m.WatcherCount),
             StreakEndsOnMiss = all.Any(m => m.StreakEndsOnMiss),
             FatigueGraceMinutes = Sum(m => m.FatigueGraceMinutes),

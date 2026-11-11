@@ -133,14 +133,16 @@ public static class Progression
     /// A full coat (every unblocked part layered) makes the stages count this much more.
     public const double FullCoat = 1.5;
 
-    /// From Cummy version 5: each stage counts, face stages more, and a full coat more again, up to the same cap.
+    /// From Cummy version 5: each stage counts, face stages more, and a full coat more again, up to the same cap. From
+    /// version 6, each dripping hole adds a few stages more, after the full coat.
     public static double WeightedMarkedFactor(IReadOnlyDictionary<string, int> stages, IReadOnlyCollection<string> blocked, Balance b,
-        Modifiers? mods = null)
+        Modifiers? mods = null, int drippingHoles = 0)
     {
         mods ??= Modifiers.None;
         var face = mods.FaceWeight ?? FaceWeight;
         var weighted = stages.Sum(s => Math.Max(0, s.Value) * (s.Key == "mo" ? face : 1));
         if (IsFullCoat(stages, blocked)) weighted *= FullCoat;
+        weighted += Math.Max(0, drippingHoles) * (mods.HoleStages ?? CreampieRules.HoleStages);
         return Math.Min(mods.MarkedCap ?? b.MarkedFactorCap, 1 + (mods.MarkedPerLayer ?? b.XpPerLayerWorn) * weighted);
     }
 

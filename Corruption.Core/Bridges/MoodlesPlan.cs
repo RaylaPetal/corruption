@@ -1,21 +1,28 @@
 namespace Corruption.Core;
 
-public enum MoodleKind { Aroused, Marked, Watched, Bonded, Refractory, Fading, Fertile, Pregnant, Craving, Unsatisfied, Recovering }
+public enum MoodleKind { Aroused, Marked, Watched, Bonded, Refractory, Fading, Fertile, Pregnant, Craving, Unsatisfied, Recovering, Dripping }
 
 /// What Corruption's Moodles statuses should be right now.
 /// <param name="Visible">False when hidden or before setup: no statuses, since they'd show the plugin.</param>
 /// <param name="InScene">A verified scene is running.</param>
 /// <param name="WithBondedPartner">The scene's partner is the formed bond.</param>
 /// <param name="Trimester">1 to 3 while pregnant, else 0.</param>
+/// <param name="Dripping">The holes dripping, from Cummy version 6 ("pussy", "ass").</param>
 public readonly record struct MoodlesInput(bool Visible, double Arousal, int LayersWorn, bool InScene, int Watchers,
     bool WithBondedPartner, bool Refractory, bool Fading,
-    bool Fertile = false, int Trimester = 0, bool Craving = false, bool Unsatisfied = false, bool Recovering = false);
+    bool Fertile = false, int Trimester = 0, bool Craving = false, bool Unsatisfied = false, bool Recovering = false,
+    IReadOnlyCollection<string>? Dripping = null);
 
 public static class MoodlesPlan
 {
     public const int ArousedSteps = 5;
 
-    /// Each status that applies, with its level: the Aroused step from 1 to 5, the Marked layer count, else 1.
+    /// Dripping's levels: which holes drip.
+    public const int DrippingPussy = 1;
+    public const int DrippingAss = 2;
+
+    /// Each status that applies, with its level: the Aroused step from 1 to 5, the Marked layer count, the dripping holes
+    /// (pussy 1, ass 2, both 3), else 1.
     public static IReadOnlyDictionary<MoodleKind, int> Plan(in MoodlesInput input)
     {
         var plan = new Dictionary<MoodleKind, int>();
@@ -33,6 +40,9 @@ public static class MoodlesPlan
         if (input.Craving) plan[MoodleKind.Craving] = 1;
         if (input.Unsatisfied) plan[MoodleKind.Unsatisfied] = 1;
         if (input.Recovering) plan[MoodleKind.Recovering] = 1;
+        var dripping = (input.Dripping?.Contains(CreampieAim.Pussy) == true ? DrippingPussy : 0)
+                       | (input.Dripping?.Contains(CreampieAim.Ass) == true ? DrippingAss : 0);
+        if (dripping > 0) plan[MoodleKind.Dripping] = dripping;
         return plan;
     }
 

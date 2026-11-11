@@ -34,6 +34,9 @@ public static class CummyParts
     /// Full Body: a target, not a stored part. Layers every unblocked part one stage.
     public const string FullBody = "fb";
 
+    public const string Groin = "gr";
+    public const string Butt = "bt";
+
     public static readonly IReadOnlyList<string> All =
         ["mo", "ch", "bk", "st", "bt", "gr", "al", "ar", "hl", "hr", "ll", "lr", "bl", "br", "fl", "fr"];
 }

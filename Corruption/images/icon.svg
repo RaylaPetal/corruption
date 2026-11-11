@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="32%" r="78%">
+      <stop offset="0" stop-color="#3b2466"/>
+      <stop offset="1" stop-color="#130c22"/>
+    </radialGradient>
+    <linearGradient id="pearl" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#ece4fb"/>
+      <stop offset="1" stop-color="#b9a6e2"/>
+    </linearGradient>
+    <linearGradient id="taint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b14fd6"/>
+      <stop offset="0.6" stop-color="#7a2fb8"/>
+      <stop offset="1" stop-color="#4a1d82"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c7a6ff"/>
+      <stop offset="1" stop-color="#7f5fd0"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9cc0"/>
+      <stop offset="1" stop-color="#d9558a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#b14fd6" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#b14fd6" stop-opacity="0"/>
+    </radialGradient>
+    <path id="heart" d="M256 432 C 176 376, 104 318, 104 236 C 104 182, 144 144, 194 144 C 222 144, 244 158, 256 182 C 268 158, 290 144, 318 144 C 368 144, 408 182, 408 236 C 408 318, 336 376, 256 432 Z"/>
+    <clipPath id="inside"><use href="#heart"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <ellipse cx="256" cy="300" rx="200" ry="170" fill="url(#glow)"/>
+
+  <!-- horns -->
+  <path d="M170 156 C 150 128, 146 98, 160 66 C 168 98, 186 120, 210 140 Z" fill="url(#horn)"/>
+  <path d="M342 156 C 362 128, 366 98, 352 66 C 344 98, 326 120, 302 140 Z" fill="url(#horn)"/>
+
+  <!-- the heart, pure above and corrupted below a creeping edge -->
+  <use href="#heart" fill="url(#pearl)"/>
+  <g clip-path="url(#inside)">
+    <path d="M90 300 C 130 270, 158 316, 196 286 C 230 260, 250 312, 290 282 C 324 258, 350 300, 380 274 C 398 260, 414 270, 424 278 L 424 450 L 90 450 Z"
+          fill="url(#taint)"/>
+    <path d="M90 300 C 130 270, 158 316, 196 286 C 230 260, 250 312, 290 282 C 324 258, 350 300, 380 274 C 398 260, 414 270, 424 278"
+          fill="none" stroke="#e7a8ff" stroke-width="6" stroke-opacity="0.7"/>
+    <!-- bubbles rising in it -->
+    <circle cx="214" cy="336" r="9" fill="#e7a8ff" opacity="0.55"/>
+    <circle cx="300" cy="352" r="6" fill="#e7a8ff" opacity="0.5"/>
+    <circle cx="262" cy="384" r="5" fill="#e7a8ff" opacity="0.45"/>
+  </g>
+  <use href="#heart" fill="none" stroke="url(#rim)" stroke-width="10" stroke-linejoin="round"/>
+
+  <!-- gloss on the pure part -->
+  <path d="M148 236 C 148 206, 166 180, 192 172" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" opacity="0.95"/>
+  <circle cx="152" cy="266" r="8" fill="#ffffff"/>
+
+  <!-- drips falling from the tip -->
+  <path d="M256 438 C 256 438, 272 458, 272 469 C 272 478, 265 485, 256 485 C 247 485, 240 478, 240 469 C 240 458, 256 438, 256 438 Z"
+        fill="url(#taint)" stroke="#c7a6ff" stroke-width="4"/>
+
+  <!-- sparkle -->
+  <path d="M430 330 Q433 346 448 349 Q433 352 430 368 Q427 352 412 349 Q427 346 430 330 Z" fill="#ffb3cf"/>
+  <circle cx="86" cy="352" r="7" fill="#ff9cc0"/>
+</svg>

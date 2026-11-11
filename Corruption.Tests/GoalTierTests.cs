@@ -195,8 +195,8 @@ public class GoalTierTests
     {
         Assert.All(GoalCatalog.Daily, g => Assert.InRange(g.Xp, 50, 150));
         Assert.All(GoalCatalog.Weekly, g => Assert.InRange(g.Xp, 400, 750));
-        Assert.Equal(15, GoalCatalog.Daily.Count);
-        Assert.Equal(15, GoalCatalog.Weekly.Count);
+        Assert.Equal(16, GoalCatalog.Daily.Count);
+        Assert.Equal(16, GoalCatalog.Weekly.Count);
     }
 }
 

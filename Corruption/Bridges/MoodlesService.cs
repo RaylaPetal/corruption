@@ -36,6 +36,7 @@ public sealed class MoodlesService
         [MoodleKind.Craving] = new Guid("c0aa7105-0000-4c0e-9a11-000000000009"),
         [MoodleKind.Unsatisfied] = new Guid("c0aa7105-0000-4c0e-9a11-00000000000a"),
         [MoodleKind.Recovering] = new Guid("c0aa7105-0000-4c0e-9a11-00000000000b"),
+        [MoodleKind.Dripping] = new Guid("c0aa7105-0000-4c0e-9a11-00000000000c"),
     };
 
     /// Game statuses whose icons fit, in order of preference, looked up by English name.
@@ -52,6 +53,7 @@ public sealed class MoodlesService
         [MoodleKind.Craving] = ["Hungry", "Food Craving", "Haste"],
         [MoodleKind.Unsatisfied] = ["Weakness", "Heavy", "Slow"],
         [MoodleKind.Recovering] = ["Regen", "Rest", "Well Fed"],
+        [MoodleKind.Dripping] = ["Sludge", "Doused", "Prey"],
     };
 
     private readonly ICallGateSubscriber<MoodleTuple, IPlayerCharacter, object> addByData;
@@ -173,6 +175,12 @@ public sealed class MoodlesService
             MoodleKind.Pregnant => ($"Pregnant: {(level == 1 ? "first" : level == 2 ? "second" : "third")} trimester", "Carrying a child.", Positive),
             MoodleKind.Craving => ("Craving", "Craving something only a scene can give.", Special),
             MoodleKind.Unsatisfied => ("Unsatisfied", "Yesterday's craving went unmet.", Negative),
+            MoodleKind.Dripping => (level switch
+            {
+                MoodlesPlan.DrippingPussy => "Dripping: pussy",
+                MoodlesPlan.DrippingAss => "Dripping: ass",
+                _ => "Dripping: pussy and ass",
+            }, "Freshly creampied, and it's running out.", Special),
             _ => ("Recovering", "Recovering after giving birth.", Positive),
         };
         return (TupleVersion, Ids[kind], IconFor(kind), title, description, "", -1L, type, 1, 0, 0u, Guid.Empty, 0,

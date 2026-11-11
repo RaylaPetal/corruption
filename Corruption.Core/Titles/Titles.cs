@@ -93,6 +93,10 @@ public static partial class TitleCatalog
         Earned("drenched", "Drenched", "Marked bonus goes up to ×1.45", new Modifiers { MarkedCap = 1.45 }),
         Earned("head_to_toe", "Head to Toe", "Each layer worn adds 4% instead of 3%", new Modifiers { MarkedPerLayer = 0.04 }),
         Earned("glazed", "Glazed", "Face layers count triple instead of double", new Modifiers { FaceWeight = 3 }),
+        Earned("filled", "Filled", "Creampies pay ×1.5 XP", new Modifiers { CreampieXp = 1.5 }),
+        Earned("both_ways", "Both Ways", "Each dripping hole counts as 4 layers instead of 3", new Modifiers { HoleStages = 4 }),
+        Earned("seconds", "Seconds", "Being creampied again while dripping gives 10 arousal", new Modifiers { RefreshArousal = 10 }),
+        Earned("well_bred", "Well Bred", "Your conception chance ×1.1", new Modifiers { ConceptionOwn = 1.1 }),
         Earned("caught_in_the_act", "Caught in the Act", "Watchers count ×1.5 in solo scenes", new Modifiers { SoloWatcherCount = 1.5 }, TitleSource.Hidden),
 
         Shop("shop_tease", "Tease", 400, "/corr climax works from 60 arousal", new Modifiers { ManualClimaxMinimum = 60 }),

@@ -115,7 +115,7 @@ public sealed partial class MainWindow
             : $"{chance:P0} to conceive · next phase in {ProfileTimers.Describe(CycleClock.NextPhaseAt(p.CycleStartUtc, now) - now)}");
         ImGui.EndGroup();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"Arousal ×{phase.ArousalFactor:0.##} today. Only a breeder's cum shot at your groin can make you pregnant.");
+            ImGui.SetTooltip($"Arousal ×{phase.ArousalFactor:0.##} today. Only a breeder's creampie in your pussy can make you pregnant.");
     }
 
     /// Seven dots, one per day, coloured by phase, with today ringed.
@@ -254,7 +254,11 @@ public sealed partial class MainWindow
                     scene.SaveProgress();
                 }
                 if (ImGui.IsItemDeactivatedAfterEdit()) scene.SaveProgress();
-                Theme.MutedWrapped($"×1 is normal: up to {CycleClock.PhaseOf(5).ConceptionChance:P0} on ovulation day. Only a partner's cum shot at your groin can make you pregnant, so it needs Cummy, \"Get layered when a partner climaxes\" on, and your groin not blocked in Cummy.");
+                Theme.MutedWrapped($"×1 is normal: up to {CycleClock.PhaseOf(5).ConceptionChance:P0} on ovulation day. Only a partner's creampie in your pussy can make you pregnant, one roll each time, so it needs Cummy's plugin API 6, \"Get layered when a partner climaxes\" on, and \"Creampie: pussy\" not blocked in Cummy. A shot outside, even on your groin, or a creampie in your ass never can.");
+                if (!cummy.HasV6)
+                    ImGui.TextColored(Theme.Warning, cummy.IsAvailable
+                        ? "Your Cummy is too old for creampies, so you can't conceive until it's updated."
+                        : "Cummy isn't connected, so you can't conceive until it's installed and updated.");
             }
             if (!PregnancyBook.IsPregnant(p))
             {

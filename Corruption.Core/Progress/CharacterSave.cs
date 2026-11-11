@@ -72,6 +72,16 @@ public sealed class CharacterSave
     /// Cummy version 5 has been connected for this character, so lick goals can be met.
     public bool HadCummyV5 { get; set; }
 
+    /// Cummy version 6 has been connected for this character, so creampie goals and cravings can be met.
+    public bool HadCummyV6 { get; set; }
+
+    /// Times both holes dripped at once, and creampies refreshed while still dripping. For Both Ways and Seconds.
+    public int BothWays { get; set; }
+    public int CreampieRefreshes { get; set; }
+
+    /// Hashes of the partners who've creampied this character, for Well Bred. Hashes, so no names are kept.
+    public HashSet<string> CreampiePartners { get; set; } = [];
+
     /// Times Cummy showed every unblocked part layered, and the face at its top stage. For Head to Toe and Glazed.
     public int HeadToToe { get; set; }
     public int Glazed { get; set; }
@@ -130,6 +140,9 @@ public sealed class CharacterSave
         CaughtInTheAct = 0;
         HeadToToe = 0;
         Glazed = 0;
+        BothWays = 0;
+        CreampieRefreshes = 0;
+        CreampiePartners.Clear();
         LastFullMoonCycle = long.MinValue;
         Goals = new GoalSave();
         SeenPartners.Clear();

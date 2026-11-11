@@ -193,20 +193,23 @@ public class PregnancyTests
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, day, r.Now);
         r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
-        // Their genitals are nearest the groin.
+        // Their genitals are nearest the groin, and with Cummy version 6 their tip is inside the pussy.
         r.Host.Aim = ["gr", "st", "ll", "lr", "bt"];
+        r.Creampies = [];
+        r.Host.InsideHole = CreampieAim.Pussy;
         r.Run(11);
         return r;
     }
 
     [Fact]
-    public void BreedersClimaxCanConceive()
+    public void BreedersCreampieCanConceive()
     {
         var r = Pair(0.1);
         r.BobClimaxes();
         Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
         Assert.Equal(r.Bob.Key, r.Save.Pregnancy.FatherKey);
         Assert.Contains(r.Host.Notes, n => n.Contains("conceived"));
+        Assert.Equal([(r.Bob.Key, CreampieAim.Pussy)], r.Host.Creampies);
         r.Run(2);
         var tag = BodyTag.Parse(r.Host.BodyTags[^1])!.Value;
         Assert.Equal(PregnancyStage.First, tag.Stage);
@@ -217,29 +220,61 @@ public class PregnancyTests
     public void AShotElsewhereCantConceive()
     {
         var r = Pair(0);
+        r.Host.InsideHole = null;
         r.Host.Aim = ["mo", "ch"];
         r.BobClimaxes();
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
     }
 
     [Fact]
-    public void AFullGroinStillCountsAndAnotherPartIsLayered()
+    public void AnOutsideShotOnTheGroinCantConceive()
     {
-        var r = Pair(0.1);
-        r.Host.Outcomes.Enqueue("full");
+        var r = Pair(0);
+        r.Host.InsideHole = null;
         r.BobClimaxes();
-        Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
-        Assert.Equal(2, r.Host.Layers.Count);
+        Assert.Equal("gr", r.Host.Layers[0].Part);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
     }
 
     [Fact]
-    public void BlockedGroinMeansNoConception()
+    public void AnAssCreampieCantConceive()
     {
         var r = Pair(0);
-        r.Host.Outcomes.Enqueue("blocked");
+        r.Host.InsideHole = CreampieAim.Ass;
+        r.BobClimaxes();
+        Assert.Equal([(r.Bob.Key, CreampieAim.Ass)], r.Host.Creampies);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void ABlockedPussyLandsOutsideAndCantConceive()
+    {
+        var r = Pair(0);
+        r.Host.CreampieOutcome = "blocked";
         r.BobClimaxes();
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
-        Assert.NotEqual(PregnancyBook.GroinPart, r.Host.Layers[1].Part);
+        Assert.Equal("gr", r.Host.Layers[0].Part);
+    }
+
+    [Fact]
+    public void ARefreshedCreampieRollsAgain()
+    {
+        // Day 5 is 40%: a roll of 0.3 conceives, so a refresh still rolls.
+        var r = Pair(0.3);
+        r.Host.CreampieOutcome = "refreshed";
+        r.BobClimaxes();
+        Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void OnOvulationDayTheChanceIsFortyPercent()
+    {
+        var low = Pair(0.39);
+        low.BobClimaxes();
+        Assert.True(PregnancyBook.IsPregnant(low.Save.Pregnancy));
+        var high = Pair(0.41);
+        high.BobClimaxes();
+        Assert.False(PregnancyBook.IsPregnant(high.Save.Pregnancy));
     }
 
     [Fact]
@@ -249,13 +284,25 @@ public class PregnancyTests
         r.Engine.LayerOnPartnerClimax = false;
         r.BobClimaxes();
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+        Assert.Empty(r.Host.Creampies);
+    }
+
+    [Fact]
+    public void BelowCummyVersionSixNoConception()
+    {
+        var r = Pair(0);
+        r.Creampies = null;
+        r.BobClimaxes();
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+        Assert.Empty(r.Host.Creampies);
+        Assert.Equal("gr", r.Host.Layers[0].Part);
     }
 
     [Fact]
     public void WithoutCummyNoConception()
     {
         var r = Pair(0);
-        r.Host.LayerOutcome = null;
+        r.Host.CreampieOutcome = null;
         r.BobClimaxes();
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
     }

@@ -54,9 +54,6 @@ public static class PregnancyBook
     public const double MinChanceFactor = 0.1;
     public const double MaxChanceFactor = 5;
 
-    /// Cummy's part id for the groin: only a cum shot there can lead to conception.
-    public const string GroinPart = "gr";
-
     public static bool IsPregnant(PregnancyState p) => p.Enabled && p.ConceivedUtc is not null && p.DueUtc is not null;
 
     public static bool IsRecovering(PregnancyState p, DateTime now) => p.Enabled && now < p.RecoveryUntilUtc;

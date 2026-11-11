@@ -35,6 +35,17 @@ public interface IEngineHost
     /// landed on the partner. Null when either character's bones can't be read.
     IReadOnlyList<string>? AimOnto(PeerRecord partner, Anatomy own);
 
+    /// The hole ("pussy", "ass") the giver's penis tip is inside on the local character, by bones. Null when it's outside,
+    /// the giver has no penis, or either skeleton can't be read.
+    string? InsideOf(PeerRecord giver, Anatomy giverAnatomy, Anatomy own);
+
+    /// The hole the local character's penis tip is inside on a partner, by bones. Null as for <see cref="InsideOf"/>.
+    string? InsideOnto(PeerRecord partner, Anatomy own, Anatomy theirs);
+
+    /// Asks this player's own Cummy to creampie them in a hole as if <paramref name="source"/> had. Cummy's outcome
+    /// (creampied, refreshed, blocked, blacklisted, unknown-hole, no-character), or null below Cummy version 6.
+    string? CreampieSelf(PeerRecord source, string hole);
+
     /// Asks Cummy to lick a partner's part. Cummy's outcome, or null below Cummy version 5.
     string? SendLick(PeerRecord partner, string partId);
 
@@ -68,9 +79,11 @@ public readonly record struct VisiblePlayer(PeerRecord Player, double Distance, 
 /// <param name="Stages">From Cummy version 5: each layered part's stage. Null below it.</param>
 /// <param name="Blocked">From Cummy version 5: the parts the wearer blocks. Null below it.</param>
 /// <param name="PartSizes">From Cummy version 5: each part's stage count. Null below it.</param>
+/// <param name="Creampies">From Cummy version 6: seconds left per dripping hole ("pussy", "ass"). Null below it.</param>
 public readonly record struct SceneSample(ActEntry? OwnAct, PoseKey? OwnPose, Vector3 OwnPosition, IReadOnlyList<VisiblePlayer> Visible, int Watchers = 0,
     int LayersWorn = 0, string? SelfKey = null, ActEntry? Excluded = null, IReadOnlyDictionary<string, int>? Stages = null,
-    IReadOnlyCollection<string>? Blocked = null, IReadOnlyDictionary<string, int>? PartSizes = null);
+    IReadOnlyCollection<string>? Blocked = null, IReadOnlyDictionary<string, int>? PartSizes = null,
+    IReadOnlyDictionary<string, int>? Creampies = null);
 
 public enum SceneState { Idle, Waiting, Earning, Paused }
 
@@ -128,10 +141,19 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private readonly Dictionary<string, DateTime> lastTickWith = new(StringComparer.OrdinalIgnoreCase);
     private DateTime lastCleanedArousal = DateTime.MinValue;
 
+    /// The arousal paid at <see cref="lastCleanedArousal"/>, so being licked out can top a plain lick up rather than add to it.
+    private double lastCleanedPaid;
+
     /// What Cummy version 5 says about the wearer: stages, blocks and part sizes. Null below it.
     private IReadOnlyDictionary<string, int>? stages;
     private IReadOnlyCollection<string>? blocked;
     private IReadOnlyDictionary<string, int>? partSizes;
+
+    /// What Cummy version 6 says is dripping: seconds left per hole. Null below it.
+    private IReadOnlyDictionary<string, int>? creampies;
+
+    /// The holes dripping now, by Cummy version 6. Empty below it.
+    public IReadOnlyCollection<string> DrippingHoles => creampies?.Where(c => c.Value > 0).Select(c => c.Key).ToList() ?? [];
 
     private readonly Dictionary<string, DateTime> lastClimaxCredit = new(StringComparer.OrdinalIgnoreCase);
 
@@ -236,7 +258,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (save.Setup is not null)
         {
             UpdatePregnancy(now);
-            if (CravingBook.Roll(save.Pregnancy, now, save.Goals.Seed, save.BondFormed) is { } craving)
+            if (CravingBook.Roll(save.Pregnancy, now, save.Goals.Seed, save.BondFormed, save.HadCummyV6) is { } craving)
                 host.Notify(save.Pregnancy.Unsatisfied
                     ? $"Today you crave: {CravingBook.Describe(craving).ToLowerInvariant()}. You're still unsatisfied from yesterday."
                     : $"Today you crave: {CravingBook.Describe(craving).ToLowerInvariant()}.");
@@ -253,7 +275,9 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         stages = sample.Stages;
         blocked = sample.Blocked;
         partSizes = sample.PartSizes;
+        creampies = sample.Creampies;
         NoteCummyStages();
+        NoteCreampies();
         ItemBook.Expire(save, now);
 
         ReadTags(now, sample.Visible);
@@ -545,7 +569,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
                 Persona = PersonaTickFactor(partner, title),
                 // Cummy version 5 knows each part, so the marked factor can weigh the face and a full coat.
                 Marked = stages is not null
-                    ? Progression.WeightedMarkedFactor(stages, blocked ?? [], balance, title)
+                    ? Progression.WeightedMarkedFactor(stages, blocked ?? [], balance, title, DrippingHoles.Count)
                     : Progression.MarkedFactor(layersWorn, balance, title.MarkedCap, title.MarkedPerLayer),
                 Solo = partner is null ? SoloRules.TickXp * title.SoloTickXp : 1,
             };
@@ -633,11 +657,11 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         var order = (aimed is { Count: > 0 } ? aimed : CummyParts.All).ToList();
         if (anatomy == Anatomy.Vagina)
         {
-            order.Remove(PregnancyBook.GroinPart);
-            order.Insert(0, PregnancyBook.GroinPart);
+            order.Remove(CummyParts.Groin);
+            order.Insert(0, CummyParts.Groin);
             return order;
         }
-        order.Remove(PregnancyBook.GroinPart);
+        order.Remove(CummyParts.Groin);
         return order;
     }
 
@@ -658,6 +682,22 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (save.Glazed == 0 && partSizes?.GetValueOrDefault("mo") is > 0 and var top && stages.GetValueOrDefault("mo") >= top)
         {
             save.Glazed = 1;
+            dirty = true;
+        }
+    }
+
+    /// What Cummy version 6 unlocks: creampie goals and cravings, and Both Ways.
+    private void NoteCreampies()
+    {
+        if (creampies is null || save.Setup is null) return;
+        if (!save.HadCummyV6)
+        {
+            save.HadCummyV6 = true;
+            dirty = true;
+        }
+        if (save.BothWays == 0 && DrippingHoles.Count >= 2)
+        {
+            save.BothWays = 1;
             dirty = true;
         }
     }
@@ -792,7 +832,10 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (partner is not null) CheckTogether(now, partner);
         else LayerSelfAlone();
         // Aftercare: with Cummy version 5, the partner can be licked clean for a while.
-        if (partner is not null && stages is not null) lickOffer = new LickOffer(partner, now + AftercareRules.OfferFor);
+        // With version 6, a climax inside them is licked up from that hole.
+        if (partner is not null && stages is not null)
+            lickOffer = new LickOffer(partner, now + AftercareRules.OfferFor,
+                Hole: creampies is null ? null : host.InsideOnto(partner, save.Anatomy, BodyOf(partner)?.Anatomy ?? Anatomy.NotSet));
         host.SaveProgress();
     }
 
@@ -810,12 +853,14 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         if (lickOffer is not { } offer || !offer.IsOpen(now)) return "There's nobody to lick clean right now.";
         if (offer.State == LickState.Waiting) return "The lick is on its way.";
         var blocks = host.PartnerBlocks(offer.Partner);
-        var part = (host.AimOnto(offer.Partner, save.Anatomy) ?? [])
-            .FirstOrDefault(p => blocks?.Contains(p) != true) ?? AftercareRules.FallbackPart;
+        var holePart = offer.Hole is { } hole ? CreampieAim.PartOf(hole) : null;
+        var part = holePart is not null && blocks?.Contains(holePart) != true
+            ? holePart
+            : (host.AimOnto(offer.Partner, save.Anatomy) ?? []).FirstOrDefault(p => blocks?.Contains(p) != true) ?? AftercareRules.FallbackPart;
         var outcome = host.SendLick(offer.Partner, part);
         if (outcome == "sent")
         {
-            lickOffer = offer with { State = LickState.Waiting, Message = null };
+            lickOffer = offer with { State = LickState.Waiting, Message = null, AtHole = part == holePart };
             return null;
         }
         var why = outcome switch
@@ -843,22 +888,41 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             return;
         }
         var mods = ModifierBook.For(save);
-        GiveXp(AftercareRules.LickXp * mods.LickXp);
+        GiveXp((offer.AtHole ? AftercareRules.CreampieLickXp : AftercareRules.LickXp) * mods.LickXp);
         goals.Record(GoalKind.Licks);
         if (save.BondFormed && string.Equals(save.BondWith, offer.Partner.Key, StringComparison.OrdinalIgnoreCase))
             save.BondSeconds += AftercareRules.LickBondSeconds;
-        lickOffer = offer with { State = LickState.Paid, Message = $"You licked {offer.Partner.Name} clean." };
-        host.Notify($"You licked {offer.Partner.Name} clean.");
+        var done = offer.AtHole ? $"You licked your creampie out of {offer.Partner.Name}." : $"You licked {offer.Partner.Name} clean.";
+        lickOffer = offer with { State = LickState.Paid, Message = done };
+        host.Notify(done);
         host.SaveProgress();
     }
 
     /// A part of this character was licked or kissed clean by that player. A recent scene partner's touch is arousing.
-    public void CleanedBy(PeerRecord who, DateTime now)
+    public void CleanedBy(PeerRecord who, DateTime now) => TouchedBy(who, now, AftercareRules.CleanedArousal);
+
+    /// A lick from that player ended one of this character's creampies. Cummy also reports the same lick lowering Groin
+    /// or Butt, in either order, so within the 30-second gap this tops a plain lick's arousal up to the lick-out amount
+    /// instead of adding both.
+    public void LickedOut(PeerRecord who, DateTime now) => TouchedBy(who, now, AftercareRules.LickedOutArousal);
+
+    /// Arousal from a recent scene partner's lick or kiss, at most <paramref name="amount"/> in each 30-second gap.
+    private void TouchedBy(PeerRecord who, DateTime now, double amount)
     {
         if (save.Paused || !lastTickWith.TryGetValue(who.Key, out var last) || now - last > AftercareRules.RecentPartner) return;
-        if (now - lastCleanedArousal < AftercareRules.CleanedGap) return;
-        lastCleanedArousal = now;
-        save.Arousal = Math.Min(100, save.Arousal + AftercareRules.CleanedArousal);
+        var pay = amount;
+        if (now - lastCleanedArousal < AftercareRules.CleanedGap)
+        {
+            pay = amount - lastCleanedPaid;
+            if (pay <= 0) return;
+            lastCleanedPaid = amount;
+        }
+        else
+        {
+            lastCleanedArousal = now;
+            lastCleanedPaid = amount;
+        }
+        save.Arousal = Math.Min(100, save.Arousal + pay);
         dirty = true;
     }
 
@@ -959,51 +1023,101 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             lastBondedClimax = now;
             CheckTogether(now, peer);
         }
-        var groin = LayerSelfFor(peer, FullBodyDue(now));
-        if (groin) RollConception(now, peer);
+        // Inside, the climax is a creampie; it only lands outside when the hole is blocked (or it isn't inside at all).
+        if (!CreampieFor(now, peer)) LayerSelfFor(peer, FullBodyDue(now));
+    }
+
+    /// A credited partner's climax with their penis tip inside this character: a creampie through its own Cummy, which
+    /// steps Groin or Butt itself. True when that settles the climax; false when it should land outside instead, because
+    /// it wasn't inside, Cummy is older than version 6, or the hole is blocked. Only a pussy creampie can lead to
+    /// conception. Full Body never applies to an inside climax, and its window keeps its climaxes.
+    private bool CreampieFor(DateTime now, PeerRecord peer)
+    {
+        if (!LayerOnPartnerClimax || creampies is null || BodyOf(peer) is not { } body) return false;
+        if (host.InsideOf(peer, body.Anatomy, save.Anatomy) is not { } hole) return false;
+        var outcome = host.CreampieSelf(peer, hole);
+        if (outcome == "blocked") return false;
+        // Blacklisted, an unknown hole, no character, or Cummy unusable: nothing lands, and the credit still stands.
+        if (outcome is not ("creampied" or "refreshed")) return true;
+
+        var mods = ModifierBook.For(save);
+        GiveXp(CreampieRules.Xp * mods.CreampieXp);
+        goals.Record(GoalKind.Creampies);
+        save.CreampiePartners.Add(BondHashes.Of(peer.Key));
+        if (outcome == "refreshed")
+        {
+            save.CreampieRefreshes++;
+            if (mods.RefreshArousal > 0) save.Arousal = Math.Min(100, save.Arousal + mods.RefreshArousal);
+        }
+        Crave(lastTickUtc, CravingKind.Creampie);
+        Crave(lastTickUtc, CravingKind.Layer);
+        host.Notify(hole == CreampieAim.Pussy ? $"{peer.Name} came inside your pussy." : $"{peer.Name} came inside your ass.");
+        // Cum Magnet: one more layer outside, on the nearest part the creampie doesn't already step.
+        if (ItemBook.IsActive(save, ItemIds.CumMagnet, DateTime.MaxValue) && LayerOutside(peer, except: [CummyParts.Groin, CummyParts.Butt]))
+            ItemBook.TrySpendUse(save, ItemIds.CumMagnet);
+        if (hole == CreampieAim.Pussy) RollConception(now, peer);
+        dirty = true;
+        return true;
+    }
+
+    /// One aimed outside layer from a partner, leaving out <paramref name="except"/>. True when one landed.
+    private bool LayerOutside(PeerRecord peer, IReadOnlyCollection<string> except)
+    {
+        foreach (var part in Unblocked(AimOrder(peer)).Where(p => !except.Contains(p)))
+        {
+            var outcome = host.LayerSelf(peer, part);
+            if (outcome is "layered" or "advanced")
+            {
+                PayLayer();
+                return true;
+            }
+            if (outcome is not ("blocked" or "full")) return false;
+        }
+        return false;
+    }
+
+    /// The giver's aim onto this character, or a shuffled order when the bones can't be read.
+    private string[] AimOrder(PeerRecord peer)
+    {
+        if (host.AimParts(peer, BodyOf(peer)?.Anatomy ?? Anatomy.NotSet) is { Count: > 0 } aimed) return aimed.ToArray();
+        var parts = CummyParts.All.ToArray();
+        random.Shuffle(parts);
+        return parts;
+    }
+
+    private void PayLayer()
+    {
+        GiveXp(balance.LayerXp);
+        goals.Record(GoalKind.LayersReceived);
+        Crave(lastTickUtc, CravingKind.Layer);
     }
 
     /// Layers this character through its own Cummy for a partner's credited climax: a random part, trying others while
     /// Cummy says the part is blocked. Only for partners whose client layers itself too (they publish the body tag); an
     /// older client still sends Cummy's own tell instead.
     /// The shot goes to the part nearest the giver's genitals, then the next nearest while a part is full or blocked.
-    /// Random only when the bones can't be read. True when it reached the groin, the only place conception can come
-    /// from; blocking the groin in Cummy keeps a carrier from conceiving.
-    private bool LayerSelfFor(PeerRecord peer, bool fullBody = false)
+    /// Random only when the bones can't be read. An outside shot never leads to conception, wherever it lands.
+    private void LayerSelfFor(PeerRecord peer, bool fullBody = false)
     {
-        if (!LayerOnPartnerClimax || BodyOf(peer) is null) return false;
+        if (!LayerOnPartnerClimax || BodyOf(peer) is null) return;
         // A group's third climax in a minute coats every unblocked part one stage. Anything but a landed layer falls back
         // to the usual aim.
         if (fullBody && host.LayerSelf(peer, CummyParts.FullBody) is "layered" or "advanced")
         {
             groupClimaxes.Clear();
-            GiveXp(balance.LayerXp);
-            goals.Record(GoalKind.LayersReceived);
+            PayLayer();
             goals.Record(GoalKind.FullBodyLayers);
-            Crave(lastTickUtc, CravingKind.Layer);
             host.Notify("You were drenched head to toe.");
-            return blocked?.Contains(PregnancyBook.GroinPart) != true;
+            return;
         }
-        string[] parts;
-        if (host.AimParts(peer, BodyOf(peer)?.Anatomy ?? Anatomy.NotSet) is { Count: > 0 } aimed) parts = aimed.ToArray();
-        else
-        {
-            parts = CummyParts.All.ToArray();
-            random.Shuffle(parts);
-        }
-        parts = Unblocked(parts).ToArray();
-        var groin = false;
         var wanted = ItemBook.IsActive(save, ItemIds.CumMagnet, DateTime.MaxValue) ? 2 : 1;
         var landed = 0;
-        foreach (var part in parts)
+        foreach (var part in Unblocked(AimOrder(peer)))
         {
             var outcome = host.LayerSelf(peer, part);
-            if (part == PregnancyBook.GroinPart && outcome is "layered" or "advanced" or "full") groin = true;
             if (outcome is "layered" or "advanced")
             {
-                GiveXp(balance.LayerXp);
-                goals.Record(GoalKind.LayersReceived);
-                Crave(lastTickUtc, CravingKind.Layer);
+                PayLayer();
                 if (++landed >= wanted) break;
                 continue;
             }
@@ -1011,7 +1125,6 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             if (outcome is not ("blocked" or "full")) break;
         }
         if (landed > 0 && wanted > 1) ItemBook.TrySpendUse(save, ItemIds.CumMagnet);
-        return groin;
     }
 
 

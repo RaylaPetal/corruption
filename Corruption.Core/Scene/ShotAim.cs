@@ -40,6 +40,37 @@ public static class ShotAim
     private static readonly string[] Vagina = ["iv_omanko"];
     private static readonly string[] Hips = ["j_kosi"];
 
+    /// IVCS hole bones, for creampies. `iv_koumon` is the anus, as PoseKit and Cummy's own drip attach points use it.
+    /// Neither has a vanilla stand-in: a creampie needs an IVCS skeleton, as Cummy's drip does.
+    private static readonly Dictionary<string, string[]> HoleBones = new()
+    {
+        [CreampieAim.Pussy] = ["iv_omanko"],
+        [CreampieAim.Ass] = ["iv_koumon"],
+    };
+
+    /// How close the penis tip has to be to a hole for a climax to count as inside, in game units (about metres).
+    public const float InsideRadius = 0.07f;
+
+    /// The giver's penis tip, the only point a creampie is measured from; null without the bone. Never the shaft, the
+    /// vagina or the hips, so a grind against the body isn't "inside".
+    public static Vector3? PenisTipPoint(BoneLookup bones) => bones(PenisTip);
+
+    /// The receiver's hole points among <paramref name="holes"/> that its bones allow.
+    public static Dictionary<string, Vector3> HolePoints(BoneLookup bones, IEnumerable<string> holes)
+    {
+        var points = new Dictionary<string, Vector3>();
+        foreach (var hole in holes)
+            if (HoleBones.TryGetValue(hole, out var names) && bones(names) is { } at) points[hole] = at;
+        return points;
+    }
+
+    /// The nearest hole within <paramref name="radius"/> of the tip, or null when none is.
+    public static string? InsideHole(Vector3 tip, IReadOnlyDictionary<string, Vector3> holes, float radius = InsideRadius)
+        => holes.Where(h => Vector3.Distance(h.Value, tip) <= radius)
+            .OrderBy(h => Vector3.DistanceSquared(h.Value, tip))
+            .Select(h => h.Key)
+            .FirstOrDefault();
+
     /// Where a shot comes from, tried in order. IVCS skeletons may carry both sets of genital bones whatever the body
     /// shows, so the giver's own anatomy choice picks which. Not set tries the penis first, then the vagina. Both shoots
     /// from the penis. A skeleton without either falls back to a point in front of the hips.

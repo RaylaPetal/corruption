@@ -23,6 +23,7 @@ public enum GoalKind
     SoloClimaxes,
     Licks,
     FullBodyLayers,
+    Creampies,
 }
 
 /// <param name="Eligible">Whether a character can meet this goal now; null for anyone. Checked only when goals are picked.</param>
@@ -82,6 +83,9 @@ public static class GoalCatalog
     /// Licking needs Cummy's plugin API 5.
     private static bool HasCummyV5(CharacterSave s) => s.HadCummyV5;
 
+    /// Creampies need Cummy's plugin API 6.
+    private static bool HasCummyV6(CharacterSave s) => s.HadCummyV6;
+
     /// Solo goals only for someone who has played alone, since they need a mod marked "Counts alone".
     private static bool HadSolo(CharacterSave s) => Stat(s, GoalKind.SoloSeconds) > 0;
 
@@ -104,6 +108,7 @@ public static class GoalCatalog
         new("d_solo_climax", "Climax alone", GoalKind.SoloClimaxes, 1, 75, HadSolo),
         new("d_solo15", "Spend 15 minutes in solo scenes", GoalKind.SoloSeconds, 15 * 60, 50, HadSolo),
         new("d_lick", "Lick a partner clean", GoalKind.Licks, 1, 75, HasCummyV5),
+        new("d_creampie", "Take a creampie", GoalKind.Creampies, 1, 75, HasCummyV6),
     ];
 
     public static readonly IReadOnlyList<GoalDef> Weekly =
@@ -123,6 +128,7 @@ public static class GoalCatalog
         new("w_solo_climax", "Climax alone 5 times", GoalKind.SoloClimaxes, 5, 450, HadSolo),
         new("w_solo120", "Spend 2 hours in solo scenes", GoalKind.SoloSeconds, 120 * 60, 500, HadSolo),
         new("w_lick", "Lick partners clean 5 times", GoalKind.Licks, 5, 450, HasCummyV5),
+        new("w_creampie", "Take 5 creampies", GoalKind.Creampies, 5, 450, HasCummyV6),
     ];
 
     private static long Stat(CharacterSave save, GoalKind kind)
@@ -182,6 +188,12 @@ public static class GoalCatalog
         new("drenched", "Drenched", "Be layered Full Body by three quick climaxes", 1000, 1, s => Stat(s, GoalKind.FullBodyLayers)),
         new("head_to_toe", "Head to Toe", "Have every unblocked part layered at once", 750, 1, s => s.HeadToToe),
         new("glazed", "Glazed", "Have your face at its top stage", 500, 1, s => s.Glazed),
+
+        // Through Cummy's plugin API 6.
+        new("filled", "Filled", "Take 25 creampies", 750, 25, s => Stat(s, GoalKind.Creampies)),
+        new("both_ways", "Both Ways", "Have your pussy and ass dripping at once", 500, 1, s => s.BothWays),
+        new("seconds", "Seconds", "Be creampied again while still dripping", 300, 1, s => s.CreampieRefreshes),
+        new("well_bred", "Well Bred", "Be creampied by 5 different partners", 750, 5, s => s.CreampiePartners.Count),
     ];
 
     public static AchievementDef? FindAchievement(string id) => Achievements.FirstOrDefault(a => a.Id == id);

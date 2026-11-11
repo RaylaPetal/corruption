@@ -154,6 +154,9 @@ public class PersonaTagTests
         r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
         r.BobPersona = new PersonaTag(PersonaIds.Easygoing, partnerTrait is null ? [] : [partnerTrait]);
         r.Host.Aim = ["gr", "st", "ll", "lr", "bt"];
+        // Cummy version 6, and their tip inside the pussy: only a pussy creampie can conceive.
+        r.Creampies = [];
+        r.Host.InsideHole = CreampieAim.Pussy;
         r.Run(11);
         r.BobClimaxes();
         return PregnancyBook.IsPregnant(r.Save.Pregnancy);

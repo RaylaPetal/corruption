@@ -297,11 +297,11 @@ public class SoloSceneTests
     [InlineData(Anatomy.Both)]
     [InlineData(Anatomy.NotSet)]
     public void WithoutBonesTheGroinIsLeftOutExceptForAVagina(Anatomy anatomy)
-        => Assert.DoesNotContain(PregnancyBook.GroinPart, SceneEngine.SelfAimOrder(anatomy, null));
+        => Assert.DoesNotContain(CummyParts.Groin, SceneEngine.SelfAimOrder(anatomy, null));
 
     [Fact]
     public void WithoutBonesAVaginaStillGetsTheGroinFirst()
-        => Assert.Equal(PregnancyBook.GroinPart, SceneEngine.SelfAimOrder(Anatomy.Vagina, null)[0]);
+        => Assert.Equal(CummyParts.Groin, SceneEngine.SelfAimOrder(Anatomy.Vagina, null)[0]);
 
     // ── Solo items ──────────────────────────────────────────────────────────
 

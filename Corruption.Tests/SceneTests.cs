@@ -135,6 +135,30 @@ public class FakeHost : IEngineHost
 
     public IReadOnlyCollection<string>? PartnerBlockList { get; set; }
 
+    /// The hole a partner's tip is inside on you, as the bones would say. Null means outside.
+    public string? InsideHole { get; set; }
+
+    /// The hole your tip is inside on a partner, for Lick clean. Null means outside.
+    public string? InsideOntoHole { get; set; }
+
+    public string? InsideOf(PeerRecord giver, Anatomy giverAnatomy, Anatomy own) => InsideHole;
+
+    public string? InsideOnto(PeerRecord partner, Anatomy own, Anatomy theirs) => InsideOntoHole;
+
+    /// Every CreampieSelf call: who it's from, and the hole.
+    public List<(string From, string Hole)> Creampies { get; } = [];
+
+    /// What CreampieSelf answers; null as below Cummy version 6.
+    public string? CreampieOutcome { get; set; } = "creampied";
+
+    public Queue<string> CreampieOutcomes { get; } = new();
+
+    public string? CreampieSelf(PeerRecord source, string hole)
+    {
+        Creampies.Add((source.Key, hole));
+        return CreampieOutcomes.Count > 0 ? CreampieOutcomes.Dequeue() : CreampieOutcome;
+    }
+
     public IReadOnlyCollection<string>? PartnerBlocks(PeerRecord partner) => PartnerBlockList;
 
     /// The giver's anatomy, as the last aim was asked for.
@@ -192,6 +216,8 @@ public sealed class EngineRig
     public Dictionary<string, int>? Stages;
     public HashSet<string>? Blocked;
     public Dictionary<string, int>? PartSizes;
+    /// Cummy version 6's dripping holes; null as below it.
+    public Dictionary<string, int>? Creampies;
     public int LayersWorn;
     public string? SelfKey = "Alice A@W";
 
@@ -212,7 +238,7 @@ public sealed class EngineRig
             // Move a little, as a player would.
             var position = new Vector3((Now - T0).Minutes % 2, 0, 0);
             Engine.Sample(Now, new SceneSample(Playing ? Act : null, Playing ? Act.Pose : null, position,
-                (BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle, BobPersona)] : new List<VisiblePlayer>()).Concat(Others).ToList(), Watchers, LayersWorn, SelfKey, null, Stages, Blocked, PartSizes));
+                (BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle, BobPersona)] : new List<VisiblePlayer>()).Concat(Others).ToList(), Watchers, LayersWorn, SelfKey, null, Stages, Blocked, PartSizes, Creampies));
             Now = Now.AddSeconds(1);
         }
     }

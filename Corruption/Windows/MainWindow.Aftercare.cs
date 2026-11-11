@@ -29,7 +29,9 @@ public sealed partial class MainWindow
             if (ImGui.Button($"Lick {open.Partner.Name} clean##lick{onlyFor?.Key}"))
                 engine.TryLickClean(now);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Lick off the part your climax most likely landed on. Cummy's own rules decide if it goes through.");
+                ImGui.SetTooltip(open.Hole is { } hole
+                    ? $"You came inside their {hole}: lick it out. Cummy's own rules decide if it goes through."
+                    : "Lick off the part your climax most likely landed on. Cummy's own rules decide if it goes through.");
             ImGui.SameLine();
             ImGui.AlignTextToFramePadding();
             Theme.MutedText($"{(int)open.Left(now).TotalSeconds}s left");
@@ -44,12 +46,14 @@ public sealed partial class MainWindow
             ImGui.TextColored(shown.State == LickState.Paid ? Theme.Good : Theme.Warning, message);
     }
 
-    /// Cummy version 5: each layered part with its stage out of its stage count, and the blocked parts.
+    /// Cummy version 5: each layered part with its stage out of its stage count, and the blocked parts. Version 6 adds
+    /// each dripping hole with the time it has left.
     private void DrawLayeredNow()
     {
         if (!cummy.HasV5) return;
         var layered = cummy.Stages.Where(s => s.Value > 0).ToList();
-        if (layered.Count == 0 && cummy.Blocked.Count == 0) return;
+        var dripping = DrippingLeft();
+        if (layered.Count == 0 && cummy.Blocked.Count == 0 && dripping.Count == 0) return;
         ImGui.Spacing();
         Theme.MutedText("Layered now");
         var first = true;
@@ -61,7 +65,24 @@ public sealed partial class MainWindow
             first = false;
         }
         if (layered.Count == 0) Theme.MutedText("Nothing layered right now.");
+        foreach (var (hole, left) in dripping)
+        {
+            Theme.Icon(FontAwesomeIcon.Tint, Theme.PinkSoft);
+            ImGui.SameLine();
+            Theme.MutedText($"{(hole == CreampieAim.Pussy ? "Pussy" : "Ass")} dripping, {(int)left.TotalMinutes}:{left.Seconds:00}");
+        }
         if (cummy.Blocked.Count > 0)
             Theme.MutedWrapped($"Blocked: {string.Join(", ", cummy.Blocked.Select(p => cummy.PartNames.GetValueOrDefault(p, p)))}");
+    }
+
+    /// Each dripping hole and the time it has left, counted down from Cummy's last answer. Empty below version 6.
+    private List<(string Hole, TimeSpan Left)> DrippingLeft()
+    {
+        if (!cummy.HasV6) return [];
+        var since = DateTime.UtcNow - cummy.CreampiesReadUtc;
+        return [.. new[] { CreampieAim.Pussy, CreampieAim.Ass }
+            .Where(cummy.Creampies.ContainsKey)
+            .Select(h => (h, TimeSpan.FromSeconds(cummy.Creampies[h]) - since))
+            .Where(d => d.Item2 > TimeSpan.Zero)];
     }
 }

@@ -343,6 +343,9 @@ public class TitleBonusTests
         r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
         r.BobTitle = partnerTitle;
         r.Host.Aim = ["gr", "st", "ll", "lr", "bt"];
+        // Cummy version 6, and their tip inside the pussy: only a pussy creampie can conceive.
+        r.Creampies = [];
+        r.Host.InsideHole = CreampieAim.Pussy;
         r.Run(11);
         r.BobClimaxes();
         return r;

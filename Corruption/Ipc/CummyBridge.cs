@@ -11,11 +11,12 @@ namespace Corruption.Ipc;
 /// Cummy answers other threads with empty values, which would read as "no layers".
 public sealed class CummyBridge : IDisposable
 {
-    /// Version 2 adds the layer count, 3 layering yourself, and 5 stages, blocks, licks and part events.
+    /// Version 2 adds the layer count, 3 layering yourself, 5 stages, blocks, licks and part events, and 6 creampies.
     private const int MinimumApiVersion = 1;
     private const int LayerCountVersion = 2;
     private const int LayerSelfVersion = 3;
     public const int FullApiVersion = 5;
+    public const int CreampieVersion = 6;
 
     private readonly CummyIpc client;
     private int version;
@@ -32,6 +33,15 @@ public sealed class CummyBridge : IDisposable
 
     /// Stages, blocks, part sizes, licks and part events, from Cummy version 5.
     public bool HasV5 => IsAvailable && version >= FullApiVersion;
+
+    /// Creampies, from Cummy version 6.
+    public bool HasV6 => IsAvailable && version >= CreampieVersion;
+
+    /// Seconds left per dripping hole ("pussy", "ass"). Empty below version 6.
+    public IReadOnlyDictionary<string, int> Creampies { get; private set; } = new Dictionary<string, int>();
+
+    /// When <see cref="Creampies"/> was last read, so a countdown can run between reads.
+    public DateTime CreampiesReadUtc { get; private set; }
 
     /// Each layered part's stage, by part id. Empty below version 5.
     public IReadOnlyDictionary<string, int> Stages { get; private set; } = new Dictionary<string, int>();
@@ -53,6 +63,9 @@ public sealed class CummyBridge : IDisposable
     /// (part, old stage, new stage, cause, source name, source world): a part of the wearer changed.
     public event Action<string, int, int, string, string, string>? PartChanged;
 
+    /// (hole, active, seconds left, cause, source name, source world): a creampie on the wearer started, restarted or ended.
+    public event Action<string, bool, int, string, string, string>? CreampieChanged;
+
     public CummyBridge()
     {
         client = new CummyIpc(Plugin.PluginInterface);
@@ -63,6 +76,7 @@ public sealed class CummyBridge : IDisposable
         client.BlocksChanged += OnBlocksChanged;
         client.LickResult += OnLickResult;
         client.PartChanged += OnPartChanged;
+        client.CreampieChanged += OnCreampieChanged;
         // Older Cummy versions never announce Ready, so a change in the plugin list still triggers a refresh, run on
         // the framework thread where Cummy answers.
         Plugin.PluginInterface.ActivePluginsChanged += OnPluginsChanged;
@@ -79,6 +93,7 @@ public sealed class CummyBridge : IDisposable
         client.BlocksChanged -= OnBlocksChanged;
         client.LickResult -= OnLickResult;
         client.PartChanged -= OnPartChanged;
+        client.CreampieChanged -= OnCreampieChanged;
         client.Dispose();
     }
 
@@ -113,13 +128,27 @@ public sealed class CummyBridge : IDisposable
     private void OnPartChanged(string part, int from, int to, string cause, string name, string world)
         => PartChanged?.Invoke(part, from, to, cause, name, world);
 
+    private void OnCreampieChanged(string hole, bool active, int secondsLeft, string cause, string name, string world)
+    {
+        if (!HasV6) return;
+        ReadCreampies();
+        CreampieChanged?.Invoke(hole, active, secondsLeft, cause, name, world);
+    }
+
+    private void ReadCreampies()
+    {
+        Creampies = HasV6 ? client.GetCreampies() : new Dictionary<string, int>();
+        CreampiesReadUtc = DateTime.UtcNow;
+    }
+
     private void Refresh()
     {
         version = client.ApiVersion();
         IsAvailable = version >= MinimumApiVersion;
         Status = version == 0 ? "Not installed, or too old to have the plugin API"
             : !IsAvailable ? $"Off: Cummy's API is version {version}, Corruption needs {MinimumApiVersion} or later"
-            : HasV5 ? "Connected"
+            : HasV6 ? "Connected"
+            : HasV5 ? "Connected. Update Cummy for creampies"
             : CanLayerSelf ? "Connected. Update Cummy for licks, Full Body and per-part layers"
             : "Connected. Update Cummy so partners' climaxes layer you and your layers count";
         ReadState();
@@ -141,6 +170,7 @@ public sealed class CummyBridge : IDisposable
         var parts = client.GetParts().Where(p => !p.IsTarget).ToList();
         PartSizes = parts.ToDictionary(p => p.Id, p => p.Stages);
         PartNames = parts.ToDictionary(p => p.Id, p => p.Name);
+        ReadCreampies();
     }
 
     private void Clear()
@@ -149,6 +179,7 @@ public sealed class CummyBridge : IDisposable
         Blocked = [];
         PartSizes = new Dictionary<string, int>();
         PartNames = new Dictionary<string, string>();
+        Creampies = new Dictionary<string, int>();
     }
 
     /// Layers the local player as if that player had. Cummy's outcome, or null when Cummy is missing or too old.
@@ -156,6 +187,19 @@ public sealed class CummyBridge : IDisposable
     {
         if (!CanLayerSelf) return null;
         var outcome = client.LayerSelf(partId, sourceName, sourceWorld);
+        if (outcome is CummyStrings.Unavailable)
+        {
+            Refresh();
+            return null;
+        }
+        return outcome;
+    }
+
+    /// Creampies the local player in a hole ("pussy", "ass") as if that player had. Cummy's outcome, or null below version 6.
+    public string? CreampieSelf(string hole, string sourceName, string sourceWorld)
+    {
+        if (!HasV6) return null;
+        var outcome = client.CreampieSelf(hole, sourceName, sourceWorld);
         if (outcome is CummyStrings.Unavailable)
         {
             Refresh();

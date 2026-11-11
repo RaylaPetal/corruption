@@ -152,7 +152,7 @@ Each client tracks its own arousal, and tells a nearby partner when it crosses a
 
 1. A client reaches 100, unless they chose climax by hand, and its tag's climax count goes up.
 2. **Climaxing client:** event XP and a 3 s toy burst. It sends nothing. Arousal drops to 20 with a 60 s refractory period at half fill, halved by Afterglow Wine and again by a level 5 bond, never below 15 s.
-3. **Partner client:** sees the count rise in the tag, credits the climax and asks its own Cummy (`Cummy.LayerSelf`) to layer itself on the part nearest the climaxing partner's genitals, then the next nearest while one is full or blocked. No pairing or tell is involved, and the partner's Cummy blocks still apply. A shot at a carrier's groin from a breeder can lead to conception.
+3. **Partner client:** sees the count rise in the tag, credits the climax and asks its own Cummy (`Cummy.LayerSelf`) to layer itself on the part nearest the climaxing partner's genitals, then the next nearest while one is full or blocked. No pairing or tell is involved, and the partner's Cummy blocks still apply. When the partner's penis tip is inside the player's pussy or ass, it asks for a creampie (`Cummy.CreampieSelf`) instead, and only lands outside if that hole is blocked. A breeder's pussy creampie on a carrier can lead to conception.
 
    **Aiming**, as PoseKit reads bones for alignment: both characters' skeletons are read locally. The shot starts at the giver's genitals, by the anatomy they chose in Settings (Penis, Vagina, Both or Not set), which travels in the body tag. IVCS skeletons may carry both sets of genital bones whatever the body shows, so the choice decides which: Vagina uses the IVCS vagina bone, Penis and Both the penis tip, and Not set tries the penis bones, then the vagina. Without IVCS bones it's a point in front of the vanilla hip bone. Each Cummy part has a point on the receiver from its bones (lips, breasts, spine, hips, buttocks, arms, hands, thighs and feet). Front and back parts around the same bones are pushed apart along the body's facing, so a shot from behind lands on the butt or back. Parts are tried nearest first. It falls back to random only when either skeleton can't be read, such as when the giver isn't drawn. The Debug tab's "Aim from my target" shows the order for any targeted player. The layer reaches other players through their sync service.
 4. Both clients update nameplate text and Moodles. The new layer feeds the partner's Marked bonus.
@@ -273,11 +273,11 @@ Off until a player turns it on in Settings, per character, choosing "can carry",
 | 5 | Ovulation | ×1.3 | 40% |
 | 6-7 | Luteal | ×1.0 | 5% |
 
-**Conception** only comes from a cum shot at the groin. When a carrier credits the climax of a partner whose body tag says they can breed, and the carrier's own Cummy layer reaches the groin, because it's the part nearest the giver's genitals or the nearest free one, even a full one, the carrier's client rolls:
+**Conception** only comes from a creampie in the pussy. When a carrier credits the climax of a partner whose body tag says they can breed, the partner's penis tip is within 7 cm of the carrier's vagina bone, and the carrier's own Cummy (plugin API 6) answers the pussy creampie `creampied` or `refreshed`, the carrier's client rolls once:
 
 `phase chance × 2 (Fertility Charm) × 1.5 (partner's Virility Tonic) × 1.5 (bond level 4)`, capped at 90%, then times the player's own chance slider (×0.1 to ×5), up to 100%.
 
-There's no roll while pregnant, recovering, on a Contraceptive Pill, paused or hidden. Blocking the groin in Cummy, turning off "get layered", or having no Cummy means no conception.
+There's no roll while pregnant, recovering, on a Contraceptive Pill, paused or hidden. Blocking "Creampie: pussy" in Cummy, turning off "get layered", or having no Cummy or one older than plugin API 6 means no conception. Shots outside, even on the groin, and ass creampies never roll.
 
 **Pregnancy** lasts 14 real days:
 
@@ -398,7 +398,7 @@ Penumbra, SimpleHeels and a sync service are required. Everything else is detect
 | Glamourer | Tier and trimester visuals | `Glamourer.Api` 2.8.2: `ApplyDesign` and `RevertToAutomation` on object 0, the design list, and state events to spot later changes |
 | SimpleHeels | Finding other players | Three tags on the local player, carried by sync services |
 | KamiToolKit | Nameplate text | Bundled library. Native text in its own overlay, positioned from the nameplate |
-| Cummy | A partner's climax layers you; layers worn feed the Marked bonus; a groin layer can lead to conception | `CummyBridge`, see below |
+| Cummy | A partner's climax layers you; layers worn feed the Marked bonus; a pussy creampie (API 6) can lead to conception | `CummyBridge`, see below |
 | Moodles | State as status icons | `AddOrUpdateMoodleByDataByPlayerV2`, `RemoveMoodleByPlayerV2`, `GetClientStatusManagerInfoV2`, as in Oathbound |
 | Intiface Central | Toys | The `Buttplug` 5.0.1 client over WebSocket, as in Oathbound. Not a plugin: a separate app |
 | Collar system | Denial cap, owner earns a share of XP | Not built. Your own plugin, so it would need IPC on both sides |
@@ -450,7 +450,7 @@ Each step ends with something you can test in game. The core loop comes first, s
 13. **Pace.** Slower arousal, and less climax, first-time, goal and achievement XP. No AFK check.
 14. **Exclusions.** Excluding animations from picked mods.
 15. **Bonds and Sins.** Bonding from level 1, bond levels and quirks, Sins.
-16. **Shop and pregnancy.** The 16 items, the cycle, conception from groin shots, trimesters, cravings and births, the growing baby, trimester visuals and statuses.
+16. **Shop and pregnancy.** The 16 items, the cycle, conception from pussy creampies, trimesters, cravings and births, the growing baby, trimester visuals and statuses.
 
 **Not planned yet:** the collar link and denial, and Corruption's own IPC. PoseKit's emote-sync link is no longer needed.
 

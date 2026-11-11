@@ -72,6 +72,7 @@ public sealed class SceneService : IDisposable, IEngineHost
         heels.BecameAvailable += OnHeelsAvailable;
         cummy.LickResult += OnLickResult;
         cummy.PartChanged += OnPartChanged;
+        cummy.CreampieChanged += OnCreampieChanged;
         Plugin.Framework.Update += OnUpdate;
     }
 
@@ -81,6 +82,7 @@ public sealed class SceneService : IDisposable, IEngineHost
         heels.BecameAvailable -= OnHeelsAvailable;
         cummy.LickResult -= OnLickResult;
         cummy.PartChanged -= OnPartChanged;
+        cummy.CreampieChanged -= OnCreampieChanged;
         Engine?.Flush();
         bridges.EndSession();
     }
@@ -109,7 +111,8 @@ public sealed class SceneService : IDisposable, IEngineHost
             engine.LayerSelfWhenAlone = settings.LayerSelfWhenAlone;
             engine.Sample(now, new SceneSample(act, pose, me.Position, Nearby, CountWatchers(me, engine.Status.Partner),
                 cummy.LayerCount, self, detector.Excluded,
-                cummy.HasV5 ? cummy.Stages : null, cummy.HasV5 ? cummy.Blocked : null, cummy.HasV5 ? cummy.PartSizes : null));
+                cummy.HasV5 ? cummy.Stages : null, cummy.HasV5 ? cummy.Blocked : null, cummy.HasV5 ? cummy.PartSizes : null,
+                cummy.HasV6 ? cummy.Creampies : null));
             UpdatePlates(engine, me, labelled);
             bridges.Update(now, engine, self);
         }
@@ -130,6 +133,13 @@ public sealed class SceneService : IDisposable, IEngineHost
     {
         if (to >= from || name.Length == 0 || cause is not (CummyIpcClient.CummyStrings.CauseLick or CummyIpcClient.CummyStrings.CauseKiss)) return;
         Engine?.CleanedBy(new PeerRecord { Name = name, World = world }, DateTime.UtcNow);
+    }
+
+    /// A creampie on the wearer ended. Only one licked away by someone named matters: being licked out.
+    private void OnCreampieChanged(string hole, bool active, int secondsLeft, string cause, string name, string world)
+    {
+        if (active || name.Length == 0 || cause != CummyIpcClient.CummyStrings.CauseLick) return;
+        Engine?.LickedOut(new PeerRecord { Name = name, World = world }, DateTime.UtcNow);
     }
 
     /// Who gets nameplate text: this character, and nearby players whose tag this client can read.
@@ -292,6 +302,38 @@ public sealed class SceneService : IDisposable, IEngineHost
 
     public string? SendLick(PeerRecord partner, string partId) => cummy.SendLick(partner.Name, partner.World, partId);
 
+    public string? InsideOf(PeerRecord giver, Anatomy giverAnatomy, Anatomy own)
+        => Plugin.ObjectTable.LocalPlayer is { } me && Find(giver, me) is { } them ? InsideFrom(them, me, giverAnatomy, own) : null;
+
+    public string? InsideOnto(PeerRecord partner, Anatomy own, Anatomy theirs)
+        => Plugin.ObjectTable.LocalPlayer is { } me && Find(partner, me) is { } them ? InsideFrom(me, them, own, theirs) : null;
+
+    /// The hole on <paramref name="receiver"/> that <paramref name="giver"/>'s penis tip is inside, or null.
+    private string? InsideFrom(IPlayerCharacter giver, IPlayerCharacter receiver, Anatomy giverAnatomy, Anatomy receiverAnatomy)
+    {
+        if (BoneReader.Snapshot(giver) is not { } from || BoneReader.Snapshot(receiver) is not { } to) return null;
+        ShotAim.BoneLookup giverBones = names => BoneReader.Average(from.Bones, names);
+        ShotAim.BoneLookup receiverBones = names => BoneReader.Average(to.Bones, names);
+        var hole = CreampieAim.Inside(giverBones, receiverBones, giverAnatomy, receiverAnatomy);
+#if DEBUG
+        DebugLog($"Inside test ({giver.Name.TextValue} into {receiver.Name.TextValue}): {hole ?? "outside"}; "
+                 + DescribeDistances(CreampieAim.Distances(giverBones, receiverBones)));
+#endif
+        return hole;
+    }
+
+    public string? CreampieSelf(PeerRecord source, string hole)
+    {
+        var outcome = cummy.CreampieSelf(hole, source.Name, source.World);
+        Plugin.Log.Debug($"Cummy.CreampieSelf({hole}, from {source.Key}): {outcome ?? "bridge off or too old"}");
+        if (outcome is CummyIpcClient.CummyStrings.Blacklisted or CummyIpcClient.CummyStrings.WrongThread or CummyIpcClient.CummyStrings.Error)
+            Plugin.Log.Information($"Cummy didn't creampie you ({hole}) for {source.Key}: {outcome}.");
+#if DEBUG
+        DebugLog($"Creampied myself ({hole}) for {source.Name}: {outcome ?? "Cummy off or too old"}");
+#endif
+        return outcome;
+    }
+
     public IReadOnlyCollection<string>? PartnerBlocks(PeerRecord partner) => cummy.PartnerBlocks(partner.Name, partner.World);
 
     /// A drawn player other than the local one, by name and world.
@@ -380,7 +422,24 @@ public sealed class SceneService : IDisposable, IEngineHost
         var anatomy = Engine?.BodyOf(new PeerRecord { Name = target.Name.TextValue, World = target.HomeWorld.Value.Name.ExtractText() })?.Anatomy ?? Anatomy.NotSet;
         DebugLog($"Their anatomy: {anatomy}.");
         if (AimFrom(me, target, anatomy) is null) DebugLog("Couldn't read both skeletons.");
+        DebugInside(target, me, "Their tip to my holes");
+        DebugInside(me, target, "My tip to their holes");
     }
+
+    /// The tip-to-hole distances between two characters, for tuning the inside radius.
+    private void DebugInside(IPlayerCharacter giver, IPlayerCharacter receiver, string label)
+    {
+        if (BoneReader.Snapshot(giver) is not { } from || BoneReader.Snapshot(receiver) is not { } to)
+        {
+            DebugLog($"{label}: couldn't read both skeletons.");
+            return;
+        }
+        var distances = CreampieAim.Distances(names => BoneReader.Average(from.Bones, names), names => BoneReader.Average(to.Bones, names));
+        DebugLog($"{label}: {DescribeDistances(distances)} (inside within {ShotAim.InsideRadius:0.00}y).");
+    }
+
+    private static string DescribeDistances(IReadOnlyDictionary<string, float> distances)
+        => distances.Count == 0 ? "no tip or hole bones" : string.Join(", ", distances.Select(d => $"{d.Key} {d.Value:0.000}y"));
 
     /// A real layer on this character through Cummy, as a partner's climax would give.
     public void DebugLayerMe()

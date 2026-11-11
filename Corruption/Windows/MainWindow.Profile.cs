@@ -116,7 +116,8 @@ public sealed partial class MainWindow
         Bonus(status.Watchers == 1 ? "1 watcher" : $"{status.Watchers} watchers", factors.Watchers, Theme.Pink);
         Bonus($"{save.StreakDays} day streak", factors.Streak, Theme.Good);
         Bonus("Bonded", factors.Bonded, Theme.Pink);
-        Bonus(engine.LayersWorn == 1 ? "1 layer" : $"{engine.LayersWorn} layers", factors.Marked, Theme.PinkSoft);
+        var layers = engine.LayersWorn == 1 ? "1 layer" : $"{engine.LayersWorn} layers";
+        Bonus(engine.DrippingHoles.Count > 0 ? $"{layers}, dripping" : layers, factors.Marked, Theme.PinkSoft);
         Bonus(PrestigeRules.Label(save.Prestige, balance.StarsWithBonus), factors.Prestige, Theme.Warning);
         Bonus(TitleBook.Equipped(save)?.Name ?? "Title", factors.Title, Theme.Warning);
         // A title whose bonus isn't scene XP still shows, so the player can see it's working.
