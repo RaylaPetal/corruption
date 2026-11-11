@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.2.0",
+    "AssemblyVersion": "0.3.2.1",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -18,9 +18,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.2.0/Corruption-0.3.2.0.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.2.0/Corruption-0.3.2.0.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.2.1/Corruption-0.3.2.1.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.2.1/Corruption-0.3.2.1.zip",
     "Changelog": "- Cummy API 6 creampies: when your scene partner climaxes with their penis inside your pussy or ass (read from both IVCS skeletons), your Cummy creampies that hole instead of layering you outside, for 50 XP. Block a hole in Cummy and it lands outside as before.\n- Pregnancy now only comes from a breeder's creampie in your pussy, one roll each time. Shots outside, even on the groin, and ass creampies never lead to conception. Block \"Creampie: pussy\" in Cummy to stay safe. Conception needs Cummy API 6.\n- Lick clean licks your creampie out of a partner for 30 XP, and being licked out by a recent partner gives 10 arousal.\n- Dripping holes add to the Marked bonus, show in Your story with the time left, and as a Dripping Moodle.\n- A new craving, creampie goals, and the Filled, Both Ways, Seconds and Well Bred achievements with their titles.\n- Corruption has an icon.",
-    "LastUpdate": "1794400052"
+    "LastUpdate": "1794424145"
   }
 ]
