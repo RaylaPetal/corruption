@@ -69,6 +69,13 @@ public sealed class CharacterSave
     /// Solo climaxes with 3 or more watching. For Caught in the Act.
     public int CaughtInTheAct { get; set; }
 
+    /// Cummy version 5 has been connected for this character, so lick goals can be met.
+    public bool HadCummyV5 { get; set; }
+
+    /// Times Cummy showed every unblocked part layered, and the face at its top stage. For Head to Toe and Glazed.
+    public int HeadToToe { get; set; }
+    public int Glazed { get; set; }
+
     /// Verified seconds of scenes left before a Hypersexual character stops being Pent Up. 0 when they aren't.
     public double PentUpSecondsLeft { get; set; }
 
@@ -121,6 +128,8 @@ public sealed class CharacterSave
         SoloSecondsToday = 0;
         SoloBonusSecondsToday = 0;
         CaughtInTheAct = 0;
+        HeadToToe = 0;
+        Glazed = 0;
         LastFullMoonCycle = long.MinValue;
         Goals = new GoalSave();
         SeenPartners.Clear();

@@ -406,7 +406,7 @@ public sealed class WelcomeWindow : Window
         {
             Theme.Heading(FontAwesomeIcon.Tint, "Cummy");
             ImGui.Checkbox("Get layered when a partner climaxes", ref layered);
-            Theme.MutedWrapped("Your own Cummy layers the part of you nearest your partner's genitals when their climax counts. No pairing is needed, and the parts you block in Cummy are skipped. Pregnancy needs this on.");
+            Theme.MutedWrapped("Your own Cummy layers the part of you nearest your partner's genitals when their climax counts. No pairing is needed, and the parts you block in Cummy are skipped. Pregnancy needs this on. With Cummy's plugin API 5 you can also lick a partner clean after you climax.");
             ImGui.TextColored(cummy.CanLayerSelf ? Theme.Good : Theme.Warning, $"Cummy: {cummy.Status}");
         });
         Theme.CardBox("safeword", () =>

@@ -89,6 +89,10 @@ public static partial class TitleCatalog
         Earned("hands_on", "Hands-On", "Climaxes alone pay ×1.5 XP", new Modifiers { SoloClimaxXp = 1.5 }),
         Earned("self_sufficient", "Self-Sufficient", "Solo scenes pay ×1.2 XP", new Modifiers { SoloTickXp = 1.2 }),
         Earned("me_time", "Me Time", "15 more minutes of solo time a day", new Modifiers { SoloBudgetMinutes = 15 }),
+        Earned("cleanup_crew", "Cleanup Crew", "Licking a partner clean pays ×2 XP", new Modifiers { LickXp = 2 }),
+        Earned("drenched", "Drenched", "Marked bonus goes up to ×1.45", new Modifiers { MarkedCap = 1.45 }),
+        Earned("head_to_toe", "Head to Toe", "Each layer worn adds 4% instead of 3%", new Modifiers { MarkedPerLayer = 0.04 }),
+        Earned("glazed", "Glazed", "Face layers count triple instead of double", new Modifiers { FaceWeight = 3 }),
         Earned("caught_in_the_act", "Caught in the Act", "Watchers count ×1.5 in solo scenes", new Modifiers { SoloWatcherCount = 1.5 }, TitleSource.Hidden),
 
         Shop("shop_tease", "Tease", 400, "/corr climax works from 60 arousal", new Modifiers { ManualClimaxMinimum = 60 }),

@@ -44,6 +44,7 @@ public sealed partial class MainWindow
                 (Stat(GoalKind.LayersReceived).ToString(), "loads taken"),
                 (Stat(GoalKind.Climaxes).ToString(), "loads given"),
                 (engine.LayersWorn.ToString(), "layers worn now"));
+            DrawLayeredNow();
 
             Section(FontAwesomeIcon.Eye, "Watched", Theme.Violet,
                 (Duration(Stat(GoalKind.WatchedSeconds)), "watched"),

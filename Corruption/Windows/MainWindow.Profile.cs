@@ -89,6 +89,7 @@ public sealed partial class MainWindow
             }
 
             DrawExcludeCurrent(engine);
+            DrawLickClean(engine, null);
             if (status.State == SceneState.Earning) DrawBonuses(engine);
             if (status.State == SceneState.Waiting && status.Failure == SceneFailure.SoloBudgetSpent)
                 Theme.MutedWrapped("A partner with Corruption in an act can still make it a scene, at the full rate.");

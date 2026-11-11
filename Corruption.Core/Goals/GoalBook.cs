@@ -21,6 +21,8 @@ public enum GoalKind
     ClimaxesTogether,
     SoloSeconds,
     SoloClimaxes,
+    Licks,
+    FullBodyLayers,
 }
 
 /// <param name="Eligible">Whether a character can meet this goal now; null for anyone. Checked only when goals are picked.</param>
@@ -77,6 +79,9 @@ public static class GoalCatalog
     /// Holding at 100 only works by hand: automatic climax fires the moment arousal reaches 100.
     private static bool ClimaxesByHand(CharacterSave s) => s.Setup?.AutoClimax == false;
 
+    /// Licking needs Cummy's plugin API 5.
+    private static bool HasCummyV5(CharacterSave s) => s.HadCummyV5;
+
     /// Solo goals only for someone who has played alone, since they need a mod marked "Counts alone".
     private static bool HadSolo(CharacterSave s) => Stat(s, GoalKind.SoloSeconds) > 0;
 
@@ -98,6 +103,7 @@ public static class GoalCatalog
         new("d_together", "Climax together with your bonded partner", GoalKind.ClimaxesTogether, 1, 100, TogetherBond),
         new("d_solo_climax", "Climax alone", GoalKind.SoloClimaxes, 1, 75, HadSolo),
         new("d_solo15", "Spend 15 minutes in solo scenes", GoalKind.SoloSeconds, 15 * 60, 50, HadSolo),
+        new("d_lick", "Lick a partner clean", GoalKind.Licks, 1, 75, HasCummyV5),
     ];
 
     public static readonly IReadOnlyList<GoalDef> Weekly =
@@ -116,6 +122,7 @@ public static class GoalCatalog
         new("w_together", "Climax together 3 times", GoalKind.ClimaxesTogether, 3, 600, TogetherBond),
         new("w_solo_climax", "Climax alone 5 times", GoalKind.SoloClimaxes, 5, 450, HadSolo),
         new("w_solo120", "Spend 2 hours in solo scenes", GoalKind.SoloSeconds, 120 * 60, 500, HadSolo),
+        new("w_lick", "Lick partners clean 5 times", GoalKind.Licks, 5, 450, HasCummyV5),
     ];
 
     private static long Stat(CharacterSave save, GoalKind kind)
@@ -169,6 +176,12 @@ public static class GoalCatalog
         new("self_sufficient", "Self-Sufficient", "Climax alone 100 times", 1500, 100, s => Stat(s, GoalKind.SoloClimaxes), Series: "hands_on"),
         new("me_time", "Me Time", "Spend 5 hours in solo scenes", 1000, 5 * 3600, s => Stat(s, GoalKind.SoloSeconds)),
         new("caught_in_the_act", "Caught in the Act", "Climax alone while 3 or more watch", 750, 1, s => s.CaughtInTheAct, Hidden: true),
+
+        // Through Cummy's plugin API 5.
+        new("cleanup_crew", "Cleanup Crew", "Lick partners clean 25 times", 750, 25, s => Stat(s, GoalKind.Licks)),
+        new("drenched", "Drenched", "Be layered Full Body by three quick climaxes", 1000, 1, s => Stat(s, GoalKind.FullBodyLayers)),
+        new("head_to_toe", "Head to Toe", "Have every unblocked part layered at once", 750, 1, s => s.HeadToToe),
+        new("glazed", "Glazed", "Have your face at its top stage", 500, 1, s => s.Glazed),
     ];
 
     public static AchievementDef? FindAchievement(string id) => Achievements.FirstOrDefault(a => a.Id == id);

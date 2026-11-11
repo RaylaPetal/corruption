@@ -65,6 +65,7 @@ public sealed partial class MainWindow
                 DrawNearbyPersona(engine, nearby.Player);
                 if (PartnerBook.Of(engine.Save, nearby.Player.Key) is { Scenes: > 0 } history)
                     Theme.MutedText(History(history));
+                DrawLickClean(engine, nearby.Player);
                 DrawBondRow(engine, nearby);
             }, stripe: isCurrent ? Theme.Pink : null);
         }

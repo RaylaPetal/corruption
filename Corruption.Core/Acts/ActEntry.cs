@@ -31,6 +31,9 @@ public sealed class ActEntry
 /// Where a climax can land, by Cummy's part wire ids (Cummy/BodyPart.cs). Full Body isn't here: a climax picks one part.
 public static class CummyParts
 {
+    /// Full Body: a target, not a stored part. Layers every unblocked part one stage.
+    public const string FullBody = "fb";
+
     public static readonly IReadOnlyList<string> All =
         ["mo", "ch", "bk", "st", "bt", "gr", "al", "ar", "hl", "hr", "ll", "lr", "bl", "br", "fl", "fr"];
 }

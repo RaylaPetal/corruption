@@ -127,6 +127,30 @@ public static class Progression
     public static double MarkedFactor(int layersWorn, Balance b, double? cap = null, double? perLayer = null)
         => Math.Min(cap ?? b.MarkedFactorCap, 1 + (perLayer ?? b.XpPerLayerWorn) * Math.Max(0, layersWorn));
 
+    /// Face stages count this much by default; a title can raise it.
+    public const double FaceWeight = 2;
+
+    /// A full coat (every unblocked part layered) makes the stages count this much more.
+    public const double FullCoat = 1.5;
+
+    /// From Cummy version 5: each stage counts, face stages more, and a full coat more again, up to the same cap.
+    public static double WeightedMarkedFactor(IReadOnlyDictionary<string, int> stages, IReadOnlyCollection<string> blocked, Balance b,
+        Modifiers? mods = null)
+    {
+        mods ??= Modifiers.None;
+        var face = mods.FaceWeight ?? FaceWeight;
+        var weighted = stages.Sum(s => Math.Max(0, s.Value) * (s.Key == "mo" ? face : 1));
+        if (IsFullCoat(stages, blocked)) weighted *= FullCoat;
+        return Math.Min(mods.MarkedCap ?? b.MarkedFactorCap, 1 + (mods.MarkedPerLayer ?? b.XpPerLayerWorn) * weighted);
+    }
+
+    /// Every part the wearer doesn't block has a stage.
+    public static bool IsFullCoat(IReadOnlyDictionary<string, int> stages, IReadOnlyCollection<string> blocked)
+    {
+        var open = CummyParts.All.Where(p => !blocked.Contains(p)).ToList();
+        return open.Count > 0 && open.All(p => stages.GetValueOrDefault(p) > 0);
+    }
+
     public static double WatchFactor(double watchers, Balance b, double? cap = null)
         => Math.Min(cap ?? b.WatcherFactorCap, 1 + b.XpPerWatcher * Math.Max(0, watchers));
 

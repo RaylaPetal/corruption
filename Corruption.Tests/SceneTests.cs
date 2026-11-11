@@ -117,6 +117,26 @@ public class FakeHost : IEngineHost
 
     public IReadOnlyList<string>? AimSelf(Anatomy anatomy) => SelfAim;
 
+    /// Parts on a partner by distance from your genitals, for a lick. Null means the bones couldn't be read.
+    public IReadOnlyList<string>? OntoAim { get; set; }
+
+    public IReadOnlyList<string>? AimOnto(PeerRecord partner, Anatomy own) => OntoAim;
+
+    public List<(string To, string Part)> Licks { get; } = [];
+
+    /// What SendLick answers; null as below Cummy version 5.
+    public string? LickOutcome { get; set; } = "sent";
+
+    public string? SendLick(PeerRecord partner, string partId)
+    {
+        Licks.Add((partner.Key, partId));
+        return LickOutcome;
+    }
+
+    public IReadOnlyCollection<string>? PartnerBlockList { get; set; }
+
+    public IReadOnlyCollection<string>? PartnerBlocks(PeerRecord partner) => PartnerBlockList;
+
     /// The giver's anatomy, as the last aim was asked for.
     public Anatomy? AimedFrom { get; private set; }
 
@@ -166,6 +186,12 @@ public sealed class EngineRig
     public BodyTag? BobBody = BodyTag.Empty;
     public string? BobTitle;
     public PersonaTag? BobPersona;
+    /// More players nearby, after Bob.
+    public List<VisiblePlayer> Others = [];
+
+    public Dictionary<string, int>? Stages;
+    public HashSet<string>? Blocked;
+    public Dictionary<string, int>? PartSizes;
     public int LayersWorn;
     public string? SelfKey = "Alice A@W";
 
@@ -186,7 +212,7 @@ public sealed class EngineRig
             // Move a little, as a player would.
             var position = new Vector3((Now - T0).Minutes % 2, 0, 0);
             Engine.Sample(Now, new SceneSample(Playing ? Act : null, Playing ? Act.Pose : null, position,
-                BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle, BobPersona)] : [], Watchers, LayersWorn, SelfKey));
+                (BobVisible ? [new VisiblePlayer(Bob, Distance, BobSeenPose, BobTag, BobExtra, BobBody, BobTitle, BobPersona)] : new List<VisiblePlayer>()).Concat(Others).ToList(), Watchers, LayersWorn, SelfKey, null, Stages, Blocked, PartSizes));
             Now = Now.AddSeconds(1);
         }
     }

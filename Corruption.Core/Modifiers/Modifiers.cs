@@ -63,6 +63,12 @@ public sealed record Modifiers
     /// What each layer worn adds to the marked factor, instead of the balance value.
     public double? MarkedPerLayer { get; init; }
 
+    /// How much each face stage counts toward the marked factor, instead of the default 2. Cummy version 5 only.
+    public double? FaceWeight { get; init; }
+
+    /// Licking a partner clean pays this much more XP.
+    public double LickXp { get; init; } = 1;
+
     /// How much each watcher counts.
     public double WatcherCount { get; init; } = 1;
 
@@ -162,6 +168,8 @@ public sealed record Modifiers
             StreakCap = Highest(m => m.StreakCap),
             MarkedCap = Highest(m => m.MarkedCap),
             MarkedPerLayer = Highest(m => m.MarkedPerLayer),
+            FaceWeight = Highest(m => m.FaceWeight),
+            LickXp = Product(m => m.LickXp),
             WatcherCount = Product(m => m.WatcherCount),
             StreakEndsOnMiss = all.Any(m => m.StreakEndsOnMiss),
             FatigueGraceMinutes = Sum(m => m.FatigueGraceMinutes),

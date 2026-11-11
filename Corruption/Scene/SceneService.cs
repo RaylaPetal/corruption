@@ -70,6 +70,8 @@ public sealed class SceneService : IDisposable, IEngineHost
         startupError = error ?? acts.LoadError;
 
         heels.BecameAvailable += OnHeelsAvailable;
+        cummy.LickResult += OnLickResult;
+        cummy.PartChanged += OnPartChanged;
         Plugin.Framework.Update += OnUpdate;
     }
 
@@ -77,6 +79,8 @@ public sealed class SceneService : IDisposable, IEngineHost
     {
         Plugin.Framework.Update -= OnUpdate;
         heels.BecameAvailable -= OnHeelsAvailable;
+        cummy.LickResult -= OnLickResult;
+        cummy.PartChanged -= OnPartChanged;
         Engine?.Flush();
         bridges.EndSession();
     }
@@ -104,7 +108,8 @@ public sealed class SceneService : IDisposable, IEngineHost
             engine.LayerOnPartnerClimax = settings.LayerOnPartnerClimax;
             engine.LayerSelfWhenAlone = settings.LayerSelfWhenAlone;
             engine.Sample(now, new SceneSample(act, pose, me.Position, Nearby, CountWatchers(me, engine.Status.Partner),
-                cummy.LayerCount, self, detector.Excluded));
+                cummy.LayerCount, self, detector.Excluded,
+                cummy.HasV5 ? cummy.Stages : null, cummy.HasV5 ? cummy.Blocked : null, cummy.HasV5 ? cummy.PartSizes : null));
             UpdatePlates(engine, me, labelled);
             bridges.Update(now, engine, self);
         }
@@ -116,6 +121,16 @@ public sealed class SceneService : IDisposable, IEngineHost
     }
 
     private void OnHeelsAvailable() => Engine?.RepublishTag();
+
+    /// Cummy's answer to a lick sent from Lick clean.
+    private void OnLickResult(string name, string world, string part, string result) => Engine?.LickAnswered(name, world, result);
+
+    /// A part of the wearer changed. Only a lick or kiss that cleaned it, by someone named, matters to Corruption.
+    private void OnPartChanged(string part, int from, int to, string cause, string name, string world)
+    {
+        if (to >= from || name.Length == 0 || cause is not (CummyIpcClient.CummyStrings.CauseLick or CummyIpcClient.CummyStrings.CauseKiss)) return;
+        Engine?.CleanedBy(new PeerRecord { Name = name, World = world }, DateTime.UtcNow);
+    }
 
     /// Who gets nameplate text: this character, and nearby players whose tag this client can read.
     private void UpdatePlates(SceneEngine engine, IPlayerCharacter me, List<(uint EntityId, VisiblePlayer Player)> nearby)
@@ -260,6 +275,9 @@ public sealed class SceneService : IDisposable, IEngineHost
     {
         var outcome = cummy.LayerSelf(partId, source.Name, source.World);
         Plugin.Log.Debug($"Cummy.LayerSelf({partId}, from {source.Key}): {outcome ?? "bridge off or too old"}");
+        // Worth a line in the log: these mean nothing was layered for a reason the player may want to know.
+        if (outcome is CummyIpcClient.CummyStrings.Blacklisted or CummyIpcClient.CummyStrings.WrongThread or CummyIpcClient.CummyStrings.Error)
+            Plugin.Log.Information($"Cummy didn't layer you on {partId} for {source.Key}: {outcome}.");
 #if DEBUG
         DebugLog($"Layered myself on {partId} for {source.Name}: {outcome ?? "Cummy off or too old"}");
 #endif
@@ -268,6 +286,22 @@ public sealed class SceneService : IDisposable, IEngineHost
 
     public IReadOnlyList<string>? AimSelf(Anatomy anatomy)
         => Plugin.ObjectTable.LocalPlayer is { } me ? AimFrom(me, me, anatomy) : null;
+
+    public IReadOnlyList<string>? AimOnto(PeerRecord partner, Anatomy own)
+        => Plugin.ObjectTable.LocalPlayer is { } me && Find(partner, me) is { } them ? AimFrom(them, me, own) : null;
+
+    public string? SendLick(PeerRecord partner, string partId) => cummy.SendLick(partner.Name, partner.World, partId);
+
+    public IReadOnlyCollection<string>? PartnerBlocks(PeerRecord partner) => cummy.PartnerBlocks(partner.Name, partner.World);
+
+    /// A drawn player other than the local one, by name and world.
+    private static IPlayerCharacter? Find(PeerRecord player, IPlayerCharacter me)
+    {
+        foreach (var obj in Plugin.ObjectTable)
+            if (obj is IPlayerCharacter pc && pc.Address != me.Address && player.Matches(pc.Name.TextValue, pc.HomeWorld.Value.Name.ExtractText()))
+                return pc;
+        return null;
+    }
 
     public IReadOnlyList<string>? AimParts(PeerRecord giver, Anatomy anatomy)
     {
