@@ -50,6 +50,9 @@ public static class ApiOutcomes
 
     /// Where a scene conception comes from, in OnConceived.
     public const string SceneSource = "scene";
+
+    /// Where a conception from a creampie made directly in Cummy comes from, in OnConceived.
+    public const string CummySource = "cummy";
 }
 
 /// Limits on what plugins can do: arousal per call and per minute, and how often one breeder can breed.

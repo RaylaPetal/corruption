@@ -261,7 +261,7 @@ public sealed partial class MainWindow
                     scene.SaveProgress();
                 }
                 if (ImGui.IsItemDeactivatedAfterEdit()) scene.SaveProgress();
-                Theme.MutedWrapped($"×1 is normal: up to {CycleClock.PhaseOf(5).ConceptionChance:P0} on ovulation day. Only a partner's creampie in your pussy can make you pregnant, one roll each time, so it needs Cummy's plugin API 6, \"Get layered when a partner climaxes\" on, and \"Creampie: pussy\" not blocked in Cummy. A shot outside, even on your groin, or a creampie in your ass never can.");
+                Theme.MutedWrapped($"×1 is normal: up to {CycleClock.PhaseOf(5).ConceptionChance:P0} on ovulation day. Only a partner's creampie in your pussy can make you pregnant, one roll each time (from a scene climax, or sent straight from Cummy's menu, at most once a minute each), so it needs Cummy's plugin API 6, \"Get layered when a partner climaxes\" on, and \"Creampie: pussy\" not blocked in Cummy. A shot outside, even on your groin, or a creampie in your ass never can.");
                 if (!cummy.HasV6)
                     ImGui.TextColored(Theme.Warning, cummy.IsAvailable
                         ? "Your Cummy is too old for creampies, so you can't conceive until it's updated."

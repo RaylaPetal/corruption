@@ -503,3 +503,111 @@ public class ForcedCreampieTests
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
     }
 }
+
+/// Another player creampying this character straight from Cummy's menu, with no Corruption climax.
+public class CummyCreampieTests
+{
+    private static readonly PeerRecord Carol = new() { Name = "Carol C", World = "W" };
+
+    /// A carrier on day 5, with Bob nearby as a tagged breeder.
+    private static EngineRig Carrier(double roll = 0.1, BodyFlags bob = BodyFlags.CanBreed)
+    {
+        var r = new EngineRig(new FixedRandom(roll), new Balance().WithoutMoon()) { Playing = false };
+        r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
+        PregnancyBook.Enable(r.Save.Pregnancy, true, false, 5, r.Now);
+        r.BobBody = new BodyTag(bob, PregnancyStage.None, null);
+        r.Run(2);
+        return r;
+    }
+
+    [Fact]
+    public void APussyCreampieFromCummyRolls()
+    {
+        var r = Carrier();
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now);
+        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
+        Assert.Equal(r.Bob.Key, r.Save.Pregnancy.FatherKey);
+        Assert.Equal(ApiOutcomes.CummySource, r.Save.Pregnancy.ConceivedSource);
+    }
+
+    [Fact]
+    public void AnAssCreampieDoesnt()
+    {
+        var r = Carrier();
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Ass, r.Now);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void APartnerWithoutCorruptionCounts()
+    {
+        var r = Carrier();
+        r.Engine.CreampieFromCummy(Carol, CreampieAim.Pussy, r.Now);
+        Assert.Equal(Carol.Key, r.Save.Pregnancy.FatherKey);
+    }
+
+    [Fact]
+    public void ATaggedNonBreederDoesnt()
+    {
+        var r = Carrier(bob: BodyFlags.None);
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void OncePerMinutePerPartner()
+    {
+        var roll = new SwitchRandom { Value = 0.99 };
+        var r = new EngineRig(roll, new Balance().WithoutMoon()) { Playing = false };
+        PregnancyBook.Enable(r.Save.Pregnancy, true, false, 5, r.Now);
+        r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
+        r.Run(2);
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now);
+        roll.Value = 0;
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now.AddSeconds(30));
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now.AddSeconds(61));
+        Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void CorruptionsOwnCreampieIsntRolledTwice()
+    {
+        var roll = new SwitchRandom { Value = 0.99 };
+        var r = new EngineRig(roll);
+        r.Save.Level = 50;
+        r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
+        PregnancyBook.Enable(r.Save.Pregnancy, true, false, 5, r.Now);
+        r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
+        r.Host.Aim = ["gr", "st", "ll", "lr", "bt"];
+        r.Creampies = [];
+        r.Host.InsideHole = CreampieAim.Pussy;
+        r.Run(11);
+        r.BobClimaxes();
+        Assert.Equal([(r.Bob.Key, CreampieAim.Pussy)], r.Host.Creampies);
+        roll.Value = 0;
+        // Cummy reports the creampie Corruption just sent: that one already rolled.
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void NoRollWithPregnancyOffOrPaused()
+    {
+        var r = Carrier();
+        r.Save.Paused = true;
+        r.Engine.CreampieFromCummy(r.Bob, CreampieAim.Pussy, r.Now);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+        var off = Carrier();
+        PregnancyBook.Disable(off.Save.Pregnancy);
+        off.Engine.CreampieFromCummy(off.Bob, CreampieAim.Pussy, off.Now);
+        Assert.False(PregnancyBook.IsPregnant(off.Save.Pregnancy));
+    }
+}
+
+/// A roll that can change partway through a test.
+public sealed class SwitchRandom : Random
+{
+    public double Value { get; set; }
+    public override double NextDouble() => Value;
+}

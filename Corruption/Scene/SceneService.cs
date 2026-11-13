@@ -153,11 +153,14 @@ public sealed class SceneService : IDisposable, IEngineHost
         Engine?.CleanedBy(new PeerRecord { Name = name, World = world }, DateTime.UtcNow);
     }
 
-    /// A creampie on the wearer ended. Only one licked away by someone named matters: being licked out.
+    /// A creampie on the wearer started or ended. A new one can lead to conception; one licked away by someone named is
+    /// being licked out.
     private void OnCreampieChanged(string hole, bool active, int secondsLeft, string cause, string name, string world)
     {
-        if (active || name.Length == 0 || cause != CummyIpcClient.CummyStrings.CauseLick) return;
-        Engine?.LickedOut(new PeerRecord { Name = name, World = world }, DateTime.UtcNow);
+        if (name.Length == 0) return;
+        var who = new PeerRecord { Name = name, World = world };
+        if (active && cause == CummyIpcClient.CummyStrings.CauseCreampie) Engine?.CreampieFromCummy(who, hole, DateTime.UtcNow);
+        else if (!active && cause == CummyIpcClient.CummyStrings.CauseLick) Engine?.LickedOut(who, DateTime.UtcNow);
     }
 
     /// Who gets nameplate text: this character, and nearby players whose tag this client can read.

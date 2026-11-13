@@ -65,6 +65,9 @@ public static class CorruptionStrings
     /// OnConceived's source for a conception in a scene; otherwise it's the breeding plugin's name.
     public const string SceneSource = "scene";
 
+    /// OnConceived's source for a conception from a creampie made directly in Cummy.
+    public const string CummySource = "cummy";
+
     // Scene states: GetScene().State
     public const string Idle = "idle";
     public const string Waiting = "waiting";
@@ -150,8 +153,8 @@ public sealed class CorruptionIpc : IDisposable
     /// The new phase: period, follicular, fertile, ovulation or luteal.
     public event Action<string>? CyclePhaseChanged;
 
-    /// (father name, father world, source): a pregnancy was confirmed, by a test or by showing at day 5. Source is "scene"
-    /// or the plugin whose Breed started it.
+    /// (father name, father world, source): a pregnancy was confirmed, by a test or by showing at day 5. Source is "scene",
+    /// "cummy" (a creampie sent straight from Cummy) or the plugin whose Breed started it.
     public event Action<string, string, string>? Conceived;
 
     /// first, second or third.

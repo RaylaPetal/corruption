@@ -1045,6 +1045,7 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
         if (!LayerOnPartnerClimax || creampies is null || BodyOf(peer) is not { } body) return false;
         // A partner whose plugin forces creampies fills the pussy when the bones find no hole; a hole they do find still wins.
         if ((host.InsideOf(peer, body.Anatomy, save.Anatomy) ?? ForcedHole(body)) is not { } hole) return false;
+        sentCreampies[(peer.Key, hole)] = now;
         var outcome = host.CreampieSelf(peer, hole);
         if (outcome == "blocked") return false;
         // Blacklisted, an unknown hole, no character, or Cummy unusable: nothing lands, and the credit still stands.
@@ -1189,6 +1190,30 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     }
 
     /// A breeder's credited climax can lead to conception, decided here on the carrier's side.
+    /// Creampies this client sent Cummy itself, so Cummy's own report of them doesn't roll a second time.
+    private readonly Dictionary<(string Key, string Hole), DateTime> sentCreampies = new();
+    private readonly Dictionary<string, DateTime> lastCummyRoll = new(StringComparer.OrdinalIgnoreCase);
+
+    /// How long after sending a creampie Cummy's report of it still counts as ours, and how often one partner's direct
+    /// creampies can roll.
+    public static readonly TimeSpan OwnCreampieWindow = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan CummyRollGap = TimeSpan.FromSeconds(60);
+
+    /// Cummy says a creampie started or restarted on this character. One made directly in Cummy (its menu, or another
+    /// plugin through it) into the pussy rolls for conception, at most once a minute per partner. A partner whose body
+    /// tag is seen needs "can breed"; one without Corruption rolls with no virility factor, as a plugin's Breed does.
+    public void CreampieFromCummy(PeerRecord source, string hole, DateTime now)
+    {
+        if (save.Setup is null || hole != CreampieAim.Pussy || source.Name.Length == 0) return;
+        if (sentCreampies.TryGetValue((source.Key, hole), out var sent) && now - sent < OwnCreampieWindow) return;
+        if (lastCummyRoll.TryGetValue(source.Key, out var last) && now - last < CummyRollGap) return;
+        var body = BodyOf(source);
+        if (body is { CanBreed: false }) return;
+        if (!PregnancyBook.HasCycle(save.Pregnancy, now)) return;
+        lastCummyRoll[source.Key] = now;
+        TryConceive(now, source, ConceptionChanceFor(now, source, body), ApiOutcomes.CummySource);
+    }
+
     private void RollConception(DateTime now, PeerRecord peer)
     {
         if (BodyOf(peer) is not { CanBreed: true } body) return;
