@@ -373,7 +373,7 @@ public sealed class WelcomeWindow : Window
             Theme.MutedWrapped("A 7-day cycle, conception from a breeder's cum shot at the groin, a 14-day pregnancy with cravings and a baby that grows on your profile, then a birth. Turn it on or off any time in Settings.");
             if (!pregnancy) return;
 
-            var pregnant = PregnancyBook.IsPregnant(engine.Save.Pregnancy);
+            var pregnant = PregnancyBook.IsConfirmed(engine.Save.Pregnancy);
             if (pregnant) ImGui.BeginDisabled();
             ImGui.Checkbox("I can carry", ref carry);
             ImGui.SameLine();

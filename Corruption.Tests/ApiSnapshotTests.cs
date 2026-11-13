@@ -85,7 +85,7 @@ public class ApiSnapshotTests
     public void PregnantHasNoCycle()
     {
         var save = Carrier(5);
-        PregnancyBook.Conceive(save.Pregnancy, T0, "Bob B@W");
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
         var cycle = ApiSnapshots.Cycle(save, Me, T0.AddHours(1));
         Assert.Equal((false, 0, 0.0), (cycle.Running, cycle.Day, cycle.Chance));
     }
@@ -94,7 +94,7 @@ public class ApiSnapshotTests
     public void SecondTrimester()
     {
         var save = Carrier(5);
-        PregnancyBook.Conceive(save.Pregnancy, T0, "Bob B@W");
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
         var now = T0.AddDays(7);
         var p = ApiSnapshots.Pregnancy(save, Me, now);
         Assert.Equal("second", p.Stage);
@@ -127,10 +127,22 @@ public class ApiSnapshotTests
     public void ConsentIsOffAndSurvivesAReset()
     {
         var save = Ready();
-        Assert.False(save.PluginConsent.Breed || save.PluginConsent.Arousal || save.PluginConsent.Climax);
-        save.PluginConsent.Breed = true;
+        Assert.False(save.PluginConsent.Allowed);
+        save.PluginConsent.Allowed = true;
         save.ResetProgress(T0);
-        Assert.True(save.PluginConsent.Breed);
+        Assert.True(save.PluginConsent.Allowed);
+    }
+
+    [Theory]
+    [InlineData("""{"Breed":false,"Arousal":true,"Climax":false}""", true)]
+    [InlineData("""{"Breed":false,"Arousal":false,"Climax":false}""", false)]
+    [InlineData("""{"Allowed":true}""", true)]
+    public void OlderSavesCarryAnyConsentOver(string json, bool allowed)
+    {
+        var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var consent = System.Text.Json.JsonSerializer.Deserialize<PluginConsent>(json, options)!;
+        Assert.Equal(allowed, consent.Allowed);
+        Assert.Equal($$"""{"Allowed":{{(allowed ? "true" : "false")}}}""", System.Text.Json.JsonSerializer.Serialize(consent));
     }
 
     [Fact]

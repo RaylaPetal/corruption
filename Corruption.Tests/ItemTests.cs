@@ -20,7 +20,7 @@ public class ItemTests
     }
 
     [Fact]
-    public void TwentyItems() => Assert.Equal(20, ItemCatalog.All.Count);
+    public void TwentyOneItems() => Assert.Equal(21, ItemCatalog.All.Count);
 
     [Fact]
     public void BuyingTakesThePrice()
@@ -49,7 +49,7 @@ public class ItemTests
         save.Pregnancy = new PregnancyState { Enabled = true, CanBreed = true };
         Assert.Equal([ItemIds.VirilityTonic], ItemBook.Offered(save).Where(i => i.Role != ItemRole.Anyone).Select(i => i.Id));
         save.Pregnancy.CanCarry = true;
-        Assert.Equal(20, ItemBook.Offered(save).Count());
+        Assert.Equal(21, ItemBook.Offered(save).Count());
     }
 
     [Fact]

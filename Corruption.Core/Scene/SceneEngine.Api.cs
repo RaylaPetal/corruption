@@ -44,8 +44,8 @@ public sealed partial class SceneEngine
     {
         if (save.Setup is null) return;
         var p = save.Pregnancy;
-        CyclePhase? phase = PregnancyBook.HasCycle(p, now) ? CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).Phase : null;
-        var stage = PregnancyBook.StageOf(p, now);
+        CyclePhase? phase = PregnancyBook.ShowsCycle(p, now) ? CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).Phase : null;
+        var stage = PregnancyBook.ShownStage(p, now);
         var shown = PlateComposer.ArousalNumber(save.Arousal);
         if (transitionsSeen)
         {
@@ -88,10 +88,10 @@ public sealed partial class SceneEngine
         var p = save.Pregnancy;
         if (save.Setup is null) return ApiOutcomes.NotSetUp;
         if (selfKey is null) return ApiOutcomes.NoCharacter;
-        if (!save.PluginConsent.Breed) return ApiOutcomes.NotAllowed;
+        if (!save.PluginConsent.Allowed) return ApiOutcomes.NotAllowed;
         if (!p.Enabled) return ApiOutcomes.PregnancyOff;
         if (!p.CanCarry) return ApiOutcomes.CantCarry;
-        if (PregnancyBook.IsPregnant(p)) return ApiOutcomes.Pregnant;
+        if (PregnancyBook.IsConfirmed(p)) return ApiOutcomes.Pregnant;
         if (PregnancyBook.IsRecovering(p, now)) return ApiOutcomes.Recovering;
         if (save.Paused) return ApiOutcomes.Paused;
         if (save.Hidden) return ApiOutcomes.Hidden;
@@ -101,20 +101,57 @@ public sealed partial class SceneEngine
         return null;
     }
 
-    /// One conception roll as if bred by that player, under the usual odds. A breeder whose body tag is seen needs the
-    /// breeding role; one without Corruption breeds with no virility factor.
-    public string BreedFromPlugin(DateTime now, PeerRecord breeder, string plugin)
+    /// A caller's chance factor, kept to ×0.5–×2. Anything that isn't a number counts as ×1.
+    public static double ClampChanceFactor(double factor)
+        => double.IsFinite(factor) ? Math.Clamp(factor, PluginLimits.MinChanceFactor, PluginLimits.MaxChanceFactor) : 1;
+
+    /// One conception roll as if bred by that player, under the usual odds times the caller's factor. A breeder whose body
+    /// tag is seen needs the breeding role; one without Corruption breeds with no virility factor. The answer is `bred`
+    /// whatever the roll did, and also while a pregnancy is secret, so a caller can't tell either apart.
+    public string BreedFromPlugin(DateTime now, PeerRecord breeder, string plugin, double chanceFactor = 1)
     {
-        if (BreedRefusal(now, breeder, out var body) is { } refusal) return Logged(now, plugin, "Breed", refusal);
+        var factor = ClampChanceFactor(chanceFactor);
+        var call = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Breed ×{factor:0.##}");
+        if (BreedRefusal(now, breeder, out var body) is { } refusal) return Logged(now, plugin, call, refusal);
         lastPluginBreed[breeder.Key] = now;
+        if (PregnancyBook.IsSecret(save.Pregnancy)) return Logged(now, plugin, call, ApiOutcomes.Bred);
         var source = string.IsNullOrWhiteSpace(plugin) ? "Unnamed plugin" : plugin.Trim();
-        var conceived = TryConceive(now, breeder, ConceptionChanceFor(now, breeder, body), source);
-        return Logged(now, plugin, "Breed", conceived ? ApiOutcomes.Conceived : ApiOutcomes.NotConceived);
+        TryConceive(now, breeder, ConceptionChanceFor(now, breeder, body, factor), source);
+        return Logged(now, plugin, call, ApiOutcomes.Bred);
     }
 
-    /// The chance a Breed by that player would have now, without rolling; 0 when Breed would refuse.
-    public double BreedChanceFor(DateTime now, PeerRecord breeder)
-        => BreedRefusal(now, breeder, out var body) is null ? ConceptionChanceFor(now, breeder, body) : 0;
+    /// The chance a Breed by that player would have now, without rolling; 0 when Breed would refuse. A secret pregnancy
+    /// shows the chance it would have had.
+    public double BreedChanceFor(DateTime now, PeerRecord breeder, double chanceFactor = 1)
+        => BreedRefusal(now, breeder, out var body) is null ? ConceptionChanceFor(now, breeder, body, ClampChanceFactor(chanceFactor), shown: true) : 0;
+
+    private readonly HashSet<string> forcingCreampies = new(StringComparer.OrdinalIgnoreCase);
+
+    /// A plugin with breeding consent asked for every credited partner climax to creampie the pussy. Memory only.
+    public bool ForcesCreampies => forcingCreampies.Count > 0 && save.Setup is not null && save.PluginConsent.Allowed;
+
+    /// The plugins forcing creampies now, for Settings.
+    public IReadOnlyCollection<string> CreampieForcers => forcingCreampies;
+
+    /// Turns forced creampies on or off for this plugin. On needs the breeding consent; off always works.
+    public string SetForceCreampieFromPlugin(DateTime now, bool on, string plugin)
+    {
+        var name = string.IsNullOrWhiteSpace(plugin) ? "Unnamed plugin" : plugin.Trim();
+        var call = on ? "ForceCreampie on" : "ForceCreampie off";
+        if (!on)
+        {
+            forcingCreampies.Remove(name);
+            return Logged(now, plugin, call, ApiOutcomes.Ok);
+        }
+        if (save.Setup is null) return Logged(now, plugin, call, ApiOutcomes.NotSetUp);
+        if (!save.PluginConsent.Allowed) return Logged(now, plugin, call, ApiOutcomes.NotAllowed);
+        forcingCreampies.Add(name);
+        return Logged(now, plugin, call, ApiOutcomes.Ok);
+    }
+
+    /// The hole a forced creampie lands in: the pussy, when this character has one and the partner can give one.
+    private string? ForcedHole(BodyTag partner)
+        => ForcesCreampies && save.Anatomy != Anatomy.Penis && partner.Anatomy != Anatomy.Vagina ? CreampieAim.Pussy : null;
 
     /// Changes arousal by up to 25 a call and 60 a minute for this plugin. A rise isn't taken during refractory. Reaching
     /// 100 behaves as in a scene: automatic climax fires on the scene's next tick.
@@ -122,7 +159,7 @@ public sealed partial class SceneEngine
     {
         string outcome;
         if (save.Setup is null) outcome = ApiOutcomes.NotSetUp;
-        else if (!save.PluginConsent.Arousal) outcome = ApiOutcomes.NotAllowed;
+        else if (!save.PluginConsent.Allowed) outcome = ApiOutcomes.NotAllowed;
         else if (save.Paused) outcome = ApiOutcomes.Paused;
         else if (amount > 0 && Arousal.InRefractory(save, now)) outcome = ApiOutcomes.Refractory;
         else
@@ -144,7 +181,7 @@ public sealed partial class SceneEngine
     {
         string outcome;
         if (save.Setup is null) outcome = ApiOutcomes.NotSetUp;
-        else if (!save.PluginConsent.Climax) outcome = ApiOutcomes.NotAllowed;
+        else if (!save.PluginConsent.Allowed) outcome = ApiOutcomes.NotAllowed;
         else if (save.Paused) outcome = ApiOutcomes.Paused;
         else if (!verified || verifiedAct is null || (nearestInRange is null && !solo)) outcome = ApiOutcomes.NoScene;
         else if (Arousal.InRefractory(save, now)) outcome = ApiOutcomes.Refractory;

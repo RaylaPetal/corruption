@@ -73,7 +73,7 @@ public static class GoalCatalog
     public const int DailyCount = 3;
     public const int WeeklyCount = 3;
 
-    private static bool Pregnant(CharacterSave s) => s.Pregnancy.Enabled && PregnancyBook.IsPregnant(s.Pregnancy);
+    private static bool Pregnant(CharacterSave s) => s.Pregnancy.Enabled && PregnancyBook.IsConfirmed(s.Pregnancy);
 
     private static bool TogetherBond(CharacterSave s) => s.BondFormed && BondLevels.LevelOf(s.BondSeconds) >= BondLevels.TogetherLevel;
 

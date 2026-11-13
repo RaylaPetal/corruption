@@ -199,7 +199,7 @@ public class CreampieCravingTests
         var r = new EngineRig(balance: new Balance().WithoutMoon());
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 2, r.Now);
-        PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Someone@W");
+        KnownPregnancy.Conceive(r.Save.Pregnancy, r.Now, "Someone@W");
         r.Save.Pregnancy.Craving = kind;
         r.Save.Pregnancy.CravingDay = r.Now.Date.ToString("yyyy-MM-dd");
         r.Stages = [];
@@ -227,7 +227,7 @@ public class CreampieCravingTests
         {
             var p = new PregnancyState();
             PregnancyBook.Enable(p, true, false, 2, EngineRig.T0);
-            PregnancyBook.Conceive(p, EngineRig.T0, "Someone@W");
+            KnownPregnancy.Conceive(p, EngineRig.T0, "Someone@W");
             Assert.NotEqual(CravingKind.Creampie, CravingBook.Roll(p, EngineRig.T0, seed, true, creampies: false));
         }
     }
@@ -239,7 +239,7 @@ public class CreampieCravingTests
         {
             var p = new PregnancyState();
             PregnancyBook.Enable(p, true, false, 2, EngineRig.T0);
-            PregnancyBook.Conceive(p, EngineRig.T0, "Someone@W");
+            KnownPregnancy.Conceive(p, EngineRig.T0, "Someone@W");
             return CravingBook.Roll(p, EngineRig.T0, seed, true, creampies: true);
         });
         Assert.Contains(CravingKind.Creampie, seen.Cast<CravingKind>());

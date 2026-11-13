@@ -21,6 +21,24 @@ public static class MoodlesPlan
     public const int DrippingPussy = 1;
     public const int DrippingAss = 2;
 
+    /// The pregnancy statuses for this state. A secret pregnancy shows only the cycle it started in, so Fertile can still
+    /// show and nothing else does.
+    public static MoodlesInput WithPregnancy(MoodlesInput input, PregnancyState p, DateTime now)
+    {
+        var fertile = PregnancyBook.ShowsCycle(p, now)
+            && CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).Phase is CyclePhase.Fertile or CyclePhase.Ovulation;
+        var stage = PregnancyBook.ShownStage(p, now);
+        var pregnant = PregnancyBook.IsConfirmed(p);
+        return input with
+        {
+            Fertile = fertile,
+            Trimester = pregnant ? (int)stage : 0,
+            Craving = pregnant && p.Craving is not null && !p.CravingMet,
+            Unsatisfied = pregnant && p.Unsatisfied,
+            Recovering = stage == PregnancyStage.Recovering,
+        };
+    }
+
     /// Each status that applies, with its level: the Aroused step from 1 to 5, the Marked layer count, the dripping holes
     /// (pussy 1, ass 2, both 3), else 1.
     public static IReadOnlyDictionary<MoodleKind, int> Plan(in MoodlesInput input)

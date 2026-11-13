@@ -21,6 +21,7 @@ public class GoalTierTests
         save.Pregnancy.CanCarry = true;
         save.Pregnancy.ConceivedUtc = T0;
         save.Pregnancy.DueUtc = T0.AddDays(14);
+        save.Pregnancy.ConfirmedUtc = T0;
     }
 
     private static void MakeTogetherBond(CharacterSave save)

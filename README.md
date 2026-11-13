@@ -39,7 +39,7 @@ XP comes from your tier, your partner's tier if higher, people watching you, you
 - **Licking clean (Cummy API 5):** for two minutes after you climax with a partner, a **Lick clean** button on the scene card and their Nearby card licks off the part your climax most likely landed on. If it comes off, you get a little XP, and bond time if they're your bond. Cummy's own rules decide whether the lick goes through: you need to be paired in Cummy, or in Public mode, and close enough. When a recent scene partner licks or kisses you clean, your arousal goes up a little. There are lick goals, and the *Cleanup Crew*, *Head to Toe* and *Glazed* achievements, each with a title. Parts you block in Cummy are never aimed at.
 - **Creampies (Cummy API 6):** when your scene partner climaxes with the tip of their penis inside your pussy or ass (within 7 cm, read from both IVCS skeletons), your own Cummy creampies that hole instead of layering you outside: it drips for a while and steps up your groin or butt. You get 50 XP, and it counts for creampie goals and the *Filled*, *Both Ways*, *Seconds* and *Well Bred* achievements, each with a title. If you block that hole in Cummy, the climax lands outside as usual. A partner set to Vagina never creampies, and a pussy needs your anatomy to be Vagina, Both or not set. If you came inside your partner, **Lick clean** licks it out of them for 30 XP, and a recent partner licking you out gives you 10 arousal. While you drip, a Dripping Moodle shows which hole.
 - **Profile** shows your status, how long since your last scene, and how long until decay starts, or until the next fade. **Your story** there counts everything: time in scenes and your longest, climaxes, loads taken and given, time watched, conceptions and babies (each birth with its date and father), Sins and progress.
-- **Pregnancy** is off until you turn it on in **Settings**, as someone who can carry, breed or both. Carriers get a 7-day cycle with fertile days, and can conceive only from a breeder partner's creampie in their pussy, one roll each time, so it needs Cummy's plugin API 6. A shot outside, even on the groin, or a creampie in the ass never leads to conception; block "Creampie: pussy" in Cummy to stay safe. You can set your own conception chance. A pregnancy lasts 14 days, with daily cravings and a baby on **Profile** that grows as it goes, then a birth.
+- **Pregnancy** is off until you turn it on in **Settings**, as someone who can carry, breed or both. Carriers get a 7-day cycle with fertile days, and can conceive only from a breeder partner's creampie in their pussy, one roll each time, so it needs Cummy's plugin API 6. A shot outside, even on the groin, or a creampie in the ass never leads to conception; block "Creampie: pussy" in Cummy to stay safe. You can set your own conception chance. A conception is secret: nothing tells you, and your cycle shows as before. Take a **Pregnancy Test** from the shop to find out, or wait until your belly starts to show on day 5. Until then there's no card, status, look or craving, and the father isn't told. A pregnancy lasts 14 days, with daily cravings and a baby on **Profile** that grows as it goes, then a birth.
 
 Under **Settings → Bridges**, all off until you turn them on:
 
@@ -63,13 +63,14 @@ Other Dalamud plugins can read Corruption's state for the local character, hear 
   - enums cross as lower-case strings (`"ovulation"`, `"second"`, `"earning"`);
   - times are UTC `DateTime`, with `default` for none;
   - names and worlds are separate strings.
-- **Stability:** version 1 is frozen. Later versions only add gates.
+- **Stability:** version 2 changed `Breed` and `BreedChance` (see below), and is now frozen. Later versions only add gates.
+- **Secret pregnancies (version 2):** a conception stays secret until the player takes a Pregnancy Test or it shows at day 5. Until then `GetPregnancy` reads `none`, `GetCycle` and `BreedChance` read as if nothing happened, `Breed` answers `bred`, and `OnConceived` hasn't fired. Plugins see exactly what the player knows.
 
 ### Lifecycle
 
 | Gate | Signature | Notes |
 | --- | --- | --- |
-| `Corruption.ApiVersion` | `() -> int` | 1 |
+| `Corruption.ApiVersion` | `() -> int` | 2 |
 | `Corruption.Ready` | event `()` | Gates are registered. Re-read your state. |
 | `Corruption.Disposing` | event `()` | Corruption is unloading. |
 
@@ -81,11 +82,12 @@ Other Dalamud plugins can read Corruption's state for the local character, hear 
 | `Corruption.GetArousal` | `(bool Ready, int Arousal, double RefractorySeconds, bool Edging, string ClimaxMode)`. Arousal is 0 to 100 as shown. Edging is held at 100 outside refractory. ClimaxMode is `auto` or `manual`. |
 | `Corruption.GetScene` | `(bool Ready, string State, bool Solo, string PartnerName, string PartnerWorld, int Watchers, double Seconds)`. State is `idle`, `waiting`, `earning` or `paused`. |
 | `Corruption.GetBond` | `(bool Ready, string Name, string World, bool Formed, int Level)`. This is the bond or bond request; Level is 0 until formed. |
-| `Corruption.GetCycle` | `(bool Ready, bool Enabled, bool CanCarry, bool CanBreed, bool Running, int Day, string Phase, double Chance, bool Protected, DateTime NextPhaseUtc)`. Phase is `period`, `follicular`, `fertile`, `ovulation` or `luteal`. Chance is what a breeding would have now from this character's side (cycle, items, chance setting, own titles). Day and Chance are 0 without a running cycle. Protected means a Contraceptive Pill is active. |
-| `Corruption.GetPregnancy` | `(bool Ready, string Stage, double DaysPregnant, DateTime ConceivedUtc, DateTime DueUtc, string FatherName, string FatherWorld, DateTime RecoveryUntilUtc, string Craving, bool CravingMet, bool Unsatisfied, int Conceptions, int Births, int Fathered)`. Stage is `none`, `first`, `second`, `third` or `recovering`. |
+| `Corruption.GetCycle` | `(bool Ready, bool Enabled, bool CanCarry, bool CanBreed, bool Running, int Day, string Phase, double Chance, bool Protected, DateTime NextPhaseUtc)`. Phase is `period`, `follicular`, `fertile`, `ovulation` or `luteal`. Chance is what a breeding would have now from this character's side (cycle, items, chance setting, own titles). Day and Chance are 0 without a running cycle. A pregnancy that isn't confirmed yet reads as the cycle running on. Protected means a Contraceptive Pill is active. |
+| `Corruption.GetPregnancy` | `(bool Ready, string Stage, double DaysPregnant, DateTime ConceivedUtc, DateTime DueUtc, string FatherName, string FatherWorld, DateTime RecoveryUntilUtc, string Craving, bool CravingMet, bool Unsatisfied, int Conceptions, int Births, int Fathered)`. Stage is `none`, `first`, `second`, `third` or `recovering`. A pregnancy reads as `none` until it's confirmed. |
 | `Corruption.GetBirths` | `List<(DateTime BornUtc, DateTime ConceivedUtc, string FatherName, string FatherWorld)>`, oldest first |
+| `Corruption.GetForceCreampie` | `() -> bool`: whether forced creampies are in effect (some plugin turned them on, and the player still allows breeding). |
 | `Corruption.GetNearby` | `List<(string Name, string World, double Distance, int Level, int Arousal, bool InAct, int ClimaxCount, bool HasBodyTag, bool CanCarry, bool CanBreed, bool Virile, string Anatomy, string Stage)>`. This is only what each player's tags publish to everyone, never their cycle or father. The body fields need `HasBodyTag`. |
-| `Corruption.BreedChance` | `(string breederName, string breederWorld) -> double`. This is the chance a `Breed` by that player would have now, without rolling, or 0 when `Breed` would refuse. |
+| `Corruption.BreedChance` | `(string breederName, string breederWorld, double chanceFactor) -> double`. This is the chance a `Breed` by that player with that factor would have now, without rolling, or 0 when `Breed` would refuse. |
 
 ### Events
 
@@ -99,7 +101,7 @@ Every event is raised at most once per transition. `OnArousalChanged` and `OnSta
 | `Corruption.OnSceneEnded` | `(double verifiedSeconds, double xp)` |
 | `Corruption.OnLevelUp` | `(int level)` |
 | `Corruption.OnCyclePhaseChanged` | `(string phase)` |
-| `Corruption.OnConceived` | `(string fatherName, string fatherWorld, string source)`: source is `scene` or the plugin that called `Breed`. |
+| `Corruption.OnConceived` | `(string fatherName, string fatherWorld, string source)`: a pregnancy was confirmed, by a test or by showing at day 5, not when it was conceived. Source is `scene` or the plugin whose `Breed` started it. |
 | `Corruption.OnTrimesterChanged` | `(string stage)`: `first`, `second` or `third`. |
 | `Corruption.OnBirth` | `(string fatherName, string fatherWorld)` |
 | `Corruption.OnRecoveryEnded` | `()` |
@@ -108,11 +110,12 @@ Every event is raised at most once per transition. `OnArousalChanged` and `OnSta
 
 ### Writes
 
-Each write needs the player's consent, under **Settings → Other plugins**, for that character. All three are off by default, and without consent a write returns `not-allowed`. Every call is listed there with its plugin name, time and outcome. No write gives XP, Sins or items.
+Each write needs the player's consent, the one "Let other plugins control Corruption" switch under **Settings → Other plugins**, for that character. It's off by default, and without consent a write returns `not-allowed`. Every call is listed there with its plugin name, time and outcome. No write gives XP, Sins or items.
 
 | Gate | Signature | Outcomes |
 | --- | --- | --- |
-| `Corruption.Breed` | `(string breederName, string breederWorld, string pluginName) -> string` | `conceived`, `not-conceived`, `not-allowed`, `not-set-up`, `pregnancy-off`, `cant-carry`, `pregnant`, `recovering`, `protected`, `paused`, `hidden`, `not-a-breeder`, `too-soon`, `no-character` |
+| `Corruption.Breed` | `(string breederName, string breederWorld, string pluginName, double chanceFactor) -> string` | `bred`, `not-allowed`, `not-set-up`, `pregnancy-off`, `cant-carry`, `pregnant`, `recovering`, `protected`, `paused`, `hidden`, `not-a-breeder`, `too-soon`, `no-character` |
+| `Corruption.SetForceCreampie` | `(string pluginName, bool on) -> string` | `ok`, `not-allowed`, `not-set-up` |
 | `Corruption.AddArousal` | `(double amount, string pluginName) -> string` | `ok`, `limited`, `not-allowed`, `not-set-up`, `paused`, `refractory` |
 | `Corruption.Climax` | `(string pluginName) -> string` | `climaxed`, `not-allowed`, `not-set-up`, `paused`, `no-scene`, `refractory`, `too-low` |
 
@@ -120,8 +123,15 @@ Each write needs the player's consent, under **Settings → Other plugins**, for
   - rolls conception once for the local character, as if that player bred them, with the same odds as a scene: cycle phase, Fertility Charm, the chance setting, the bond, both players' titles and traits where known, and the breeder's Virility Tonic from their tag;
   - a breeder whose Corruption body tag is seen must have "can breed" (`not-a-breeder` otherwise);
   - a breeder without Corruption rolls with no virility factor;
+  - `chanceFactor` multiplies those odds, for example by the bull's level. It's kept to ×0.5–×2 (anything that isn't a number counts as ×1), and the 90% cap and the player's chance setting still apply after it. Settings lists the factor used;
   - the same breeder can breed once a minute (`too-soon`);
-  - a conception records the breeder as the father and tells the player.
+  - `bred` means it rolled, whether or not it took. A conception records the breeder as the father and stays secret until confirmed;
+  - while a pregnancy is secret, `Breed` answers `bred` without rolling, so a caller can't tell; once it's confirmed it answers `pregnant`.
+- **SetForceCreampie:** while on, a scene partner's credited climax creampies the local character's pussy even when the bones aren't lined up, so a breeder's climax rolls for conception:
+  - it needs the same consent to turn on (`not-allowed` otherwise), and turning off always works;
+  - only the carrier's own client decides, so it does nothing on the bull's side. Both players need Corruption, since only their climaxes are credited;
+  - a hole the bones do find still wins, a character set to Penis isn't forced, and Cummy's blocks ("Creampie: pussy") still apply;
+  - it lasts until turned off or Corruption reloads, so set it again on `Ready`. Settings shows which plugin has it on.
 - **AddArousal:** at most 25 either way per call and 60 per plugin per minute (`limited` when part was cut). A rise isn't taken during refractory. Reaching 100 behaves as in a scene: in automatic mode the scene's next tick climaxes.
 - **Climax:** the same rules and effects as `/corr climax`. It needs a verified scene and enough arousal, and not refractory.
 
@@ -130,10 +140,13 @@ Each write needs the player's consent, under **Settings → Other plugins**, for
 A plugin with a bull/breeding role might:
 1. watch `OnArousalChanged`, and start its breeding timer once arousal rises;
 2. end it on `OnClimax` (the carrier) or `OnPartnerClimax` (the bull, if both have Corruption);
-3. check `GetPregnancy().Stage` is `none`, or call `BreedChance` to show the odds;
-4. call `Breed(bullName, bullWorld, "Your Plugin")` and react to `conceived` or `not-conceived`.
+3. check `GetPregnancy().Stage` is `none`, or call `BreedChance(bullName, bullWorld, factor)` to show the odds;
+4. call `Breed(bullName, bullWorld, "Your Plugin", factor)`; `bred` means the roll happened;
+5. listen for `OnConceived` to hear when the carrier finds out, by a test or at day 5.
 
-The carrier's own pregnancy settings decide, and an existing pregnancy answers `pregnant`.
+For breeding through real scenes instead, a "climaxes are always creampies" checkbox on the carrier's side can call `SetForceCreampie("Your Plugin", true)`, and `false` when it's unticked or the session ends.
+
+The carrier's own pregnancy settings decide, and a confirmed pregnancy answers `pregnant`.
 
 ## Installing
 

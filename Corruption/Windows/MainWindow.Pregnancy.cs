@@ -35,14 +35,15 @@ public sealed partial class MainWindow
         if (!p.Enabled) return;
         var now = DateTime.UtcNow;
 
-        if (PregnancyBook.IsPregnant(p)) DrawPregnant(save, now);
+        // A secret pregnancy shows nothing here; the header cycle carries on as if it weren't there.
+        if (PregnancyBook.IsConfirmed(p)) DrawPregnant(save, now);
         else if (PregnancyBook.IsRecovering(p, now))
             Theme.CardBox("recovering", () =>
             {
                 Theme.Heading(FontAwesomeIcon.Heart, "Recovering");
                 Theme.MutedText($"Your cycle starts again in {ProfileTimers.Describe(p.RecoveryUntilUtc - now)}. Arousal builds a little slower until then.");
             }, stripe: Theme.PinkSoft);
-        else if (!PregnancyBook.HasCycle(p, now))
+        else if (!PregnancyBook.ShowsCycle(p, now))
             Theme.CardBox("breeder", () =>
             {
                 Theme.Heading(FontAwesomeIcon.Seedling, "Pregnancy");
@@ -94,11 +95,11 @@ public sealed partial class MainWindow
     {
         var p = save.Pregnancy;
         var now = DateTime.UtcNow;
-        if (!PregnancyBook.HasCycle(p, now)) return;
+        if (!PregnancyBook.ShowsCycle(p, now)) return;
 
         var day = CycleClock.DayAt(p.CycleStartUtc, now);
         var phase = CycleClock.PhaseOf(day);
-        var chance = PregnancyBook.ConceptionChance(save, now, false, 0, false);
+        var chance = PregnancyBook.ShownConceptionChance(save, now, false, 0, false);
 
         ImGuiHelpers.ScaledDummy(2f);
         var y = ImGui.GetCursorScreenPos().Y;
@@ -157,6 +158,12 @@ public sealed partial class MainWindow
 
         var stage = PregnancyBook.StageOf(p, now);
         Theme.MutedText($"Roles: {(p.CanCarry ? "carry " : "")}{(p.CanBreed ? "breed" : "")}  Stage: {stage}  Births: {p.Births}  Conceptions: {p.Conceptions}  Fathered: {p.Fathered}");
+        if (PregnancyBook.IsSecret(p))
+        {
+            Theme.MutedText($"Secret pregnancy (from {p.ConceivedSource ?? "?"}): nothing shows until a test or day {PregnancyBook.RevealDay:0}.");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Confirm now")) PregnancyBook.Confirm(p, now);
+        }
         if (PregnancyBook.HasCycle(p, now))
         {
             var day = CycleClock.DayAt(p.CycleStartUtc, now);
@@ -260,7 +267,8 @@ public sealed partial class MainWindow
                         ? "Your Cummy is too old for creampies, so you can't conceive until it's updated."
                         : "Cummy isn't connected, so you can't conceive until it's installed and updated.");
             }
-            if (!PregnancyBook.IsPregnant(p))
+            // A secret pregnancy can't lock the roles, or the lock would give it away.
+            if (!PregnancyBook.IsConfirmed(p))
             {
                 var carry = p.CanCarry;
                 var breed = p.CanBreed;
@@ -277,7 +285,7 @@ public sealed partial class MainWindow
                 if (ImGui.Button("Turn pregnancy off")) confirmingPregnancyOff = true;
                 return;
             }
-            ImGui.TextColored(Theme.Warning, PregnancyBook.IsPregnant(p)
+            ImGui.TextColored(Theme.Warning, PregnancyBook.IsConfirmed(p)
                 ? "This ends your pregnancy with no birth, and stops your cycle."
                 : "This stops your cycle and cravings.");
             if (Theme.DangerButton(FontAwesomeIcon.Ban, "Yes, turn it off"))

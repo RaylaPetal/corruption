@@ -13,7 +13,7 @@ namespace Corruption.Ipc;
 public sealed partial class CorruptionApi : IDisposable
 {
     /// Version 1. Later versions only add gates.
-    public const int Version = 1;
+    public const int Version = 2;
 
     private readonly SceneService scene;
     private readonly List<Action> unregister = [];
@@ -83,10 +83,10 @@ public sealed partial class CorruptionApi : IDisposable
         unregister.Add(gate.UnregisterFunc);
     }
 
-    private void Read<T1, T2, TRet>(string name, Func<T1, T2, TRet> body, TRet empty)
+    private void Read<T1, T2, T3, TRet>(string name, Func<T1, T2, T3, TRet> body, TRet empty)
     {
-        var gate = Plugin.PluginInterface.GetIpcProvider<T1, T2, TRet>(name);
-        gate.RegisterFunc((a, b) => Guarded(name, () => body(a, b), empty, empty));
+        var gate = Plugin.PluginInterface.GetIpcProvider<T1, T2, T3, TRet>(name);
+        gate.RegisterFunc((a, b, c) => Guarded(name, () => body(a, b, c), empty, empty));
         unregister.Add(gate.UnregisterFunc);
     }
 
@@ -104,10 +104,10 @@ public sealed partial class CorruptionApi : IDisposable
         unregister.Add(gate.UnregisterFunc);
     }
 
-    private void Outcome<T1, T2, T3>(string name, Func<T1, T2, T3, string> body)
+    private void Outcome<T1, T2, T3, T4>(string name, Func<T1, T2, T3, T4, string> body)
     {
-        var gate = Plugin.PluginInterface.GetIpcProvider<T1, T2, T3, string>(name);
-        gate.RegisterFunc((a, b, c) => Guarded(name, () => body(a, b, c), ApiOutcomes.WrongThread, ApiOutcomes.Error));
+        var gate = Plugin.PluginInterface.GetIpcProvider<T1, T2, T3, T4, string>(name);
+        gate.RegisterFunc((a, b, c, d) => Guarded(name, () => body(a, b, c, d), ApiOutcomes.WrongThread, ApiOutcomes.Error));
         unregister.Add(gate.UnregisterFunc);
     }
 

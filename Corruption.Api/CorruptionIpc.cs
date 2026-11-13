@@ -1,4 +1,4 @@
-// Corruption plugin API client (API version 1). Copy this file into your Dalamud plugin to read Corruption's state, hear
+// Corruption plugin API client (API version 2). Copy this file into your Dalamud plugin to read Corruption's state, hear
 // its events and, where the player allows it, breed, change arousal or ask for a climax, with types and named outcomes
 // instead of raw call-gate strings. Corruption's README ("Plugin API") documents every gate.
 //
@@ -6,7 +6,10 @@
 //     corruption.ArousalChanged += arousal => { /* start a breeding timer once it rises */ };
 //     corruption.PartnerClimax += (name, world) => { /* the bull finished */ };
 //     if (corruption.GetPregnancy() is { Ready: true, Stage: "none" })
-//         var outcome = corruption.Breed("Bull Name", "World", "My Plugin");   // "conceived", "not-conceived", ...
+//         var outcome = corruption.Breed("Bull Name", "World", "My Plugin", 1.5);   // "bred", "too-soon", ...
+//
+// A conception is secret until the player takes a Pregnancy Test or it shows at day 5: until then GetPregnancy reads
+// "none", GetCycle reads the cycle as if nothing happened, Breed answers "bred", and OnConceived hasn't fired.
 //     ...
 //     corruption.Dispose();   // in your plugin's Dispose
 //
@@ -38,8 +41,8 @@ public static class CorruptionStrings
     public const string Paused = "paused";
 
     // Breed
-    public const string Conceived = "conceived";
-    public const string NotConceived = "not-conceived";
+    /// It rolled, whatever the roll did; or a pregnancy nobody knows about yet was already there.
+    public const string Bred = "bred";
     public const string PregnancyOff = "pregnancy-off";
     public const string CantCarry = "cant-carry";
     public const string Pregnant = "pregnant";
@@ -94,12 +97,13 @@ public sealed record CorruptionScene(bool Ready, string State, bool Solo, string
 /// The bond or bond request; Level is 0 until formed.
 public sealed record CorruptionBond(bool Ready, string Name, string World, bool Formed, int Level);
 
-/// The fertility cycle. Day is 0 and Chance 0 without a running cycle (pregnancy off, can't carry, pregnant or
-/// recovering). Chance is from this character's side alone; BreedChance adds a breeder's factors.
+/// The fertility cycle. Day is 0 and Chance 0 without a running cycle (pregnancy off, can't carry, a confirmed pregnancy,
+/// or recovering). A pregnancy that isn't confirmed yet reads as the cycle running on. Chance is from this character's side alone; BreedChance adds a breeder's factors.
 public sealed record CorruptionCycle(bool Ready, bool Enabled, bool CanCarry, bool CanBreed, bool Running, int Day, string Phase,
     double Chance, bool Protected, DateTime NextPhaseUtc);
 
-/// The pregnancy: Stage is none, first, second, third or recovering. Craving is empty unless pregnant.
+/// The pregnancy: Stage is none, first, second, third or recovering. Craving is empty unless pregnant. A pregnancy reads
+/// as none until it's confirmed by a test or by showing at day 5.
 public sealed record CorruptionPregnancy(bool Ready, string Stage, double DaysPregnant, DateTime ConceivedUtc, DateTime DueUtc,
     string FatherName, string FatherWorld, DateTime RecoveryUntilUtc, string Craving, bool CravingMet, bool Unsatisfied,
     int Conceptions, int Births, int Fathered);
@@ -114,7 +118,7 @@ public sealed record CorruptionNearbyPlayer(string Name, string World, double Di
 public sealed class CorruptionIpc : IDisposable
 {
     /// The API version this file was written for.
-    public const int ClientVersion = 1;
+    public const int ClientVersion = 2;
 
     public static readonly CorruptionProfile NoProfile = new(false, "", "", 0, "", 0, 0, 0, "", "", "", 0, 0, false, false);
     public static readonly CorruptionArousal NoArousal = new(false, 0, 0, false, "");
@@ -146,7 +150,8 @@ public sealed class CorruptionIpc : IDisposable
     /// The new phase: period, follicular, fertile, ovulation or luteal.
     public event Action<string>? CyclePhaseChanged;
 
-    /// (father name, father world, source): source is "scene" or the plugin that called Breed.
+    /// (father name, father world, source): a pregnancy was confirmed, by a test or by showing at day 5. Source is "scene"
+    /// or the plugin whose Breed started it.
     public event Action<string, string, string>? Conceived;
 
     /// first, second or third.
@@ -174,9 +179,11 @@ public sealed class CorruptionIpc : IDisposable
     private readonly ICallGateSubscriber<(bool, string, double, DateTime, DateTime, string, string, DateTime, string, bool, bool, int, int, int)> getPregnancy;
     private readonly ICallGateSubscriber<List<(DateTime, DateTime, string, string)>> getBirths;
     private readonly ICallGateSubscriber<List<(string, string, double, int, int, bool, int, bool, bool, bool, bool, string, string)>> getNearby;
-    private readonly ICallGateSubscriber<string, string, double> breedChance;
-    private readonly ICallGateSubscriber<string, string, string, string> breed;
+    private readonly ICallGateSubscriber<string, string, double, double> breedChance;
+    private readonly ICallGateSubscriber<string, string, string, double, string> breed;
     private readonly ICallGateSubscriber<double, string, string> addArousal;
+    private readonly ICallGateSubscriber<string, bool, string> setForceCreampie;
+    private readonly ICallGateSubscriber<bool> getForceCreampie;
     private readonly ICallGateSubscriber<string, string> climax;
     private readonly ICallGateSubscriber<object> onClimax;
     private readonly ICallGateSubscriber<string, string, object> onPartnerClimax;
@@ -204,9 +211,11 @@ public sealed class CorruptionIpc : IDisposable
         getPregnancy = pi.GetIpcSubscriber<(bool, string, double, DateTime, DateTime, string, string, DateTime, string, bool, bool, int, int, int)>("Corruption.GetPregnancy");
         getBirths = pi.GetIpcSubscriber<List<(DateTime, DateTime, string, string)>>("Corruption.GetBirths");
         getNearby = pi.GetIpcSubscriber<List<(string, string, double, int, int, bool, int, bool, bool, bool, bool, string, string)>>("Corruption.GetNearby");
-        breedChance = pi.GetIpcSubscriber<string, string, double>("Corruption.BreedChance");
-        breed = pi.GetIpcSubscriber<string, string, string, string>("Corruption.Breed");
+        breedChance = pi.GetIpcSubscriber<string, string, double, double>("Corruption.BreedChance");
+        breed = pi.GetIpcSubscriber<string, string, string, double, string>("Corruption.Breed");
         addArousal = pi.GetIpcSubscriber<double, string, string>("Corruption.AddArousal");
+        setForceCreampie = pi.GetIpcSubscriber<string, bool, string>("Corruption.SetForceCreampie");
+        getForceCreampie = pi.GetIpcSubscriber<bool>("Corruption.GetForceCreampie");
         climax = pi.GetIpcSubscriber<string, string>("Corruption.Climax");
         onClimax = pi.GetIpcSubscriber<object>("Corruption.OnClimax");
         onPartnerClimax = pi.GetIpcSubscriber<string, string, object>("Corruption.OnPartnerClimax");
@@ -330,16 +339,28 @@ public sealed class CorruptionIpc : IDisposable
         .Select(n => new CorruptionNearbyPlayer(n.Item1, n.Item2, n.Item3, n.Item4, n.Item5, n.Item6, n.Item7, n.Item8, n.Item9, n.Item10,
             n.Item11, n.Item12, n.Item13)).ToList(), []);
 
-    /// The chance a Breed by that player would have now, without rolling; 0 when Breed would refuse.
-    public double BreedChance(string breederName, string breederWorld) => Call(() => breedChance.InvokeFunc(breederName, breederWorld), 0);
+    /// The chance a Breed by that player with this chance factor would have now, without rolling; 0 when Breed would refuse.
+    public double BreedChance(string breederName, string breederWorld, double chanceFactor = 1)
+        => Call(() => breedChance.InvokeFunc(breederName, breederWorld, chanceFactor), 0);
 
-    // ── Writes (each needs the player's consent in Corruption's Settings) ───────
+    /// Whether forced creampies are in effect: some plugin turned them on, and the player still allows plugins to control Corruption.
+    public bool GetForceCreampie() => Call(() => getForceCreampie.InvokeFunc(), false);
 
-    /// One conception roll for the local character as if bred by that player. conceived, not-conceived, not-allowed,
-    /// not-set-up, pregnancy-off, cant-carry, pregnant, recovering, protected, paused, hidden, not-a-breeder, too-soon or
-    /// no-character. pluginName is shown to the player and passed on in OnConceived.
-    public string Breed(string breederName, string breederWorld, string pluginName)
-        => Call(() => breed.InvokeFunc(breederName, breederWorld, pluginName), CorruptionStrings.Unavailable);
+    // ── Writes (each needs "Let other plugins control Corruption" in Corruption's Settings) ───────
+
+    /// While on, a scene partner's credited climax creampies the local character's pussy even when the bones aren't
+    /// lined up, so a breeder's climax rolls for conception. Only the carrier's own client decides, so call it there.
+    /// Needs the player's consent to turn on; turning off always works. Cummy's blocks still apply. It lasts until turned
+    /// off or Corruption reloads, so set it again on Ready. ok, not-allowed or not-set-up.
+    public string SetForceCreampie(string pluginName, bool on)
+        => Call(() => setForceCreampie.InvokeFunc(pluginName, on), CorruptionStrings.Unavailable);
+
+    /// One conception roll for the local character as if bred by that player. chanceFactor multiplies the usual odds (say,
+    /// for a stronger bull) and is kept to 0.5–2. bred, not-allowed, not-set-up, pregnancy-off, cant-carry, pregnant,
+    /// recovering, protected, paused, hidden, not-a-breeder, too-soon or no-character. "bred" never says whether it took:
+    /// the player finds out with a Pregnancy Test. pluginName is shown to the player and passed on in OnConceived.
+    public string Breed(string breederName, string breederWorld, string pluginName, double chanceFactor = 1)
+        => Call(() => breed.InvokeFunc(breederName, breederWorld, pluginName, chanceFactor), CorruptionStrings.Unavailable);
 
     /// Changes arousal by up to 25 a call and 60 a minute. ok, limited, not-allowed, not-set-up, paused or refractory.
     public string AddArousal(double amount, string pluginName)

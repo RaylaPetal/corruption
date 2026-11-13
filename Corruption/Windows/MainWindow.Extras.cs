@@ -202,29 +202,18 @@ public sealed partial class MainWindow
         Theme.CardBox("otherPlugins", () =>
         {
             Theme.Heading(FontAwesomeIcon.Plug, "Other plugins");
-            Theme.MutedWrapped("Other plugins can always read your level, arousal, scene, cycle and pregnancy through Corruption's plugin API. These let them do things too. They're off until you turn them on, for this character only.");
-            var breed = consent.Breed;
-            if (ImGui.Checkbox("Let plugins breed me", ref breed))
+            Theme.MutedWrapped("Other plugins can always read your level, arousal, scene, cycle and pregnancy through Corruption's plugin API. Turning this on lets them act on you too. It's off until you do, for this character only.");
+            var allowed = consent.Allowed;
+            if (ImGui.Checkbox("Let other plugins control Corruption", ref allowed))
             {
-                consent.Breed = breed;
+                consent.Allowed = allowed;
                 scene.SaveProgress();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("A plugin can roll for conception as if a named player bred you. Your pregnancy settings, cycle and items decide, as in a scene.");
-            var arousal = consent.Arousal;
-            if (ImGui.Checkbox("Let plugins change my arousal", ref arousal))
-            {
-                consent.Arousal = arousal;
-                scene.SaveProgress();
-            }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Up to 25 at a time and 60 a minute for each plugin.");
-            var climax = consent.Climax;
-            if (ImGui.Checkbox("Let plugins make me climax", ref climax))
-            {
-                consent.Climax = climax;
-                scene.SaveProgress();
-            }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("As /corr climax: only in a scene, with enough arousal, and not while recovering.");
+                ImGui.SetTooltip("Plugins can breed you as if a named player did, make a partner's climax always creampie your pussy, change your arousal (up to 25 at a time and 60 a minute each), and make you climax as /corr climax would. Your pregnancy settings, items and Cummy blocks still decide.");
+
+            if (engine.ForcesCreampies)
+                ImGui.TextColored(Theme.Warning, $"Forced creampies on, by {string.Join(", ", engine.CreampieForcers)}: a breeder's climax in a scene fills your pussy and can make you pregnant.");
 
             var calls = engine.PluginCalls;
             if (calls.Count == 0)

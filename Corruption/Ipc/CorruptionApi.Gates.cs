@@ -37,15 +37,18 @@ public sealed partial class CorruptionApi
             () => Engine is { } e ? ApiSnapshots.Births(e.Save, e.SelfKey).Select(Of).ToList() : [], []);
         Read<List<NearbyTuple>>("Corruption.GetNearby",
             () => Engine is { } e ? ApiSnapshots.Nearby(e.Save, e.SelfKey, scene.Nearby).Select(Of).ToList() : [], []);
-        Read<string, string, double>("Corruption.BreedChance",
-            (name, world) => Engine is { } e ? e.BreedChanceFor(DateTime.UtcNow, Player(name, world)) : 0, 0);
+        Read<bool>("Corruption.GetForceCreampie", () => Engine?.ForcesCreampies == true, false);
+        Read<string, string, double, double>("Corruption.BreedChance",
+            (name, world, factor) => Engine is { } e ? e.BreedChanceFor(DateTime.UtcNow, Player(name, world), factor) : 0, 0);
     }
 
     private void RegisterWrites()
     {
-        Outcome<string, string, string>("Corruption.Breed", (name, world, plugin) => Engine is not { } e ? ApiOutcomes.NoCharacter
+        Outcome<string, string, string, double>("Corruption.Breed", (name, world, plugin, factor) => Engine is not { } e ? ApiOutcomes.NoCharacter
             : string.IsNullOrWhiteSpace(name) ? ApiOutcomes.NoCharacter
-            : e.BreedFromPlugin(DateTime.UtcNow, Player(name, world), plugin));
+            : e.BreedFromPlugin(DateTime.UtcNow, Player(name, world), plugin, factor));
+        Outcome<string, bool>("Corruption.SetForceCreampie", (plugin, on) => Engine is not { } e ? ApiOutcomes.NotSetUp
+            : e.SetForceCreampieFromPlugin(DateTime.UtcNow, on, plugin));
         Outcome<double, string>("Corruption.AddArousal", (amount, plugin) => Engine is not { } e ? ApiOutcomes.NotSetUp
             : double.IsFinite(amount) ? e.AddArousalFromPlugin(DateTime.UtcNow, amount, plugin) : ApiOutcomes.Error);
         Outcome<string>("Corruption.Climax", plugin => Engine is not { } e ? ApiOutcomes.NotSetUp : e.ClimaxFromPlugin(DateTime.UtcNow, plugin));

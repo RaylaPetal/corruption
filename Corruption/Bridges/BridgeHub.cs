@@ -62,12 +62,7 @@ public sealed class BridgeHub : IDisposable
             leftoversCleared = true;
         }
         var partner = engine.Status.Partner;
-        var p = save.Pregnancy;
-        var fertile = PregnancyBook.HasCycle(p, now)
-            && CycleClock.PhaseOf(CycleClock.DayAt(p.CycleStartUtc, now)).Phase is CyclePhase.Fertile or CyclePhase.Ovulation;
-        var stage = PregnancyBook.StageOf(p, now);
-        var pregnant = PregnancyBook.IsPregnant(p);
-        var plan = MoodlesPlan.Plan(new MoodlesInput(
+        var plan = MoodlesPlan.Plan(MoodlesPlan.WithPregnancy(new MoodlesInput(
             save.Setup is not null && !save.Hidden,
             save.Arousal,
             engine.LayersWorn,
@@ -76,12 +71,7 @@ public sealed class BridgeHub : IDisposable
             partner is not null && engine.Bonds.PaysWith(partner.Key),
             Arousal.InRefractory(save, now),
             Progression.IsFading(save, now),
-            fertile,
-            pregnant ? (int)stage : 0,
-            pregnant && p.Craving is not null && !p.CravingMet,
-            pregnant && p.Unsatisfied,
-            stage == PregnancyStage.Recovering,
-            engine.DrippingHoles));
+            Dripping: engine.DrippingHoles), save.Pregnancy, now));
         Moodles.Update(plan, selfKey, save.Arousal, engine.LayersWorn);
     }
 

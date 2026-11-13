@@ -1,11 +1,22 @@
+using System.Text.Json.Serialization;
+
 namespace Corruption.Core;
 
-/// What other plugins may do to this character through the API. Everything is off until the player turns it on.
+/// Whether other plugins may act on this character through the API: "Let other plugins control Corruption". Off until
+/// the player turns it on. Reads never need it.
 public sealed class PluginConsent
 {
-    public bool Breed { get; set; }
-    public bool Arousal { get; set; }
-    public bool Climax { get; set; }
+    public bool Allowed { get; set; }
+
+    // Saves from before the one switch had three. Any of them on carries over; they're never written again.
+    [JsonPropertyName("Breed"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool LegacyBreed { get => false; set => Allowed |= value; }
+
+    [JsonPropertyName("Arousal"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool LegacyArousal { get => false; set => Allowed |= value; }
+
+    [JsonPropertyName("Climax"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool LegacyClimax { get => false; set => Allowed |= value; }
 }
 
 /// The API's outcome strings, shared by the gates and the client file.
@@ -18,8 +29,8 @@ public static class ApiOutcomes
     public const string NoCharacter = "no-character";
     public const string Paused = "paused";
 
-    public const string Conceived = "conceived";
-    public const string NotConceived = "not-conceived";
+    /// A Breed call that rolled, whatever the roll did, or that met a pregnancy nobody knows about yet.
+    public const string Bred = "bred";
     public const string PregnancyOff = "pregnancy-off";
     public const string CantCarry = "cant-carry";
     public const string Pregnant = "pregnant";
@@ -48,6 +59,10 @@ public static class PluginLimits
     public const double ArousalPerMinute = 60;
     public static readonly TimeSpan ArousalWindow = TimeSpan.FromMinutes(1);
     public static readonly TimeSpan BreedGap = TimeSpan.FromSeconds(60);
+
+    /// The range a caller's chance factor is kept to.
+    public const double MinChanceFactor = 0.5;
+    public const double MaxChanceFactor = 2;
 }
 
 /// One plugin's last write, for the Settings list.

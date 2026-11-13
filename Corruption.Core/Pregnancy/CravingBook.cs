@@ -26,7 +26,7 @@ public static class CravingBook
     /// A creampie is only craved by a character who has had Cummy version 6 connected.
     public static CravingKind? Roll(PregnancyState p, DateTime now, int seed, bool bonded, bool creampies = false)
     {
-        if (!PregnancyBook.IsPregnant(p)) return null;
+        if (!PregnancyBook.IsConfirmed(p)) return null;
         var day = now.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         if (p.CravingDay == day) return null;
         if (p.Craving is not null && !p.CravingMet) p.Unsatisfied = true;
@@ -44,7 +44,7 @@ public static class CravingBook
     /// Something happened that today's craving may be. True when it satisfied it.
     public static bool Met(PregnancyState p, CravingKind kind)
     {
-        if (!PregnancyBook.IsPregnant(p) || p.Craving != kind || p.CravingMet) return false;
+        if (!PregnancyBook.IsConfirmed(p) || p.Craving != kind || p.CravingMet) return false;
         p.CravingMet = true;
         p.Unsatisfied = false;
         return true;

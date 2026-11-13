@@ -79,16 +79,17 @@ public static class ApiSnapshots
         return new BondInfo(true, name, world, save.BondFormed, save.BondFormed ? level : 0);
     }
 
-    /// The chance is what a breeding would have now from this character's side alone: no partner factors.
+    /// The chance is what a breeding would have now from this character's side alone: no partner factors. A secret
+    /// pregnancy reads as the cycle it started in.
     public static CycleInfo Cycle(CharacterSave save, string? selfKey, DateTime now, double ownTitleFactor = 1)
     {
         if (!IsReady(save, selfKey)) return NoCycle;
         var p = save.Pregnancy;
-        var running = PregnancyBook.HasCycle(p, now);
+        var running = PregnancyBook.ShowsCycle(p, now);
         var day = running ? CycleClock.DayAt(p.CycleStartUtc, now) : 0;
         return new CycleInfo(true, p.Enabled, p.Enabled && p.CanCarry, p.Enabled && p.CanBreed, running, day,
             running ? Lower(CycleClock.PhaseOf(day).Phase) : "",
-            running ? PregnancyBook.ConceptionChance(save, now, false, 0, false, ownTitleFactor) : 0,
+            running ? PregnancyBook.ShownConceptionChance(save, now, false, 0, false, ownTitleFactor) : 0,
             ItemBook.PreventsConception(save, now),
             running ? CycleClock.NextPhaseAt(p.CycleStartUtc, now) : default);
     }
@@ -97,9 +98,10 @@ public static class ApiSnapshots
     {
         if (!IsReady(save, selfKey)) return NoPregnancy;
         var p = save.Pregnancy;
-        var pregnant = PregnancyBook.IsPregnant(p);
+        // A secret pregnancy reads as none. The conception count only moves at confirmation.
+        var pregnant = PregnancyBook.IsConfirmed(p);
         var (fatherName, fatherWorld) = Split(pregnant ? p.FatherKey : null);
-        return new PregnancyInfo(true, Lower(PregnancyBook.StageOf(p, now)), pregnant ? PregnancyBook.DaysPregnant(p, now) : 0,
+        return new PregnancyInfo(true, Lower(PregnancyBook.ShownStage(p, now)), pregnant ? PregnancyBook.DaysPregnant(p, now) : 0,
             pregnant ? p.ConceivedUtc!.Value : default, pregnant ? p.DueUtc!.Value : default, fatherName, fatherWorld,
             PregnancyBook.IsRecovering(p, now) ? p.RecoveryUntilUtc : default,
             pregnant && p.Craving is { } craving ? Lower(craving) : "", pregnant && p.CravingMet, pregnant && p.Unsatisfied,

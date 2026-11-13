@@ -43,6 +43,7 @@ public sealed partial class MainWindow
     private CorruptionIpcClient.CorruptionIpc? apiClient;
     private readonly List<string> apiEvents = [];
     private string apiLastWrite = "";
+    private float apiBreedFactor = 1;
 
     /// Drops the self-test's client, so its event subscriptions end with the plugin.
     public void DisposeDebug() => apiClient?.Dispose();
@@ -89,14 +90,19 @@ public sealed partial class MainWindow
 
         var target = Plugin.TargetManager.Target as IPlayerCharacter;
         var (name, world) = target is null ? ("", "") : (target.Name.TextValue, target.HomeWorld.Value.Name.ExtractText());
-        if (target is not null) Theme.MutedText($"Breed chance from {name}: {c.BreedChance(name, world):P1}");
-        if (ImGui.Button("Breed me (target)") && target is not null) apiLastWrite = $"Breed: {c.Breed(name, world, "Self-test")}";
+        ImGui.SetNextItemWidth(120 * ImGuiHelpers.GlobalScale);
+        ImGui.SliderFloat("Chance factor##apiFactor", ref apiBreedFactor, 0.25f, 3f, "×%.2f");
+        if (target is not null) Theme.MutedText($"Breed chance from {name}: {c.BreedChance(name, world, apiBreedFactor):P1}");
+        if (ImGui.Button("Breed me (target)") && target is not null) apiLastWrite = $"Breed: {c.Breed(name, world, "Self-test", apiBreedFactor)}";
         ImGui.SameLine();
         if (ImGui.Button("Arousal +10")) apiLastWrite = $"AddArousal: {c.AddArousal(10, "Self-test")}";
         ImGui.SameLine();
         if (ImGui.Button("Arousal -10")) apiLastWrite = $"AddArousal: {c.AddArousal(-10, "Self-test")}";
         ImGui.SameLine();
         if (ImGui.Button("Climax")) apiLastWrite = $"Climax: {c.RequestClimax("Self-test")}";
+        var forced = c.GetForceCreampie();
+        if (ImGui.Checkbox("Climaxes are always creampies##apiForce", ref forced))
+            apiLastWrite = $"SetForceCreampie: {c.SetForceCreampie("Self-test", forced)}";
         if (apiLastWrite.Length > 0) Theme.MutedText(apiLastWrite);
         Theme.MutedText("Events:");
         foreach (var line in apiEvents) Theme.MutedText(line);

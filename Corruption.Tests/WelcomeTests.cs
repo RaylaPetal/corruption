@@ -80,7 +80,7 @@ public class WelcomeTests
     {
         var r = new EngineRig();
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 3, r.Now);
-        PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
+        KnownPregnancy.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
         r.Engine.CompleteWelcome(new WelcomeChoices(null, Anatomy.Vagina, new PregnancyChoice(true, false, true, 3, 1), Plain), r.Now);
         Assert.True(r.Save.Pregnancy.CanCarry);
         Assert.False(r.Save.Pregnancy.CanBreed);

@@ -42,11 +42,11 @@ public static class PregnancyVisualPlan
     /// The trimesters a visual can be chosen for, as stored.
     public static readonly IReadOnlyList<string> Keys = ["First", "Second", "Third"];
 
-    /// The current trimester's choice while pregnant, in the same cases tier visuals apply, or null.
+    /// The current trimester's choice while pregnant and confirmed, in the same cases tier visuals apply, or null.
     public static TierVisual? Wanted(CharacterSave save, DateTime now, bool removeWhilePaused)
     {
         if (save.Setup is null || (save.Paused && removeWhilePaused)) return null;
-        var stage = PregnancyBook.StageOf(save.Pregnancy, now);
+        var stage = PregnancyBook.ShownStage(save.Pregnancy, now);
         if (stage is not (PregnancyStage.First or PregnancyStage.Second or PregnancyStage.Third)) return null;
         return save.Pregnancy.Visuals.TryGetValue(Keys[(int)stage - 1], out var visual) ? visual : null;
     }

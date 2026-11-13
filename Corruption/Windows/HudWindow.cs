@@ -127,7 +127,7 @@ public sealed class HudWindow : Window
     private static void DrawBaby(CharacterSave save, float width)
     {
         var p = save.Pregnancy;
-        if (!PregnancyBook.IsPregnant(p)) return;
+        if (!PregnancyBook.IsConfirmed(p)) return;
         var now = DateTime.UtcNow;
         var days = PregnancyBook.DaysPregnant(p, now);
         BabyIllustration.Draw(MathF.Min(64 * ImGuiHelpers.GlobalScale, width * 0.3f), days / PregnancyBook.DaysLong);

@@ -246,8 +246,9 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
         if (!p.Enabled) return BodyTag.Empty with { Flags = anatomy };
         var flags = anatomy | (p.CanCarry ? BodyFlags.CanCarry : 0) | (p.CanBreed ? BodyFlags.CanBreed : 0)
                     | (p.CanBreed && ItemBook.Virile(save, now) ? BodyFlags.Virile : 0);
-        var father = PregnancyBook.IsPregnant(p) && p.FatherKey is { } key ? BondHashes.Of(key) : null;
-        return new BodyTag(flags, PregnancyBook.StageOf(p, now), father);
+        // A secret pregnancy reads as none, so neither the father nor anyone else can tell.
+        var father = PregnancyBook.IsConfirmed(p) && p.FatherKey is { } key ? BondHashes.Of(key) : null;
+        return new BodyTag(flags, PregnancyBook.ShownStage(p, now), father);
     }
 
     /// Run about once per second.
@@ -255,6 +256,7 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     {
         Arousal.ApplyDecay(save, now, balance, ModifierBook.For(save).ArousalDecay);
         ApplyFading(now);
+        PregnancyBook.Migrate(save.Pregnancy);
         if (save.Setup is not null)
         {
             UpdatePregnancy(now);
@@ -1040,7 +1042,8 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     private bool CreampieFor(DateTime now, PeerRecord peer)
     {
         if (!LayerOnPartnerClimax || creampies is null || BodyOf(peer) is not { } body) return false;
-        if (host.InsideOf(peer, body.Anatomy, save.Anatomy) is not { } hole) return false;
+        // A plugin forcing creampies fills in when the bones find no hole; one they do find still wins.
+        if ((host.InsideOf(peer, body.Anatomy, save.Anatomy) ?? ForcedHole(body)) is not { } hole) return false;
         var outcome = host.CreampieSelf(peer, hole);
         if (outcome == "blocked") return false;
         // Blacklisted, an unknown hole, no character, or Cummy unusable: nothing lands, and the credit still stands.
@@ -1149,6 +1152,11 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
                 var (fatherName, fatherWorld) = ApiSnapshots.Split(save.Pregnancy.BirthLog.LastOrDefault()?.FatherKey);
                 Born?.Invoke(fatherName, fatherWorld);
                 break;
+            case PregnancyEvent.Revealed:
+                host.Notify($"Your belly is starting to show. You're pregnant with {FatherName()}'s child.");
+                host.SaveProgress();
+                RaiseConceived();
+                break;
             case PregnancyEvent.RecoveryEnded:
                 if (save.Pregnancy.CanCarry) host.Notify("You've recovered, and your cycle starts again at day 1.");
                 host.SaveProgress();
@@ -1188,29 +1196,60 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
 
     /// The chance this partner's breeding has now. Their title (Sire) and traits (Virile) raise it when their tags are
     /// known; their Virility Tonic counts through their body tag, which an untagged breeder doesn't have.
-    private double ConceptionChanceFor(DateTime now, PeerRecord peer, BodyTag? body)
+    /// <paramref name="callerFactor"/> is a plugin's chance factor; <paramref name="shown"/> gives the chance a secret
+    /// pregnancy would have had.
+    private double ConceptionChanceFor(DateTime now, PeerRecord peer, BodyTag? body, double callerFactor = 1, bool shown = false)
     {
         var partnerTraits = PersonaOf(peer)?.KnownTraits.Select(t => t.Effects) ?? [];
         var partner = Modifiers.Combine(partnerTraits.Prepend(TitleCatalog.Find(TitleOf(peer))?.Bonus ?? Modifiers.None));
-        var titles = ModifierBook.For(save).ConceptionOwn * partner.ConceptionPartner;
-        return PregnancyBook.ConceptionChance(save, now, body?.Virile == true, Bonds.LevelWith(peer.Key), save.Paused || save.Hidden, titles);
+        var titles = ModifierBook.For(save).ConceptionOwn * partner.ConceptionPartner * callerFactor;
+        var blocked = save.Paused || save.Hidden;
+        return shown
+            ? PregnancyBook.ShownConceptionChance(save, now, body?.Virile == true, Bonds.LevelWith(peer.Key), blocked, titles)
+            : PregnancyBook.ConceptionChance(save, now, body?.Virile == true, Bonds.LevelWith(peer.Key), blocked, titles);
     }
 
-    /// Rolls once. On a conception the partner is the father, the player is told, and Conceived names the source.
+    /// Rolls once. A conception is secret: the partner is the father and the source is kept, but nobody is told until a
+    /// test or day 5 confirms it.
     private bool TryConceive(DateTime now, PeerRecord peer, double chance, string source)
     {
         if (chance <= 0 || random.NextDouble() >= chance) return false;
-        PregnancyBook.Conceive(save.Pregnancy, now, peer.Key);
-        host.Notify($"You've conceived. {peer.Name} is the father.");
+        PregnancyBook.Conceive(save.Pregnancy, now, peer.Key, source);
         host.SaveProgress();
-        Conceived?.Invoke(peer.Name, peer.World, source);
         return true;
+    }
+
+    /// The father's name, from the saved `Name@World`.
+    private string FatherName() => ApiSnapshots.Split(save.Pregnancy.FatherKey).Name is { Length: > 0 } name ? name : "someone";
+
+    /// Conceived, at confirmation, with the saved father and source.
+    private void RaiseConceived()
+    {
+        var (name, world) = ApiSnapshots.Split(save.Pregnancy.FatherKey);
+        Conceived?.Invoke(name, world, save.Pregnancy.ConceivedSource ?? ApiOutcomes.SceneSource);
+    }
+
+    /// A Pregnancy Test. Always used up unless the pregnancy is already known.
+    private string? TakeTest(DateTime now)
+    {
+        switch (PregnancyBook.Test(save.Pregnancy, now))
+        {
+            case PregnancyBook.TestResult.AlreadyKnown:
+                return "You already know you're pregnant.";
+            case PregnancyBook.TestResult.Positive:
+                host.Notify($"Positive. You're pregnant with {FatherName()}'s child.");
+                RaiseConceived();
+                return null;
+            default:
+                host.Notify("Negative. You aren't pregnant.");
+                return null;
+        }
     }
 
     private void CravingsFromTick(DateTime now, ActEntry act, PeerRecord? partner)
     {
         var p = save.Pregnancy;
-        if (!PregnancyBook.IsPregnant(p) || p.Craving is not { } craving || p.CravingMet) return;
+        if (!PregnancyBook.IsConfirmed(p) || p.Craving is not { } craving || p.CravingMet) return;
         p.CravingSeconds += balance.TickSeconds;
         var newToday = !save.Goals.DaySeen.Contains($"{GoalKind.DistinctAnimations}:{act.Key}");
         var met = craving switch
@@ -1277,7 +1316,7 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
         if (p.On)
         {
             // Roles can't change while pregnant, so an ongoing pregnancy keeps its roles.
-            if (!PregnancyBook.IsPregnant(save.Pregnancy)) PregnancyBook.Enable(save.Pregnancy, p.Carry, p.Breed, p.StartDay, now);
+            if (!PregnancyBook.IsConfirmed(save.Pregnancy)) PregnancyBook.Enable(save.Pregnancy, p.Carry, p.Breed, p.StartDay, now);
             save.Pregnancy.Enabled = true;
             save.Pregnancy.ChanceFactor = Math.Clamp(p.ChanceFactor, PregnancyBook.MinChanceFactor, PregnancyBook.MaxChanceFactor);
         }
@@ -1334,7 +1373,8 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     public string? UseItem(string id, DateTime now)
     {
         if (ItemBook.Use(save, id, now, item => UseInstant(item, now)) is { } refusal) return refusal;
-        host.Notify($"You used {ItemCatalog.Find(id)!.Name}.");
+        // The test and the pill say what happened themselves.
+        if (id is not (ItemIds.PregnancyTest or ItemIds.MorningAfter)) host.Notify($"You used {ItemCatalog.Find(id)!.Name}.");
         goals.Record(GoalKind.ItemsUsed);
         host.SaveProgress();
         return null;
@@ -1348,13 +1388,21 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
         return null;
     }
 
+    private string? Said(string message)
+    {
+        host.Notify(message);
+        return null;
+    }
+
     /// Instant items act on pregnancy or solo time. Null when it applied, otherwise why not.
     private string? UseInstant(ItemDef item, DateTime now) => item.Id switch
     {
-        ItemIds.MorningAfter => PregnancyBook.MorningAfter(save.Pregnancy, now),
+        ItemIds.PregnancyTest => TakeTest(now),
+        ItemIds.MorningAfter => PregnancyBook.MorningAfter(save.Pregnancy, now) is { } tooLate ? tooLate : Said(PregnancyBook.PillTaken),
         ItemIds.HormoneTea => PregnancyBook.HormoneTea(save.Pregnancy, now),
         ItemIds.SwiftLabour => PregnancyBook.SwiftLabour(save.Pregnancy),
-        ItemIds.CravingTreat => SatisfyCraving(now) ? null : "You have no craving to satisfy right now.",
+        ItemIds.CravingTreat => !PregnancyBook.IsConfirmed(save.Pregnancy) ? PregnancyBook.NeedsConfirmed
+            : SatisfyCraving(now) ? null : "You have no craving to satisfy right now.",
         ItemIds.DoNotDisturb => AddSoloTime(now),
         _ => $"{item.Name} can't be used right now.",
     };

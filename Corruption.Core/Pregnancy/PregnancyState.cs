@@ -31,6 +31,15 @@ public sealed class PregnancyState
     /// The father as `Name@World`, while pregnant.
     public string? FatherKey { get; set; }
 
+    /// When the pregnancy was confirmed, by a test or by showing. Null while it's still secret.
+    public DateTime? ConfirmedUtc { get; set; }
+
+    /// What started the pregnancy: "scene" or the name of the plugin whose Breed did.
+    public string? ConceivedSource { get; set; }
+
+    /// The save format, for one-time migrations. 0 is a save from before pregnancies could be secret.
+    public int Version { get; set; }
+
     /// After a birth, until this time. Default when not recovering.
     public DateTime RecoveryUntilUtc { get; set; }
 

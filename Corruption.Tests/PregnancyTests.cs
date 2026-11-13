@@ -99,7 +99,7 @@ public class PregnancyTests
         save.Effects[ItemIds.Contraceptive] = new ActiveEffect { UntilUtc = T0.AddDays(1) };
         Assert.Equal(0, PregnancyBook.ConceptionChance(save, T0.AddHours(1), false, 0, false));
         save.Effects.Clear();
-        PregnancyBook.Conceive(save.Pregnancy, T0, "Bob B@W");
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
         Assert.Equal(0, PregnancyBook.ConceptionChance(save, T0.AddHours(1), false, 0, false));
         save.Pregnancy.RecoveryUntilUtc = T0.AddDays(30);
         save.Pregnancy.ConceivedUtc = null;
@@ -114,7 +114,7 @@ public class PregnancyTests
     public void Trimesters(double days, PregnancyStage stage, double gain)
     {
         var p = Carrier(4).Pregnancy;
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         Assert.Equal(stage, PregnancyBook.StageOf(p, T0.AddDays(days)));
         Assert.Equal(gain, PregnancyBook.ArousalFactor(p, T0.AddDays(days)), 6);
         Assert.Equal(1.1, PregnancyBook.TickXpFactor(p), 6);
@@ -124,7 +124,7 @@ public class PregnancyTests
     public void BirthWhileOfflineThenRecoveryThenCycle()
     {
         var p = Carrier(4).Pregnancy;
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         Assert.Equal(PregnancyEvent.None, PregnancyBook.Update(p, T0.AddDays(13.9)));
         Assert.Equal(PregnancyEvent.Birth, PregnancyBook.Update(p, T0.AddDays(20)));
         Assert.Equal(1, p.Births);
@@ -139,7 +139,7 @@ public class PregnancyTests
     {
         var p = Carrier(4).Pregnancy;
         Assert.NotNull(PregnancyBook.SwiftLabour(p));
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         Assert.Null(PregnancyBook.SwiftLabour(p));
         Assert.Equal(T0.AddDays(12), p.DueUtc);
         Assert.Equal(PregnancyStage.Third, PregnancyBook.StageOf(p, T0.AddDays(8.5)));
@@ -149,7 +149,7 @@ public class PregnancyTests
     public void MorningAfterOnlyWithin24Hours()
     {
         var p = Carrier(4).Pregnancy;
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         Assert.NotNull(PregnancyBook.MorningAfter(p, T0.AddHours(25)));
         Assert.Null(PregnancyBook.MorningAfter(p, T0.AddHours(10)));
         Assert.False(PregnancyBook.IsPregnant(p));
@@ -169,7 +169,7 @@ public class PregnancyTests
     public void TurningOffEndsEverything()
     {
         var p = Carrier(4).Pregnancy;
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         PregnancyBook.Disable(p);
         Assert.False(PregnancyBook.IsPregnant(p));
         Assert.Equal(1, PregnancyBook.ArousalFactor(p, T0.AddDays(1)), 6);
@@ -180,7 +180,7 @@ public class PregnancyTests
     public void RolesCantChangeWhilePregnant()
     {
         var p = Carrier(4).Pregnancy;
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         Assert.NotNull(PregnancyBook.Enable(p, true, true, 3, T0));
     }
 
@@ -206,12 +206,30 @@ public class PregnancyTests
     {
         var r = Pair(0.1);
         r.BobClimaxes();
-        Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
         Assert.Equal(r.Bob.Key, r.Save.Pregnancy.FatherKey);
-        Assert.Contains(r.Host.Notes, n => n.Contains("conceived"));
+        Assert.Equal(ApiOutcomes.SceneSource, r.Save.Pregnancy.ConceivedSource);
+        Assert.DoesNotContain(r.Host.Notes, n => n.Contains("conceived") || n.Contains("pregnant"));
         Assert.Equal([(r.Bob.Key, CreampieAim.Pussy)], r.Host.Creampies);
+
+        // Secret: the tag says not pregnant, so the father isn't told, and nothing is craved.
         r.Run(2);
         var tag = BodyTag.Parse(r.Host.BodyTags[^1])!.Value;
+        Assert.Equal(PregnancyStage.None, tag.Stage);
+        Assert.Null(tag.FatherHash);
+        Assert.Null(r.Save.Pregnancy.Craving);
+        Assert.Equal(0, r.Save.Pregnancy.Conceptions);
+
+        // A positive test turns it all on.
+        string? source = null;
+        r.Engine.Conceived += (name, _, s) => source = $"{name}/{s}";
+        r.Save.Inventory[ItemIds.PregnancyTest] = 1;
+        Assert.Null(r.Engine.UseItem(ItemIds.PregnancyTest, r.Now));
+        Assert.Contains(r.Host.Notes, n => n == $"Positive. You're pregnant with {r.Bob.Name}'s child.");
+        Assert.Equal($"{r.Bob.Name}/scene", source);
+        Assert.Equal(1, r.Save.Pregnancy.Conceptions);
+        r.Run(2);
+        tag = BodyTag.Parse(r.Host.BodyTags[^1])!.Value;
         Assert.Equal(PregnancyStage.First, tag.Stage);
         Assert.Equal(BondHashes.Of(r.Bob.Key), tag.FatherHash);
     }
@@ -365,7 +383,7 @@ public class PregnancyTests
     public void ResetEndsPregnancy()
     {
         var save = Carrier(4);
-        PregnancyBook.Conceive(save.Pregnancy, T0, "Bob B@W");
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
         save.ResetProgress(T0);
         Assert.False(save.Pregnancy.Enabled);
         Assert.False(PregnancyBook.IsPregnant(save.Pregnancy));
@@ -380,7 +398,7 @@ public class CravingTests
     {
         var p = new PregnancyState();
         PregnancyBook.Enable(p, true, false, 4, T0);
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         return p;
     }
 
@@ -433,7 +451,7 @@ public class CravingTests
         r.Save.Level = 50;
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 4, r.Now);
-        PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
+        KnownPregnancy.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
         r.Save.Pregnancy.CravingDay = r.Now.Date.ToString("yyyy-MM-dd");
         r.Save.Pregnancy.Craving = craving;
         return r;
@@ -539,7 +557,7 @@ public class StoryTests
     {
         var p = new PregnancyState();
         PregnancyBook.Enable(p, true, false, 4, T0);
-        PregnancyBook.Conceive(p, T0, "Bob B@W");
+        KnownPregnancy.Conceive(p, T0, "Bob B@W");
         PregnancyBook.Update(p, T0.AddDays(20));
         var birth = Assert.Single(p.BirthLog);
         Assert.Equal(("Bob B@W", T0, T0.AddDays(14)), (birth.FatherKey, birth.ConceivedUtc, birth.BornUtc));
@@ -550,7 +568,7 @@ public class StoryTests
     {
         var r = new EngineRig { Playing = false };
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 4, r.Now);
-        PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
+        KnownPregnancy.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
         r.Now = r.Now.AddDays(15);
         r.Run(1);
         Assert.Contains(r.Host.Notes, n => n.Contains("gave birth to Bob B's child"));
@@ -590,5 +608,17 @@ public class StoryTests
         r.Engine.BuyItem(ItemIds.Aphrodisiac);
         r.Engine.UseItem(ItemIds.Aphrodisiac, r.Now);
         Assert.Equal(1, r.Save.Goals.Stats[nameof(GoalKind.ItemsUsed)]);
+    }
+}
+
+/// A pregnancy everyone can see: conceived and confirmed at once, as a test or day 5 would.
+internal static class KnownPregnancy
+{
+    public static void Conceive(PregnancyState p, DateTime now, string fatherKey)
+    {
+        // Confirmed the way a save from before secret pregnancies is, so today's craving still rolls.
+        PregnancyBook.Conceive(p, now, fatherKey);
+        p.ConfirmedUtc = now;
+        p.Conceptions++;
     }
 }

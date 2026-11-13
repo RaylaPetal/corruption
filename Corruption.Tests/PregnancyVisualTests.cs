@@ -10,7 +10,7 @@ public class PregnancyVisualTests
     {
         var save = new CharacterSave { Setup = new ProfileSetup(), Level = 30 };
         PregnancyBook.Enable(save.Pregnancy, true, false, 4, T0);
-        PregnancyBook.Conceive(save.Pregnancy, T0, "Bob B@W");
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
         save.Pregnancy.Visuals["Second"] = new TierVisual { Kind = VisualKind.Penumbra, ModDirectory = "belly", Options = { ["Size"] = "Medium" } };
         save.TierVisuals["Tempted"] = new TierVisual { Name = "tempted" };
         return save;

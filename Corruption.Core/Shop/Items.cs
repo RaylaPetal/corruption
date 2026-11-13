@@ -32,6 +32,7 @@ public static class ItemIds
     public const string FertilityCharm = "fertility_charm";
     public const string VirilityTonic = "virility_tonic";
     public const string Contraceptive = "contraceptive";
+    public const string PregnancyTest = "pregnancy_test";
     public const string MorningAfter = "morning_after";
     public const string HormoneTea = "hormone_tea";
     public const string SwiftLabour = "swift_labour";
@@ -58,7 +59,7 @@ public static class ItemCatalog
     {
         ItemIds.Aphrodisiac or ItemIds.NumbingBalm or ItemIds.LustIncense or ItemIds.Perfume or ItemIds.FatigueSalve => ItemCategory.Scene,
         ItemIds.FertilityCharm or ItemIds.VirilityTonic or ItemIds.Contraceptive => ItemCategory.Fertility,
-        ItemIds.MorningAfter or ItemIds.HormoneTea or ItemIds.SwiftLabour or ItemIds.CravingTreat => ItemCategory.PregnancyCare,
+        ItemIds.PregnancyTest or ItemIds.MorningAfter or ItemIds.HormoneTea or ItemIds.SwiftLabour or ItemIds.CravingTreat => ItemCategory.PregnancyCare,
         ItemIds.Toy or ItemIds.DoNotDisturb or ItemIds.VanityMirror or ItemIds.AfterglowCandle => ItemCategory.Solo,
         _ => ItemCategory.Climax,
     };
@@ -79,6 +80,7 @@ public static class ItemCatalog
         new(ItemIds.FertilityCharm, "Fertility Charm", 60, ItemKind.Timed, ItemRole.Carry, "Your conception chance ×2", TimeSpan.FromHours(24), Opposite: ItemIds.Contraceptive),
         new(ItemIds.VirilityTonic, "Virility Tonic", 60, ItemKind.Timed, ItemRole.Breed, "Partners' conception chance with you ×1.5", TimeSpan.FromHours(24)),
         new(ItemIds.Contraceptive, "Contraceptive Pill", 30, ItemKind.Timed, ItemRole.Carry, "You can't conceive", TimeSpan.FromHours(24), Opposite: ItemIds.FertilityCharm),
+        new(ItemIds.PregnancyTest, "Pregnancy Test", 15, ItemKind.Instant, ItemRole.Carry, "Tells you whether you're pregnant"),
         new(ItemIds.MorningAfter, "Morning-After Pill", 80, ItemKind.Instant, ItemRole.Carry, "Ends a pregnancy conceived in the last 24 hours"),
         new(ItemIds.HormoneTea, "Hormone Tea", 60, ItemKind.Instant, ItemRole.Carry, "Moves your cycle to the start of its fertile window"),
         new(ItemIds.SwiftLabour, "Swift Labour", 120, ItemKind.Instant, ItemRole.Carry, "Takes 2 days off the rest of your pregnancy"),

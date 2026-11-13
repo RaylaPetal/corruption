@@ -13,29 +13,89 @@ public class PluginBreedTests
         var r = new EngineRig(new FixedRandom(roll), new Balance().WithoutMoon());
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, day, r.Now);
-        r.Save.PluginConsent.Breed = consent;
+        r.Save.PluginConsent.Allowed = consent;
         r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
         r.Playing = false;
         r.Run(2);
         return r;
     }
 
-    private static string Breed(EngineRig r, PeerRecord? who = null) => r.Engine.BreedFromPlugin(r.Now, who ?? r.Bob, "Milkers");
+    private static string Breed(EngineRig r, PeerRecord? who = null, double factor = 1)
+        => r.Engine.BreedFromPlugin(r.Now, who ?? r.Bob, "Milkers", factor);
 
     [Fact]
-    public void Conceived()
+    public void BredStartsASecretPregnancy()
     {
         var r = Carrier(0.1);
         string? source = null;
         r.Engine.Conceived += (_, _, s) => source = s;
-        Assert.Equal(ApiOutcomes.Conceived, Breed(r));
+        var notes = r.Host.Notes.Count;
+        Assert.Equal(ApiOutcomes.Bred, Breed(r));
         Assert.Equal(r.Bob.Key, r.Save.Pregnancy.FatherKey);
-        Assert.Contains(r.Host.Notes, n => n.Contains("conceived"));
+        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
+        Assert.Equal(notes, r.Host.Notes.Count);
+        Assert.Null(source);
+        Assert.Equal("none", ApiSnapshots.Pregnancy(r.Save, "Me@W", r.Now).Stage);
+
+        // A test confirms it, and only then does the API hear of it, with the plugin as the source.
+        r.Save.Inventory[ItemIds.PregnancyTest] = 1;
+        Assert.Null(r.Engine.UseItem(ItemIds.PregnancyTest, r.Now));
         Assert.Equal("Milkers", source);
     }
 
     [Fact]
-    public void NotConceived() => Assert.Equal(ApiOutcomes.NotConceived, Breed(Carrier(0.99)));
+    public void AMissIsAlsoBred()
+    {
+        var r = Carrier(0.99);
+        Assert.Equal(ApiOutcomes.Bred, Breed(r));
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void SecretlyPregnantIsBredWithoutARoll()
+    {
+        var r = Carrier(0);
+        PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Someone@W");
+        // It still reads as the cycle it was conceived in.
+        Assert.Equal(0.40, r.Engine.BreedChanceFor(r.Now, r.Bob), 6);
+        Assert.Equal(ApiOutcomes.Bred, Breed(r));
+        Assert.Equal("Someone@W", r.Save.Pregnancy.FatherKey);
+        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
+        var cycle = ApiSnapshots.Cycle(r.Save, "Me@W", r.Now);
+        Assert.True(cycle.Running);
+        Assert.Equal(5, cycle.Day);
+        Assert.Equal(0.40, cycle.Chance, 6);
+    }
+
+    [Fact]
+    public void AStrongBull()
+    {
+        var r = Carrier(0.79);
+        Assert.Equal(0.80, r.Engine.BreedChanceFor(r.Now, r.Bob, 2), 6);
+        Assert.Equal(ApiOutcomes.Bred, Breed(r, factor: 2));
+        Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Theory]
+    [InlineData(10, 0.80, "Breed ×2")]
+    [InlineData(0.1, 0.20, "Breed ×0.5")]
+    [InlineData(double.NaN, 0.40, "Breed ×1")]
+    public void FactorOutOfRange(double factor, double chance, string logged)
+    {
+        var r = Carrier(0.99);
+        Assert.Equal(chance, r.Engine.BreedChanceFor(r.Now, r.Bob, factor), 6);
+        Breed(r, factor: factor);
+        Assert.Equal(logged, r.Engine.PluginCalls[0].Call);
+    }
+
+    [Fact]
+    public void TheCapStillHolds()
+    {
+        var r = Carrier(0, day: 5);
+        r.BobBody = new BodyTag(BodyFlags.CanBreed | BodyFlags.Virile, PregnancyStage.None, null);
+        r.Run(1);
+        Assert.Equal(PregnancyBook.ConceptionCap, r.Engine.BreedChanceFor(r.Now, r.Bob, 2), 6);
+    }
 
     [Fact]
     public void NotAllowedByDefault() => Assert.Equal(ApiOutcomes.NotAllowed, Breed(Carrier(0, consent: false)));
@@ -69,7 +129,9 @@ public class PluginBreedTests
     {
         var r = Carrier(0);
         PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Someone@W");
+        PregnancyBook.Confirm(r.Save.Pregnancy, r.Now);
         Assert.Equal(ApiOutcomes.Pregnant, Breed(r));
+        Assert.Equal(0, r.Engine.BreedChanceFor(r.Now, r.Bob));
         Assert.Equal("Someone@W", r.Save.Pregnancy.FatherKey);
     }
 
@@ -115,10 +177,10 @@ public class PluginBreedTests
     public void TooSoonForTheSameBreeder()
     {
         var r = Carrier(0.99);
-        Assert.Equal(ApiOutcomes.NotConceived, Breed(r));
+        Assert.Equal(ApiOutcomes.Bred, Breed(r));
         Assert.Equal(ApiOutcomes.TooSoon, r.Engine.BreedFromPlugin(r.Now.AddSeconds(30), r.Bob, "Milkers"));
-        Assert.Equal(ApiOutcomes.NotConceived, r.Engine.BreedFromPlugin(r.Now.AddSeconds(30), Carol, "Milkers"));
-        Assert.Equal(ApiOutcomes.NotConceived, r.Engine.BreedFromPlugin(r.Now.AddSeconds(61), r.Bob, "Milkers"));
+        Assert.Equal(ApiOutcomes.Bred, r.Engine.BreedFromPlugin(r.Now.AddSeconds(30), Carol, "Milkers"));
+        Assert.Equal(ApiOutcomes.Bred, r.Engine.BreedFromPlugin(r.Now.AddSeconds(61), r.Bob, "Milkers"));
     }
 
     [Fact]
@@ -126,7 +188,7 @@ public class PluginBreedTests
     {
         var r = Carrier(0.1);
         Assert.Equal(0.40, r.Engine.BreedChanceFor(r.Now, Carol), 6);
-        Assert.Equal(ApiOutcomes.Conceived, Breed(r, Carol));
+        Assert.Equal(ApiOutcomes.Bred, Breed(r, Carol));
         Assert.Equal(Carol.Key, r.Save.Pregnancy.FatherKey);
     }
 
@@ -136,7 +198,7 @@ public class PluginBreedTests
         var r = Carrier(0);
         Assert.Equal(0.40, r.Engine.BreedChanceFor(r.Now, r.Bob), 6);
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
-        r.Save.PluginConsent.Breed = false;
+        r.Save.PluginConsent.Allowed = false;
         Assert.Equal(0, r.Engine.BreedChanceFor(r.Now, r.Bob));
     }
 
@@ -161,8 +223,7 @@ public class PluginArousalTests
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         r.Save.SeenActs.Add(r.Act.Key);
         r.Save.SeenPartners.Add(r.Bob.Key);
-        r.Save.PluginConsent.Arousal = consent;
-        r.Save.PluginConsent.Climax = consent;
+        r.Save.PluginConsent.Allowed = consent;
         r.Run(1);
         return r;
     }
@@ -335,6 +396,9 @@ public class EngineEventTests
         Assert.Equal([CyclePhase.Fertile], phases);
 
         PregnancyBook.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
+        r.Run(1);
+        Assert.Empty(stages);
+        PregnancyBook.Confirm(r.Save.Pregnancy, r.Now);
         r.Run(1);
         r.Now = r.Now.AddDays(6);
         r.Run(1);
