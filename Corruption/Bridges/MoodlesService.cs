@@ -212,8 +212,10 @@ public sealed class MoodlesService
     /// picked yet, so the name candidates apply. Every client sends the same id, so everyone sees the same icon.
     private static readonly Dictionary<MoodleKind, int> PinnedIcons = new()
     {
-        [MoodleKind.Marked] = 0,
-        [MoodleKind.Dripping] = 0,
+        // "Honey-glazed": thick golden goo dripping down.
+        [MoodleKind.Marked] = 215583,
+        // "Drenched": a water droplet with a splash.
+        [MoodleKind.Dripping] = 215814,
     };
 
     /// A pinned icon when the game still has it, else, as Oathbound's ResolveIconIds, the first named status that

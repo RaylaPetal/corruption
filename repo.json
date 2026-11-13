@@ -20,7 +20,7 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.3.0/Corruption-0.3.3.0.zip",
     "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.3.0/Corruption-0.3.3.0.zip",
-    "Changelog": "- Plugin API: other plugins can now read your level, arousal, scene, bond, fertility cycle and pregnancy, hear climaxes, conceptions, births and arousal changes, and see what nearby players' tags already show. Plugin authors copy Corruption.Api/CorruptionIpc.cs; the README documents every call.\n- Under Settings, Other plugins, you can let plugins breed you (one conception roll under your own pregnancy settings), change your arousal (a little at a time) or make you climax (as /corr climax). All three are off until you turn them on, and every call is listed there.\n- Lewder cum statuses in Moodles: layers go from Marked to Glazed, Cum-Painted and Cum-Soaked as you get messier, and creampies read Creampied, Ass Creampied or Double Creampied.",
+    "Changelog": "- New Moodles icons for cum: layers show thick golden goo dripping down, and creampies a water droplet with a splash. Everyone sees the same icons.",
     "LastUpdate": "1794575442"
   }
 ]
