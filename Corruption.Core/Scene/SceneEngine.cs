@@ -105,7 +105,7 @@ public sealed record SceneStatus(
 
 /// One character's scene loop: ties the scene check to XP, arousal, climaxes and the tag. Everything here is decided from
 /// this client's own view; all it shares is its tag.
-public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost host, Random? random = null)
+public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEngineHost host, Random? random = null)
 {
     private readonly Random random = random ?? Random.Shared;
 
@@ -330,6 +330,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
                 tally = new SceneSummary { StartedUtc = now };
                 tallySinsAtStart = save.Wallet.EarnedTotal;
                 if (partnerKey is not null) goals.RecordPartnerScene(partnerKey);
+                SceneStarted?.Invoke(solo ? null : nearest!.Value.Player, solo);
             }
             if (solo) SoloBook.Spend(save, now);
             sceneVerifiedSeconds++;
@@ -380,6 +381,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         PublishTag(now, sample.OwnAct?.Pose);
         PayRewards();
         SyncTitles();
+        NoteApiTransitions(now);
     }
 
     /// The scene has ended: its summary becomes the last scene and goes to the host.
@@ -391,6 +393,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
         summary.Sins = save.Wallet.EarnedTotal - tallySinsAtStart;
         save.LastScene = summary;
         host.SceneEnded(summary);
+        SceneFinished?.Invoke(summary.VerifiedSeconds, summary.Xp);
     }
 
     private void CheckIn(DateTime now)
@@ -801,6 +804,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             if (save.Level >= balance.LevelCap)
                 host.Notify("You've reached the top. You can prestige from the Profile page or with /corr prestige.");
             host.SaveProgress();
+            LeveledUp?.Invoke(save.Level);
         }
     }
 
@@ -837,6 +841,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             lickOffer = new LickOffer(partner, now + AftercareRules.OfferFor,
                 Hole: creampies is null ? null : host.InsideOnto(partner, save.Anatomy, BodyOf(partner)?.Anatomy ?? Anatomy.NotSet));
         host.SaveProgress();
+        Climaxed?.Invoke();
     }
 
     // ── Aftercare ──────────────────────────────────────────────────────────────
@@ -1014,6 +1019,7 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
             && (now - last).TotalSeconds < balance.PartnerClimaxLimitSeconds) return;
 
         lastClimaxCredit[peer.Key] = now;
+        PartnerClimaxed?.Invoke(peer);
         if (tally is not null) tally.PartnerClimaxes++;
         GiveXp(balance.ClimaxXp * (ModifierBook.For(save).PartnerClimaxShare ?? balance.PartnerClimaxShare));
         goals.Record(GoalKind.PartnerClimaxes);
@@ -1140,10 +1146,13 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
                 var father = save.Pregnancy.BirthLog.LastOrDefault()?.FatherKey is { Length: > 0 } key ? $" {key.Split('@')[0]}'s child" : "";
                 host.Notify($"You gave birth{(father.Length > 0 ? " to" + father : "")}. +{birthSins} Sins. Rest for two days before your cycle starts again.");
                 host.SaveProgress();
+                var (fatherName, fatherWorld) = ApiSnapshots.Split(save.Pregnancy.BirthLog.LastOrDefault()?.FatherKey);
+                Born?.Invoke(fatherName, fatherWorld);
                 break;
             case PregnancyEvent.RecoveryEnded:
                 if (save.Pregnancy.CanCarry) host.Notify("You've recovered, and your cycle starts again at day 1.");
                 host.SaveProgress();
+                RecoveryEnded?.Invoke();
                 break;
         }
     }
@@ -1174,16 +1183,28 @@ public sealed class SceneEngine(CharacterSave save, Balance balance, IEngineHost
     private void RollConception(DateTime now, PeerRecord peer)
     {
         if (BodyOf(peer) is not { CanBreed: true } body) return;
-        // The partner's title (Sire) and traits (Virile) raise the odds too. Their tag only reaches here from a breeder,
-        // so a Virile trait there always has its role.
+        TryConceive(now, peer, ConceptionChanceFor(now, peer, body), ApiOutcomes.SceneSource);
+    }
+
+    /// The chance this partner's breeding has now. Their title (Sire) and traits (Virile) raise it when their tags are
+    /// known; their Virility Tonic counts through their body tag, which an untagged breeder doesn't have.
+    private double ConceptionChanceFor(DateTime now, PeerRecord peer, BodyTag? body)
+    {
         var partnerTraits = PersonaOf(peer)?.KnownTraits.Select(t => t.Effects) ?? [];
         var partner = Modifiers.Combine(partnerTraits.Prepend(TitleCatalog.Find(TitleOf(peer))?.Bonus ?? Modifiers.None));
         var titles = ModifierBook.For(save).ConceptionOwn * partner.ConceptionPartner;
-        var chance = PregnancyBook.ConceptionChance(save, now, body.Virile, Bonds.LevelWith(peer.Key), save.Paused || save.Hidden, titles);
-        if (chance <= 0 || random.NextDouble() >= chance) return;
+        return PregnancyBook.ConceptionChance(save, now, body?.Virile == true, Bonds.LevelWith(peer.Key), save.Paused || save.Hidden, titles);
+    }
+
+    /// Rolls once. On a conception the partner is the father, the player is told, and Conceived names the source.
+    private bool TryConceive(DateTime now, PeerRecord peer, double chance, string source)
+    {
+        if (chance <= 0 || random.NextDouble() >= chance) return false;
         PregnancyBook.Conceive(save.Pregnancy, now, peer.Key);
         host.Notify($"You've conceived. {peer.Name} is the father.");
         host.SaveProgress();
+        Conceived?.Invoke(peer.Name, peer.World, source);
+        return true;
     }
 
     private void CravingsFromTick(DateTime now, ActEntry act, PeerRecord? partner)

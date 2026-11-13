@@ -192,6 +192,50 @@ public sealed partial class MainWindow
         DrawTierVisuals(engine);
         DrawToys();
         DrawMoodles();
+        DrawOtherPlugins(engine);
+    }
+
+    /// What other plugins may do through Corruption's plugin API, per character, and who has tried this session.
+    private void DrawOtherPlugins(SceneEngine engine)
+    {
+        var consent = engine.Save.PluginConsent;
+        Theme.CardBox("otherPlugins", () =>
+        {
+            Theme.Heading(FontAwesomeIcon.Plug, "Other plugins");
+            Theme.MutedWrapped("Other plugins can always read your level, arousal, scene, cycle and pregnancy through Corruption's plugin API. These let them do things too. They're off until you turn them on, for this character only.");
+            var breed = consent.Breed;
+            if (ImGui.Checkbox("Let plugins breed me", ref breed))
+            {
+                consent.Breed = breed;
+                scene.SaveProgress();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("A plugin can roll for conception as if a named player bred you. Your pregnancy settings, cycle and items decide, as in a scene.");
+            var arousal = consent.Arousal;
+            if (ImGui.Checkbox("Let plugins change my arousal", ref arousal))
+            {
+                consent.Arousal = arousal;
+                scene.SaveProgress();
+            }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Up to 25 at a time and 60 a minute for each plugin.");
+            var climax = consent.Climax;
+            if (ImGui.Checkbox("Let plugins make me climax", ref climax))
+            {
+                consent.Climax = climax;
+                scene.SaveProgress();
+            }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("As /corr climax: only in a scene, with enough arousal, and not while recovering.");
+
+            var calls = engine.PluginCalls;
+            if (calls.Count == 0)
+            {
+                Theme.MutedText("No plugin has tried anything this session.");
+                return;
+            }
+            Theme.MutedText("This session:");
+            foreach (var call in calls)
+                Theme.MutedText($"{call.AtUtc.ToLocalTime():HH:mm:ss}  {call.Plugin}: {call.Call}, {call.Outcome}");
+        });
     }
 
     private void DrawTierVisuals(SceneEngine engine)

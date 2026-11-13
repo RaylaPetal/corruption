@@ -1,12 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Corruption.Core;
 using Corruption.Game;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Interface;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility;
+using Lumina.Excel.Sheets;
 
 namespace Corruption.Windows;
 
@@ -27,6 +31,128 @@ public sealed partial class MainWindow
         DrawSimulator(engine);
         ImGuiHelpers.ScaledDummy(4f);
         DrawPregnancyDebug(engine);
+        ImGuiHelpers.ScaledDummy(4f);
+        DrawStatusIconBrowser();
+        ImGuiHelpers.ScaledDummy(4f);
+        DrawApiSelfTest();
+    }
+
+    // ── Plugin API self-test ────────────────────────────────────────────────
+
+    /// Corruption's own client file, used as another plugin would, so the gates and the client are checked together.
+    private CorruptionIpcClient.CorruptionIpc? apiClient;
+    private readonly List<string> apiEvents = [];
+    private string apiLastWrite = "";
+
+    /// Drops the self-test's client, so its event subscriptions end with the plugin.
+    public void DisposeDebug() => apiClient?.Dispose();
+
+    private void LogApiEvent(string line)
+    {
+        apiEvents.Add($"{DateTime.Now:HH:mm:ss} {line}");
+        if (apiEvents.Count > 14) apiEvents.RemoveAt(0);
+    }
+
+    private CorruptionIpcClient.CorruptionIpc ApiClient()
+    {
+        if (apiClient is not null) return apiClient;
+        var c = new CorruptionIpcClient.CorruptionIpc(Plugin.PluginInterface);
+        c.Ready += () => LogApiEvent("Ready");
+        c.Climax += () => LogApiEvent("Climax");
+        c.PartnerClimax += (n, w) => LogApiEvent($"PartnerClimax {n}@{w}");
+        c.SceneStarted += (n, w, solo) => LogApiEvent($"SceneStarted {n}@{w} solo={solo}");
+        c.SceneEnded += (sec, xp) => LogApiEvent($"SceneEnded {sec:0}s {xp:0} XP");
+        c.LevelUp += l => LogApiEvent($"LevelUp {l}");
+        c.CyclePhaseChanged += p => LogApiEvent($"CyclePhaseChanged {p}");
+        c.Conceived += (n, w, src) => LogApiEvent($"Conceived {n}@{w} via {src}");
+        c.TrimesterChanged += t => LogApiEvent($"TrimesterChanged {t}");
+        c.Birth += (n, w) => LogApiEvent($"Birth {n}@{w}");
+        c.RecoveryEnded += () => LogApiEvent("RecoveryEnded");
+        c.ArousalChanged += a => LogApiEvent($"ArousalChanged {a}");
+        c.StateChanged += () => LogApiEvent("StateChanged");
+        return apiClient = c;
+    }
+
+    private void DrawApiSelfTest()
+    {
+        Theme.Heading(FontAwesomeIcon.Plug, "Plugin API self-test");
+        var c = ApiClient();
+        Theme.MutedText($"API version {c.ApiVersion()}, available {c.IsAvailable}");
+        Theme.MutedWrapped(c.GetProfile().ToString());
+        Theme.MutedWrapped(c.GetArousal().ToString());
+        Theme.MutedWrapped(c.GetScene().ToString());
+        Theme.MutedWrapped(c.GetBond().ToString());
+        Theme.MutedWrapped(c.GetCycle().ToString());
+        Theme.MutedWrapped(c.GetPregnancy().ToString());
+        Theme.MutedText($"Births: {c.GetBirths().Count}");
+        foreach (var n in c.GetNearby()) Theme.MutedWrapped(n.ToString());
+
+        var target = Plugin.TargetManager.Target as IPlayerCharacter;
+        var (name, world) = target is null ? ("", "") : (target.Name.TextValue, target.HomeWorld.Value.Name.ExtractText());
+        if (target is not null) Theme.MutedText($"Breed chance from {name}: {c.BreedChance(name, world):P1}");
+        if (ImGui.Button("Breed me (target)") && target is not null) apiLastWrite = $"Breed: {c.Breed(name, world, "Self-test")}";
+        ImGui.SameLine();
+        if (ImGui.Button("Arousal +10")) apiLastWrite = $"AddArousal: {c.AddArousal(10, "Self-test")}";
+        ImGui.SameLine();
+        if (ImGui.Button("Arousal -10")) apiLastWrite = $"AddArousal: {c.AddArousal(-10, "Self-test")}";
+        ImGui.SameLine();
+        if (ImGui.Button("Climax")) apiLastWrite = $"Climax: {c.RequestClimax("Self-test")}";
+        if (apiLastWrite.Length > 0) Theme.MutedText(apiLastWrite);
+        Theme.MutedText("Events:");
+        foreach (var line in apiEvents) Theme.MutedText(line);
+    }
+
+    // ── Status icon browser ─────────────────────────────────────────────────
+
+    /// Every game status with an icon, one entry per icon: (icon, name). Read once.
+    private List<(uint Icon, string Name)>? statusIcons;
+    private string iconSearch = "";
+    private uint pickedIcon;
+
+    /// Finds game status icons by name, for pinning the Moodles icons of the cum statuses. Click one to copy its id.
+    private void DrawStatusIconBrowser()
+    {
+        Theme.Heading(FontAwesomeIcon.Icons, "Status icons");
+        statusIcons ??= Plugin.DataManager.GetExcelSheet<Status>(ClientLanguage.English)
+            .Where(r => r.Icon != 0 && !r.Name.IsEmpty)
+            .Select(r => (r.Icon, Name: r.Name.ExtractText()))
+            .DistinctBy(r => r.Icon)
+            .ToList();
+        ImGui.SetNextItemWidth(220 * Scale);
+        ImGui.InputTextWithHint("##iconSearch", "Search by status name", ref iconSearch, 64);
+        ImGui.SameLine();
+        Theme.MutedText(pickedIcon == 0 ? "Click an icon to pick it." : $"Picked {pickedIcon} (copied).");
+        if (pickedIcon != 0)
+        {
+            if (ImGui.Button("Preview as layers"))
+                bridges.Moodles.Preview(MoodleKind.Marked, 3, (int)pickedIcon, "Corruption");
+            ImGui.SameLine();
+            if (ImGui.Button("Preview as creampie"))
+                bridges.Moodles.Preview(MoodleKind.Dripping, MoodlesPlan.DrippingPussy, (int)pickedIcon, "Corruption");
+        }
+        if (iconSearch.Trim().Length < 2)
+        {
+            Theme.MutedText("Type at least two letters.");
+            return;
+        }
+        var matches = statusIcons.Where(s => s.Name.Contains(iconSearch.Trim(), StringComparison.OrdinalIgnoreCase)).Take(200).ToList();
+        Theme.MutedText(matches.Count == 200 ? "The first 200 matches." : $"{matches.Count} matches.");
+        var size = new Vector2(32 * Scale, 42 * Scale);
+        var perRow = Math.Max(1, (int)(ImGui.GetContentRegionAvail().X / (size.X + ImGui.GetStyle().ItemSpacing.X)));
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var (icon, name) = matches[i];
+            if (i % perRow != 0) ImGui.SameLine();
+            var wrap = Plugin.TextureProvider.GetFromGameIcon(new GameIconLookup(icon)).GetWrapOrEmpty();
+            ImGui.PushID((int)icon);
+            if (ImGui.ImageButton(wrap.Handle, size with { Y = size.X * wrap.Height / Math.Max(1, wrap.Width) }))
+            {
+                pickedIcon = icon;
+                ImGui.SetClipboardText(icon.ToString());
+            }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{name}\nIcon {icon}");
+            ImGui.PopID();
+        }
     }
 
     /// What the in-game spike needs: raw pose state, and what Penumbra serves for the current pose.

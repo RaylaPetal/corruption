@@ -53,6 +53,88 @@ Requirements: Penumbra, SimpleHeels, and a sync service such as Lightless. **You
 
 Progress is local and your partner's plugin is trusted, so it's easy to cheat. That's accepted for a hobby plugin.
 
+## Plugin API
+
+Other Dalamud plugins can read Corruption's state for the local character, hear when things happen, and, where the player allows it, breed, change arousal or ask for a climax. Copy [`Corruption.Api/CorruptionIpc.cs`](Corruption.Api/CorruptionIpc.cs) into your plugin for typed calls, records, named outcome strings (`CorruptionStrings`) and events that survive Corruption reloading. Or call the gates directly by name.
+
+- **Threads:** call everything from the framework thread (`Framework.Update`, `RunOnFrameworkThread`, or your UI's Draw). From any other thread, reads return their empty value and writes return `wrong-thread`. Events are raised on the framework thread.
+- **Before setup:** reads have `Ready = false` and empty values, and writes return `not-set-up`.
+- **Formats:**
+  - enums cross as lower-case strings (`"ovulation"`, `"second"`, `"earning"`);
+  - times are UTC `DateTime`, with `default` for none;
+  - names and worlds are separate strings.
+- **Stability:** version 1 is frozen. Later versions only add gates.
+
+### Lifecycle
+
+| Gate | Signature | Notes |
+| --- | --- | --- |
+| `Corruption.ApiVersion` | `() -> int` | 1 |
+| `Corruption.Ready` | event `()` | Gates are registered. Re-read your state. |
+| `Corruption.Disposing` | event `()` | Corruption is unloading. |
+
+### Reads
+
+| Gate | Returns |
+| --- | --- |
+| `Corruption.GetProfile` | `(bool Ready, string Name, string World, int Level, string Tier, double Xp, double XpToNext, int Prestige, string Title, string Personality, string Anatomy, long Sins, int StreakDays, bool Paused, bool Hidden)` |
+| `Corruption.GetArousal` | `(bool Ready, int Arousal, double RefractorySeconds, bool Edging, string ClimaxMode)`. Arousal is 0 to 100 as shown. Edging is held at 100 outside refractory. ClimaxMode is `auto` or `manual`. |
+| `Corruption.GetScene` | `(bool Ready, string State, bool Solo, string PartnerName, string PartnerWorld, int Watchers, double Seconds)`. State is `idle`, `waiting`, `earning` or `paused`. |
+| `Corruption.GetBond` | `(bool Ready, string Name, string World, bool Formed, int Level)`. This is the bond or bond request; Level is 0 until formed. |
+| `Corruption.GetCycle` | `(bool Ready, bool Enabled, bool CanCarry, bool CanBreed, bool Running, int Day, string Phase, double Chance, bool Protected, DateTime NextPhaseUtc)`. Phase is `period`, `follicular`, `fertile`, `ovulation` or `luteal`. Chance is what a breeding would have now from this character's side (cycle, items, chance setting, own titles). Day and Chance are 0 without a running cycle. Protected means a Contraceptive Pill is active. |
+| `Corruption.GetPregnancy` | `(bool Ready, string Stage, double DaysPregnant, DateTime ConceivedUtc, DateTime DueUtc, string FatherName, string FatherWorld, DateTime RecoveryUntilUtc, string Craving, bool CravingMet, bool Unsatisfied, int Conceptions, int Births, int Fathered)`. Stage is `none`, `first`, `second`, `third` or `recovering`. |
+| `Corruption.GetBirths` | `List<(DateTime BornUtc, DateTime ConceivedUtc, string FatherName, string FatherWorld)>`, oldest first |
+| `Corruption.GetNearby` | `List<(string Name, string World, double Distance, int Level, int Arousal, bool InAct, int ClimaxCount, bool HasBodyTag, bool CanCarry, bool CanBreed, bool Virile, string Anatomy, string Stage)>`. This is only what each player's tags publish to everyone, never their cycle or father. The body fields need `HasBodyTag`. |
+| `Corruption.BreedChance` | `(string breederName, string breederWorld) -> double`. This is the chance a `Breed` by that player would have now, without rolling, or 0 when `Breed` would refuse. |
+
+### Events
+
+Every event is raised at most once per transition. `OnArousalChanged` and `OnStateChanged` are raised at most once a second.
+
+| Gate | Arguments |
+| --- | --- |
+| `Corruption.OnClimax` | `()`: the local character climaxed. |
+| `Corruption.OnPartnerClimax` | `(string name, string world)`: a scene partner's climax was credited. |
+| `Corruption.OnSceneStarted` | `(string partnerName, string partnerWorld, bool solo)` |
+| `Corruption.OnSceneEnded` | `(double verifiedSeconds, double xp)` |
+| `Corruption.OnLevelUp` | `(int level)` |
+| `Corruption.OnCyclePhaseChanged` | `(string phase)` |
+| `Corruption.OnConceived` | `(string fatherName, string fatherWorld, string source)`: source is `scene` or the plugin that called `Breed`. |
+| `Corruption.OnTrimesterChanged` | `(string stage)`: `first`, `second` or `third`. |
+| `Corruption.OnBirth` | `(string fatherName, string fatherWorld)` |
+| `Corruption.OnRecoveryEnded` | `()` |
+| `Corruption.OnArousalChanged` | `(int arousal)`: the shown whole number changed. |
+| `Corruption.OnStateChanged` | `()`: something a read returns changed. Values that tick every second alone don't count: scene seconds, refractory left, days pregnant, distance. |
+
+### Writes
+
+Each write needs the player's consent, under **Settings → Other plugins**, for that character. All three are off by default, and without consent a write returns `not-allowed`. Every call is listed there with its plugin name, time and outcome. No write gives XP, Sins or items.
+
+| Gate | Signature | Outcomes |
+| --- | --- | --- |
+| `Corruption.Breed` | `(string breederName, string breederWorld, string pluginName) -> string` | `conceived`, `not-conceived`, `not-allowed`, `not-set-up`, `pregnancy-off`, `cant-carry`, `pregnant`, `recovering`, `protected`, `paused`, `hidden`, `not-a-breeder`, `too-soon`, `no-character` |
+| `Corruption.AddArousal` | `(double amount, string pluginName) -> string` | `ok`, `limited`, `not-allowed`, `not-set-up`, `paused`, `refractory` |
+| `Corruption.Climax` | `(string pluginName) -> string` | `climaxed`, `not-allowed`, `not-set-up`, `paused`, `no-scene`, `refractory`, `too-low` |
+
+- **Breed:**
+  - rolls conception once for the local character, as if that player bred them, with the same odds as a scene: cycle phase, Fertility Charm, the chance setting, the bond, both players' titles and traits where known, and the breeder's Virility Tonic from their tag;
+  - a breeder whose Corruption body tag is seen must have "can breed" (`not-a-breeder` otherwise);
+  - a breeder without Corruption rolls with no virility factor;
+  - the same breeder can breed once a minute (`too-soon`);
+  - a conception records the breeder as the father and tells the player.
+- **AddArousal:** at most 25 either way per call and 60 per plugin per minute (`limited` when part was cut). A rise isn't taken during refractory. Reaching 100 behaves as in a scene: in automatic mode the scene's next tick climaxes.
+- **Climax:** the same rules and effects as `/corr climax`. It needs a verified scene and enough arousal, and not refractory.
+
+### A breeding session
+
+A plugin with a bull/breeding role might:
+1. watch `OnArousalChanged`, and start its breeding timer once arousal rises;
+2. end it on `OnClimax` (the carrier) or `OnPartnerClimax` (the bull, if both have Corruption);
+3. check `GetPregnancy().Stage` is `none`, or call `BreedChance` to show the odds;
+4. call `Breed(bullName, bullWorld, "Your Plugin")` and react to `conceived` or `not-conceived`.
+
+The carrier's own pregnancy settings decide, and an existing pregnancy answers `pregnant`.
+
 ## Installing
 
 In game, open `/xlsettings` → **Experimental**, add this URL under **Custom Plugin Repositories**, save, then install **Corruption** from `/xlplugins`:

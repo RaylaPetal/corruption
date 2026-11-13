@@ -28,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ITargetManager TargetManager { get; private set; } = null!;
     [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private const string CommandName = "/corr";
@@ -42,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly BridgeHub bridges;
     private readonly PlateRenderer plateRenderer;
     private readonly SceneService scene;
+    private readonly CorruptionApi api;
     private readonly MainWindow mainWindow;
 
     public Plugin()
@@ -67,6 +69,7 @@ public sealed class Plugin : IDalamudPlugin
         var popup = new RewardPopup(settings);
         windows.AddWindow(popup);
         scene = new SceneService(settings, balance, penumbra, acts, detector, heels, cummy, plates, bridges, popup.Show, configDirectory);
+        api = new CorruptionApi(scene);
 
         mainWindow = new MainWindow(settings, balance, scene, acts, penumbra, heels, cummy, bridges, plateRenderer, detector, popup);
         windows.AddWindow(mainWindow);
@@ -88,7 +91,11 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= mainWindow.Toggle;
         CommandManager.RemoveHandler(CommandName);
         windows.RemoveAllWindows();
+#if DEBUG
+        mainWindow.DisposeDebug();
+#endif
 
+        api.Dispose();
         scene.Dispose();
         bridges.Dispose();
         plateRenderer.Dispose();

@@ -53,7 +53,7 @@ public sealed class MoodlesService
         [MoodleKind.Craving] = ["Hungry", "Food Craving", "Haste"],
         [MoodleKind.Unsatisfied] = ["Weakness", "Heavy", "Slow"],
         [MoodleKind.Recovering] = ["Regen", "Rest", "Well Fed"],
-        [MoodleKind.Dripping] = ["Sludge", "Doused", "Prey"],
+        [MoodleKind.Dripping] = ["Dropsy", "Soaked", "Wet", "Doused", "Water Resistance Down", "Sludge"],
     };
 
     private readonly ICallGateSubscriber<MoodleTuple, IPlayerCharacter, object> addByData;
@@ -116,6 +116,22 @@ public sealed class MoodlesService
         }
     }
 
+    /// Puts one of Corruption's statuses on with a chosen icon, for the Debug tab's icon browser. The next plan update
+    /// replaces it with the real one, or takes it off if it doesn't apply.
+    public void Preview(MoodleKind kind, int level, int icon, string applier)
+    {
+        if (Plugin.ObjectTable.LocalPlayer is not { } me) return;
+        try
+        {
+            addByData.InvokeAction(Tuple(kind, level, applier, 0, level, icon), me);
+            applied[kind] = -1;
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Moodles preview failed: {ex.Message}");
+        }
+    }
+
     /// Moodles drops statuses quietly when other plugins aren't allowed, so look once after the first apply.
     private void CheckAccepted()
     {
@@ -161,12 +177,12 @@ public sealed class MoodlesService
         applied.Clear();
     }
 
-    private MoodleTuple Tuple(MoodleKind kind, int level, string applier, double arousal, int layers)
+    private MoodleTuple Tuple(MoodleKind kind, int level, string applier, double arousal, int layers, int? icon = null)
     {
         var (title, description, type) = kind switch
         {
             MoodleKind.Aroused => ($"Aroused {Roman(level)}", $"Arousal at {PlateComposer.ArousalNumber(arousal)}%.", Special),
-            MoodleKind.Marked => ("Marked", layers == 1 ? "Wearing 1 layer." : $"Wearing {layers} layers.", Special),
+            MoodleKind.Marked => AsSpecial(CumStatusText.Layers(layers)),
             MoodleKind.Watched => ("Watched", "Someone's watching the scene.", Positive),
             MoodleKind.Bonded => ("Bonded", "In a scene with their bonded partner.", Positive),
             MoodleKind.Refractory => ("Refractory", "Recovering after a climax.", Negative),
@@ -175,17 +191,14 @@ public sealed class MoodlesService
             MoodleKind.Pregnant => ($"Pregnant: {(level == 1 ? "first" : level == 2 ? "second" : "third")} trimester", "Carrying a child.", Positive),
             MoodleKind.Craving => ("Craving", "Craving something only a scene can give.", Special),
             MoodleKind.Unsatisfied => ("Unsatisfied", "Yesterday's craving went unmet.", Negative),
-            MoodleKind.Dripping => (level switch
-            {
-                MoodlesPlan.DrippingPussy => "Dripping: pussy",
-                MoodlesPlan.DrippingAss => "Dripping: ass",
-                _ => "Dripping: pussy and ass",
-            }, "Freshly creampied, and it's running out.", Special),
+            MoodleKind.Dripping => AsSpecial(CumStatusText.Creampie(level)),
             _ => ("Recovering", "Recovering after giving birth.", Positive),
         };
-        return (TupleVersion, Ids[kind], IconFor(kind), title, description, "", -1L, type, 1, 0, 0u, Guid.Empty, 0,
+        return (TupleVersion, Ids[kind], icon ?? IconFor(kind), title, description, "", -1L, type, 1, 0, 0u, Guid.Empty, 0,
             applier, "", false);
     }
+
+    private static (string, string, int) AsSpecial((string Title, string Description) text) => (text.Title, text.Description, Special);
 
     private static string Roman(int step) => step switch { 1 => "I", 2 => "II", 3 => "III", 4 => "IV", _ => "V" };
 
@@ -195,7 +208,17 @@ public sealed class MoodlesService
         return icons.TryGetValue(kind, out var icon) ? icon : 0;
     }
 
-    /// As Oathbound's ResolveIconIds: the first named status that exists, falling back to any status with an icon.
+    /// The game status icons picked by eye for the two cum statuses, with the Debug tab's icon browser. 0 means not
+    /// picked yet, so the name candidates apply. Every client sends the same id, so everyone sees the same icon.
+    private static readonly Dictionary<MoodleKind, int> PinnedIcons = new()
+    {
+        [MoodleKind.Marked] = 0,
+        [MoodleKind.Dripping] = 0,
+    };
+
+    /// A pinned icon when the game still has it, else, as Oathbound's ResolveIconIds, the first named status that
+    /// exists, falling back to any status with an icon. Many statuses share a name with different icons, which is why
+    /// the cum statuses are pinned.
     private static Dictionary<MoodleKind, int> ResolveIcons()
     {
         var result = new Dictionary<MoodleKind, int>();
@@ -203,14 +226,25 @@ public sealed class MoodlesService
         {
             var sheet = Plugin.DataManager.GetExcelSheet<Status>(ClientLanguage.English);
             var byName = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            var all = new HashSet<uint>();
             foreach (var row in sheet)
             {
                 if (row.Icon == 0) continue;
+                all.Add(row.Icon);
                 byName.TryAdd(row.Name.ExtractText(), row.Icon);
             }
             var fallback = byName.Values.FirstOrDefault();
             foreach (var (kind, names) in IconNames)
             {
+                if (PinnedIcons.GetValueOrDefault(kind) is > 0 and var pinned)
+                {
+                    if (all.Contains((uint)pinned))
+                    {
+                        result[kind] = pinned;
+                        continue;
+                    }
+                    Plugin.Log.Warning($"Moodles: the pinned {kind} icon {pinned} isn't a status icon any more; using its name list. Pick a new one in the Debug tab's icon browser.");
+                }
                 var icon = names.Select(n => byName.GetValueOrDefault(n)).FirstOrDefault(i => i != 0);
                 result[kind] = (int)(icon != 0 ? icon : fallback);
             }

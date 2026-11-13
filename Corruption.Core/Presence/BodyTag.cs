@@ -43,6 +43,7 @@ public readonly record struct BodyTag(BodyFlags Flags, PregnancyStage Stage, str
 
     public static readonly BodyTag Empty = new(BodyFlags.None, PregnancyStage.None, null);
 
+    public bool CanCarry => Flags.HasFlag(BodyFlags.CanCarry);
     public bool CanBreed => Flags.HasFlag(BodyFlags.CanBreed);
     public bool Virile => Flags.HasFlag(BodyFlags.Virile);
     public bool IsPregnant => Stage is PregnancyStage.First or PregnancyStage.Second or PregnancyStage.Third;

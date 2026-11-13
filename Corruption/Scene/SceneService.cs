@@ -46,7 +46,24 @@ public sealed class SceneService : IDisposable, IEngineHost
     private string? startupError;
 
     /// Null while no character is logged in.
-    public SceneEngine? Engine { get; private set; }
+    public SceneEngine? Engine
+    {
+        get => currentEngine;
+        private set
+        {
+            if (currentEngine == value) return;
+            currentEngine = value;
+            EngineChanged?.Invoke(value);
+        }
+    }
+
+    private SceneEngine? currentEngine;
+
+    /// The engine changed, such as on a character change or logout (null). For the plugin API's event forwarding.
+    public event Action<SceneEngine?>? EngineChanged;
+
+    /// The engine was sampled, once a second on the framework thread. For the plugin API's change detection.
+    public event Action<DateTime>? Sampled;
 
     /// Who's nearby with Corruption, as of the last sample.
     public IReadOnlyList<VisiblePlayer> Nearby { get; private set; } = [];
@@ -115,6 +132,7 @@ public sealed class SceneService : IDisposable, IEngineHost
                 cummy.HasV6 ? cummy.Creampies : null));
             UpdatePlates(engine, me, labelled);
             bridges.Update(now, engine, self);
+            Sampled?.Invoke(now);
         }
         else if (plates.Current.Count > 0)
         {

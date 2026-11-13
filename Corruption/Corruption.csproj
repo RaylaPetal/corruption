@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.2.1</Version>
+    <Version>0.3.3.0</Version>
     <!-- Manifest fields -->
     <Author>Rayla Petal</Author>
     <Name>Corruption</Name>
@@ -34,6 +34,12 @@ Requires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glam
     <!-- Buttplug brings its own Newtonsoft.Json. A second copy breaks IPC that passes JObjects (Oathbound hit this with
          Glamourer), so it's compile-time only and every plugin stays on Dalamud's shared copy. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <!-- The client file other plugins copy (Corruption.Api/CorruptionIpc.cs). Debug builds compile it and drive the
+         Debug tab's API self-test through it, so it is checked against the real gates; Release builds never ship it. -->
+    <Compile Include="..\Corruption.Api\CorruptionIpc.cs" Link="Ipc\CorruptionIpcClient.cs" />
   </ItemGroup>
 
   <ItemGroup>

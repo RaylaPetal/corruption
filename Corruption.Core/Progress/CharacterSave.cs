@@ -51,6 +51,9 @@ public sealed class CharacterSave
     /// What this character has, for partners aiming a climax. A choice, not progress, so a reset keeps it.
     public Anatomy Anatomy { get; set; }
 
+    /// What other plugins may do to this character through the API. A choice, not progress, so a reset keeps it.
+    public PluginConsent PluginConsent { get; set; } = new();
+
     /// The longest verified scene, start to last passing check.
     public double LongestSceneSeconds { get; set; }
 
