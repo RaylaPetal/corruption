@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.4.0",
+    "AssemblyVersion": "0.3.5.0",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -18,9 +18,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.4.0/Corruption-0.3.4.0.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.4.0/Corruption-0.3.4.0.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.5.0/Corruption-0.3.5.0.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.5.0/Corruption-0.3.5.0.zip",
     "Changelog": "- Plugins on a bull's side can make his climaxes always creampie his partner's pussy, so breeding in scenes rolls for pregnancy. The partner sets nothing, and their Cummy blocks still apply. Both players need this version.\n- Plugin API: SetForceCreampie is now called on the bull's side.",
-    "LastUpdate": "1794601611"
+    "LastUpdate": "1794606523"
   }
 ]
