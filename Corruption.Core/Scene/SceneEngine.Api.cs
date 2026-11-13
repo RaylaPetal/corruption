@@ -127,7 +127,8 @@ public sealed partial class SceneEngine
 
     private readonly HashSet<string> forcingCreampies = new(StringComparer.OrdinalIgnoreCase);
 
-    /// A plugin with breeding consent asked for every credited partner climax to creampie the pussy. Memory only.
+    /// A plugin with consent asked for this character's credited climaxes to always creampie a partner's pussy. It goes out
+    /// in the body tag, since the partner's client decides where a climax lands. Memory only.
     public bool ForcesCreampies => forcingCreampies.Count > 0 && save.Setup is not null && save.PluginConsent.Allowed;
 
     /// The plugins forcing creampies now, for Settings.
@@ -149,9 +150,10 @@ public sealed partial class SceneEngine
         return Logged(now, plugin, call, ApiOutcomes.Ok);
     }
 
-    /// The hole a forced creampie lands in: the pussy, when this character has one and the partner can give one.
+    /// The hole a partner who always comes inside lands in: the pussy, when this character has one and the partner can give
+    /// one. Only that partner's climaxes are forced.
     private string? ForcedHole(BodyTag partner)
-        => ForcesCreampies && save.Anatomy != Anatomy.Penis && partner.Anatomy != Anatomy.Vagina ? CreampieAim.Pussy : null;
+        => partner.AlwaysInside && save.Anatomy != Anatomy.Penis && partner.Anatomy != Anatomy.Vagina ? CreampieAim.Pussy : null;
 
     /// Changes arousal by up to 25 a call and 60 a minute for this plugin. A rise isn't taken during refractory. Reaching
     /// 100 behaves as in a scene: automatic climax fires on the scene's next tick.

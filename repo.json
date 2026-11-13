@@ -20,7 +20,7 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.4.0/Corruption-0.3.4.0.zip",
     "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.4.0/Corruption-0.3.4.0.zip",
-    "Changelog": "- Conception is now secret. You won't know you're pregnant until you take a Pregnancy Test (new in the shop, 15 Sins) or your belly starts to show on day 5. Until then nothing shows and the father isn't told.\n- The Morning-After Pill can be taken any time, just in case.\n- Settings: the three Other plugins checkboxes are now one, \"Let other plugins control Corruption\".\n- Plugin API version 2 (breaking): Breed answers \"bred\" and takes a chance factor (x0.5-x2), pregnancy reads follow what you know, and plugins can make a partner's climax always creampie your pussy. Plugin authors: update CorruptionIpc.cs.",
+    "Changelog": "- Plugins on a bull's side can make his climaxes always creampie his partner's pussy, so breeding in scenes rolls for pregnancy. The partner sets nothing, and their Cummy blocks still apply. Both players need this version.\n- Plugin API: SetForceCreampie is now called on the bull's side.",
     "LastUpdate": "1794601611"
   }
 ]

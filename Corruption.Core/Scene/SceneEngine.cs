@@ -242,7 +242,8 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     public BodyTag OwnBodyAt(DateTime now)
     {
         var p = save.Pregnancy;
-        var anatomy = Anatomies.Flags(save.Anatomy);
+        // A plugin forcing creampies on this side tells partners' clients, which decide where a climax lands.
+        var anatomy = Anatomies.Flags(save.Anatomy) | (ForcesCreampies ? BodyFlags.AlwaysInside : 0);
         if (!p.Enabled) return BodyTag.Empty with { Flags = anatomy };
         var flags = anatomy | (p.CanCarry ? BodyFlags.CanCarry : 0) | (p.CanBreed ? BodyFlags.CanBreed : 0)
                     | (p.CanBreed && ItemBook.Virile(save, now) ? BodyFlags.Virile : 0);
@@ -1042,7 +1043,7 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     private bool CreampieFor(DateTime now, PeerRecord peer)
     {
         if (!LayerOnPartnerClimax || creampies is null || BodyOf(peer) is not { } body) return false;
-        // A plugin forcing creampies fills in when the bones find no hole; one they do find still wins.
+        // A partner whose plugin forces creampies fills the pussy when the bones find no hole; a hole they do find still wins.
         if ((host.InsideOf(peer, body.Anatomy, save.Anatomy) ?? ForcedHole(body)) is not { } hole) return false;
         var outcome = host.CreampieSelf(peer, hole);
         if (outcome == "blocked") return false;

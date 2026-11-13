@@ -376,19 +376,19 @@ public class SecretPregnancyEngineTests
     }
 }
 
-/// A plugin's "always a creampie" switch, on the carrier's side.
+/// A plugin's "always a creampie" switch: set on the bull's side, it travels in his body tag, and the cow's client makes
+/// only his credited climaxes creampie her pussy.
 public class ForcedCreampieTests
 {
-    /// A carrier on day 5 in a scene with Bob, a tagged breeder, whose tip the bones don't find inside.
-    private static EngineRig Pair(bool consent = true, Anatomy own = Anatomy.NotSet)
+    /// The cow: on day 5 in a scene with Bob, a tagged breeder whose tip the bones don't find inside.
+    private static EngineRig Cow(bool bullForces = true, Anatomy own = Anatomy.NotSet)
     {
         var r = new EngineRig(new FixedRandom(0.1));
         r.Save.Level = 50;
         r.Save.Goals.Achievements.UnionWith(GoalCatalog.Achievements.Select(a => a.Id));
         r.Save.Anatomy = own;
-        r.Save.PluginConsent.Allowed = consent;
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 5, r.Now);
-        r.BobBody = new BodyTag(BodyFlags.CanBreed, PregnancyStage.None, null);
+        r.BobBody = new BodyTag(BodyFlags.CanBreed | (bullForces ? BodyFlags.AlwaysInside : 0), PregnancyStage.None, null);
         r.Host.Aim = ["gr", "st", "ll", "lr", "bt"];
         r.Creampies = [];
         r.Host.InsideHole = null;
@@ -396,41 +396,42 @@ public class ForcedCreampieTests
         return r;
     }
 
+    /// The bull's own client.
+    private static EngineRig Bull(bool consent = true)
+    {
+        var r = new EngineRig();
+        r.Save.PluginConsent.Allowed = consent;
+        r.Run(1);
+        return r;
+    }
+
     private static string Force(EngineRig r, bool on) => r.Engine.SetForceCreampieFromPlugin(r.Now, on, "Milkers");
 
     [Fact]
-    public void ApartWithoutItLandsOutside()
+    public void TheBullsSwitchGoesOutInHisTag()
     {
-        var r = Pair();
-        r.BobClimaxes();
-        Assert.Empty(r.Host.Creampies);
-        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
-    }
-
-    [Fact]
-    public void ForcedLandsInThePussyAndRolls()
-    {
-        var r = Pair();
+        var r = Bull();
+        Assert.False(r.Engine.OwnBodyAt(r.Now).AlwaysInside);
         Assert.Equal(ApiOutcomes.Ok, Force(r, true));
         Assert.True(r.Engine.ForcesCreampies);
-        r.BobClimaxes();
-        Assert.Equal([(r.Bob.Key, CreampieAim.Pussy)], r.Host.Creampies);
-        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
+        Assert.True(r.Engine.OwnBodyAt(r.Now).AlwaysInside);
         Assert.Equal("ForceCreampie on", r.Engine.PluginCalls[0].Call);
+        Force(r, false);
+        Assert.False(r.Engine.OwnBodyAt(r.Now).AlwaysInside);
     }
 
     [Fact]
-    public void RefusedWithoutConsent()
+    public void RefusedWithoutTheBullsConsent()
     {
-        var r = Pair(consent: false);
+        var r = Bull(consent: false);
         Assert.Equal(ApiOutcomes.NotAllowed, Force(r, true));
-        Assert.False(r.Engine.ForcesCreampies);
+        Assert.False(r.Engine.OwnBodyAt(r.Now).AlwaysInside);
     }
 
     [Fact]
     public void OffAlwaysWorks()
     {
-        var r = Pair();
+        var r = Bull();
         Force(r, true);
         r.Save.PluginConsent.Allowed = false;
         Assert.False(r.Engine.ForcesCreampies);
@@ -440,10 +441,45 @@ public class ForcedCreampieTests
     }
 
     [Fact]
+    public void TheTagSurvivesOlderAndNewerClients()
+    {
+        var tag = new BodyTag(BodyFlags.CanBreed | BodyFlags.AlwaysInside, PregnancyStage.None, null);
+        Assert.True(BodyTag.Parse(tag.Format())!.Value.AlwaysInside);
+        Assert.Equal(BodyFlags.CanBreed, BodyTag.Parse("P1|130|0|-")!.Value.Flags);
+    }
+
+    [Fact]
+    public void ABullWhoAlwaysComesInsideCreampiesTheCow()
+    {
+        var r = Cow();
+        r.BobClimaxes();
+        Assert.Equal([(r.Bob.Key, CreampieAim.Pussy)], r.Host.Creampies);
+        Assert.True(PregnancyBook.IsSecret(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void OtherPartnersArentForced()
+    {
+        var r = Cow(bullForces: false);
+        r.BobClimaxes();
+        Assert.Empty(r.Host.Creampies);
+        Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));
+    }
+
+    [Fact]
+    public void TheCowsOwnSwitchDoesntForceHerPartners()
+    {
+        var r = Cow(bullForces: false);
+        r.Save.PluginConsent.Allowed = true;
+        Force(r, true);
+        r.BobClimaxes();
+        Assert.Empty(r.Host.Creampies);
+    }
+
+    [Fact]
     public void AHoleTheBonesFindStillWins()
     {
-        var r = Pair();
-        Force(r, true);
+        var r = Cow();
         r.Host.InsideHole = CreampieAim.Ass;
         r.BobClimaxes();
         Assert.Equal([(r.Bob.Key, CreampieAim.Ass)], r.Host.Creampies);
@@ -451,10 +487,9 @@ public class ForcedCreampieTests
     }
 
     [Fact]
-    public void APenisSetCharacterIsntForced()
+    public void APenisSetCowIsntForced()
     {
-        var r = Pair(own: Anatomy.Penis);
-        Force(r, true);
+        var r = Cow(own: Anatomy.Penis);
         r.BobClimaxes();
         Assert.Empty(r.Host.Creampies);
     }
@@ -462,8 +497,7 @@ public class ForcedCreampieTests
     [Fact]
     public void CummysBlockStillStopsIt()
     {
-        var r = Pair();
-        Force(r, true);
+        var r = Cow();
         r.Host.CreampieOutcome = "blocked";
         r.BobClimaxes();
         Assert.False(PregnancyBook.IsPregnant(r.Save.Pregnancy));

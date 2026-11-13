@@ -3,7 +3,13 @@ using System.Globalization;
 namespace Corruption.Core;
 
 [Flags]
-public enum BodyFlags { None = 0, CanCarry = 1, CanBreed = 2, Virile = 4, Penis = 8, Vagina = 16 }
+public enum BodyFlags
+{
+    None = 0, CanCarry = 1, CanBreed = 2, Virile = 4, Penis = 8, Vagina = 16,
+
+    /// A plugin on this player's side made their credited climaxes always creampie a partner's pussy.
+    AlwaysInside = 32,
+}
 
 /// What a player says their character has, so partners' clients aim a climax from the right place. NotSet leaves it to
 /// the bones the skeleton has.
@@ -46,6 +52,10 @@ public readonly record struct BodyTag(BodyFlags Flags, PregnancyStage Stage, str
     public bool CanCarry => Flags.HasFlag(BodyFlags.CanCarry);
     public bool CanBreed => Flags.HasFlag(BodyFlags.CanBreed);
     public bool Virile => Flags.HasFlag(BodyFlags.Virile);
+    public bool AlwaysInside => Flags.HasFlag(BodyFlags.AlwaysInside);
+
+    /// Every flag this version knows. Later ones are dropped when parsing, so a newer client's tag still reads.
+    private const int KnownFlags = 63;
     public bool IsPregnant => Stage is PregnancyStage.First or PregnancyStage.Second or PregnancyStage.Third;
     public Anatomy Anatomy => Anatomies.Of(Flags);
 
@@ -58,7 +68,8 @@ public readonly record struct BodyTag(BodyFlags Flags, PregnancyStage Stage, str
     {
         var parts = text?.Split('|');
         if (parts is not { Length: 4 } || parts[0] != Prefix) return null;
-        if (!int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var flags) || flags > 31) return null;
+        if (!int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var flags) || flags > 1023) return null;
+        flags &= KnownFlags;
         if (!int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var stage) || stage > 4) return null;
         string? father = null;
         if (parts[3] != NoFather)

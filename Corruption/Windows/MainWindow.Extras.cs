@@ -213,7 +213,7 @@ public sealed partial class MainWindow
                 ImGui.SetTooltip("Plugins can breed you as if a named player did, make a partner's climax always creampie your pussy, change your arousal (up to 25 at a time and 60 a minute each), and make you climax as /corr climax would. Your pregnancy settings, items and Cummy blocks still decide.");
 
             if (engine.ForcesCreampies)
-                ImGui.TextColored(Theme.Warning, $"Forced creampies on, by {string.Join(", ", engine.CreampieForcers)}: a breeder's climax in a scene fills your pussy and can make you pregnant.");
+                ImGui.TextColored(Theme.Warning, $"Always creampie on, by {string.Join(", ", engine.CreampieForcers)}: your climaxes in a scene fill your partner's pussy, and can get them pregnant.");
 
             var calls = engine.PluginCalls;
             if (calls.Count == 0)

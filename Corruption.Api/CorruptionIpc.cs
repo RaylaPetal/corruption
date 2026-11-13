@@ -343,15 +343,18 @@ public sealed class CorruptionIpc : IDisposable
     public double BreedChance(string breederName, string breederWorld, double chanceFactor = 1)
         => Call(() => breedChance.InvokeFunc(breederName, breederWorld, chanceFactor), 0);
 
-    /// Whether forced creampies are in effect: some plugin turned them on, and the player still allows plugins to control Corruption.
+    /// Whether this character's climaxes always creampie: some plugin turned it on, and the player still allows plugins to
+    /// control Corruption.
     public bool GetForceCreampie() => Call(() => getForceCreampie.InvokeFunc(), false);
 
     // ── Writes (each needs "Let other plugins control Corruption" in Corruption's Settings) ───────
 
-    /// While on, a scene partner's credited climax creampies the local character's pussy even when the bones aren't
-    /// lined up, so a breeder's climax rolls for conception. Only the carrier's own client decides, so call it there.
-    /// Needs the player's consent to turn on; turning off always works. Cummy's blocks still apply. It lasts until turned
-    /// off or Corruption reloads, so set it again on Ready. ok, not-allowed or not-set-up.
+    /// Call it on the bull's side. While on, every credited climax of the local character creampies the scene partner's
+    /// pussy even when the bones aren't lined up, so it rolls for conception if the partner can carry. Only this
+    /// character's climaxes are forced; the partner receives creampies from nobody else this way. It goes out in the body
+    /// tag, so the partner needs Corruption 0.3.5.0 or later. Needs the player's consent to turn on; turning off always
+    /// works. The partner's Cummy blocks still apply. It lasts until turned off or Corruption reloads, so set it again on
+    /// Ready. ok, not-allowed or not-set-up.
     public string SetForceCreampie(string pluginName, bool on)
         => Call(() => setForceCreampie.InvokeFunc(pluginName, on), CorruptionStrings.Unavailable);
 

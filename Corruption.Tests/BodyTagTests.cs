@@ -20,7 +20,7 @@ public class BodyTagTests
     [InlineData(null)]
     [InlineData("P1|0|0")]
     [InlineData("P2|0|0|-")]
-    [InlineData("P1|32|0|-")]
+    [InlineData("P1|1024|0|-")]
     [InlineData("P1|0|5|-")]
     [InlineData("P1|-1|0|-")]
     [InlineData("P1|0|0|XYZ")]

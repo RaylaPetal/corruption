@@ -101,7 +101,7 @@ public sealed partial class MainWindow
         ImGui.SameLine();
         if (ImGui.Button("Climax")) apiLastWrite = $"Climax: {c.RequestClimax("Self-test")}";
         var forced = c.GetForceCreampie();
-        if (ImGui.Checkbox("Climaxes are always creampies##apiForce", ref forced))
+        if (ImGui.Checkbox("My climaxes always creampie##apiForce", ref forced))
             apiLastWrite = $"SetForceCreampie: {c.SetForceCreampie("Self-test", forced)}";
         if (apiLastWrite.Length > 0) Theme.MutedText(apiLastWrite);
         Theme.MutedText("Events:");

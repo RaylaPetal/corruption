@@ -85,7 +85,7 @@ Other Dalamud plugins can read Corruption's state for the local character, hear 
 | `Corruption.GetCycle` | `(bool Ready, bool Enabled, bool CanCarry, bool CanBreed, bool Running, int Day, string Phase, double Chance, bool Protected, DateTime NextPhaseUtc)`. Phase is `period`, `follicular`, `fertile`, `ovulation` or `luteal`. Chance is what a breeding would have now from this character's side (cycle, items, chance setting, own titles). Day and Chance are 0 without a running cycle. A pregnancy that isn't confirmed yet reads as the cycle running on. Protected means a Contraceptive Pill is active. |
 | `Corruption.GetPregnancy` | `(bool Ready, string Stage, double DaysPregnant, DateTime ConceivedUtc, DateTime DueUtc, string FatherName, string FatherWorld, DateTime RecoveryUntilUtc, string Craving, bool CravingMet, bool Unsatisfied, int Conceptions, int Births, int Fathered)`. Stage is `none`, `first`, `second`, `third` or `recovering`. A pregnancy reads as `none` until it's confirmed. |
 | `Corruption.GetBirths` | `List<(DateTime BornUtc, DateTime ConceivedUtc, string FatherName, string FatherWorld)>`, oldest first |
-| `Corruption.GetForceCreampie` | `() -> bool`: whether forced creampies are in effect (some plugin turned them on, and the player still allows breeding). |
+| `Corruption.GetForceCreampie` | `() -> bool`: whether this character's climaxes always creampie (some plugin turned it on, and the player still allows plugins to control Corruption). |
 | `Corruption.GetNearby` | `List<(string Name, string World, double Distance, int Level, int Arousal, bool InAct, int ClimaxCount, bool HasBodyTag, bool CanCarry, bool CanBreed, bool Virile, string Anatomy, string Stage)>`. This is only what each player's tags publish to everyone, never their cycle or father. The body fields need `HasBodyTag`. |
 | `Corruption.BreedChance` | `(string breederName, string breederWorld, double chanceFactor) -> double`. This is the chance a `Breed` by that player with that factor would have now, without rolling, or 0 when `Breed` would refuse. |
 
@@ -127,10 +127,10 @@ Each write needs the player's consent, the one "Let other plugins control Corrup
   - the same breeder can breed once a minute (`too-soon`);
   - `bred` means it rolled, whether or not it took. A conception records the breeder as the father and stays secret until confirmed;
   - while a pregnancy is secret, `Breed` answers `bred` without rolling, so a caller can't tell; once it's confirmed it answers `pregnant`.
-- **SetForceCreampie:** while on, a scene partner's credited climax creampies the local character's pussy even when the bones aren't lined up, so a breeder's climax rolls for conception:
-  - it needs the same consent to turn on (`not-allowed` otherwise), and turning off always works;
-  - only the carrier's own client decides, so it does nothing on the bull's side. Both players need Corruption, since only their climaxes are credited;
-  - a hole the bones do find still wins, a character set to Penis isn't forced, and Cummy's blocks ("Creampie: pussy") still apply;
+- **SetForceCreampie:** called on the bull's side. While on, every credited climax of the local character creampies the scene partner's pussy even when the bones aren't lined up, so it rolls for conception when the partner can carry:
+  - it needs the bull's consent to turn on (`not-allowed` otherwise), and turning off always works. The partner sets nothing;
+  - it goes out in the bull's body tag, and the partner's Corruption applies it to that bull's climaxes only. Both players need Corruption, the partner 0.3.5.0 or later;
+  - a hole the bones do find still wins, a partner set to Penis isn't forced, and the partner's Cummy blocks ("Creampie: pussy") still apply;
   - it lasts until turned off or Corruption reloads, so set it again on `Ready`. Settings shows which plugin has it on.
 - **AddArousal:** at most 25 either way per call and 60 per plugin per minute (`limited` when part was cut). A rise isn't taken during refractory. Reaching 100 behaves as in a scene: in automatic mode the scene's next tick climaxes.
 - **Climax:** the same rules and effects as `/corr climax`. It needs a verified scene and enough arousal, and not refractory.
@@ -144,7 +144,7 @@ A plugin with a bull/breeding role might:
 4. call `Breed(bullName, bullWorld, "Your Plugin", factor)`; `bred` means the roll happened;
 5. listen for `OnConceived` to hear when the carrier finds out, by a test or at day 5.
 
-For breeding through real scenes instead, a "climaxes are always creampies" checkbox on the carrier's side can call `SetForceCreampie("Your Plugin", true)`, and `false` when it's unticked or the session ends.
+For breeding through real scenes instead, an "always creampie" checkbox on the bull's side can call `SetForceCreampie("Your Plugin", true)`, and `false` when it's unticked or the session ends. The cow's own Corruption then makes that bull's climaxes creampies.
 
 The carrier's own pregnancy settings decide, and a confirmed pregnancy answers `pregnant`.
 
