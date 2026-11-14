@@ -34,6 +34,7 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
 
     public ActEntry? Update(DateTime now, PoseKey? pose, string? raceCode)
     {
+        lastRace = raceCode;
         if (!penumbra.IsAvailable || pose is null)
         {
             lastPose = pose;
@@ -50,7 +51,6 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
                || now >= nextCheck
                || (current is null && byPose.ContainsKey(pose.Value));
         lastPose = pose;
-        lastRace = raceCode;
         if (!due) return current;
 
         lastSettings = penumbra.SettingsVersion;
@@ -136,19 +136,33 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
             ? name
             : directory;
 
-    /// What to send when asking for help: the reason and what Penumbra serves for the current pose.
-    public string Details()
+    /// What to send when asking for help: the reason, the emote state as read, the poses picked mods play, and what
+    /// Penumbra serves for the current pose. Works whether or not a reason was found.
+    /// <param name="rawState">The character's emote state as the game holds it.</param>
+    public string Details(string rawState)
     {
-        if (lastPose is not { } pose) return NotServed ?? "";
-        var expected = acts.Candidates.Where(c => c.Pose is not null && acts.File.Find(c.ModDirectory) is not null)
-            .Select(c => $"{c.ModName}: {c.Trigger} = pose {c.Pose!.Value.EmoteMode}/{c.Pose.Value.Variant}").Distinct();
-        return string.Join("\n", new[]
+        var expected = acts.Candidates.Where(c => acts.File.Find(c.ModDirectory) is not null)
+            .Select(c => $"  {c.ModName} / {c.Group} / {c.Option}: {c.Trigger}"
+                         + (c.Pose is { } p ? $" = pose {p.EmoteMode}/{p.Variant}" : ""))
+            .Distinct();
+        var lines = new List<string>
         {
-            NotServed ?? "",
-            $"Pose: {pose.EmoteMode}/{pose.Variant} (/{emotes.CommandOfMode(pose.EmoteMode) ?? "?"}), race {lastRace ?? "unknown"}",
-            $"Penumbra mod folder: {penumbra.TryGetModDirectory()}",
-            "Picked poses:",
-        }.Concat(expected).Append("For this pose:").Concat(Explain(pose, lastRace)));
+            $"Reason: {NotServed ?? "none found"}",
+            $"Emote state: {rawState}",
+            lastPose is { } pose
+                ? $"Pose: {pose.EmoteMode}/{pose.Variant} (/{emotes.CommandOfMode(pose.EmoteMode) ?? "?"})"
+                : "Pose: not in a looping emote",
+            $"Race: {lastRace ?? "unknown"}",
+            $"Penumbra: {(penumbra.IsAvailable ? "available" : "unavailable")}, mod folder {penumbra.TryGetModDirectory()}",
+            "Picked animations:",
+        };
+        lines.AddRange(expected);
+        if (lastPose is { } current)
+        {
+            lines.Add("For this pose:");
+            lines.AddRange(Explain(current, lastRace));
+        }
+        return string.Join("\n", lines);
     }
 
     private Dictionary<string, string>? Resolve(string[] paths)

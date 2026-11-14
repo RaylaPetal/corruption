@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.4",
+        [
+            "Acts: \"Copy details\" is on the scene card whenever no scene is earning, so you can always send what Corruption sees, even when it finds no reason.",
+        ]),
         new("0.3.6.3",
         [
             "Acts: when a picked mod's animation plays but doesn't count, the scene card now says why, and \"Copy details\" copies what to send with a bug report.",

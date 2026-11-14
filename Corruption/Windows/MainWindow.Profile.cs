@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Corruption.Core;
+using Corruption.Game;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
@@ -93,11 +94,16 @@ public sealed partial class MainWindow
             {
                 ImGui.TextColored(Theme.Warning, "Your animation isn't being detected.");
                 Theme.MutedWrapped(notServed);
+            }
+            if (status.State != SceneState.Earning)
+            {
                 if (ImGui.SmallButton("Copy details"))
                 {
-                    ImGui.SetClipboardText(detector.Details());
+                    ImGui.SetClipboardText(detector.Details(PoseReader.Describe(Plugin.ObjectTable.LocalPlayer)));
                     Notifier.Info("Copied. Send it with your bug report.");
                 }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Not counting? Play the animation, then copy this: it says what Corruption sees, for a bug report.");
             }
             DrawLickClean(engine, null);
             if (status.State == SceneState.Earning) DrawBonuses(engine);
