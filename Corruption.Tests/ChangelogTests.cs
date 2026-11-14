@@ -20,6 +20,10 @@ public class ChangelogTests
     }
 
     [Fact]
+    public void SeenNewerThanAnyEntryShowsTheNewest()
+        => Assert.Equal([Changelog.Entries[0]], Changelog.Unseen("99.0.0.0"));
+
+    [Fact]
     public void LatestSeenShowsNothing() => Assert.Empty(Changelog.Unseen(Changelog.Latest));
 
     [Fact]

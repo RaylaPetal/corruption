@@ -9,7 +9,7 @@ namespace Corruption.Mods;
 /// a second; the IPC check only runs when something may have changed, and every 5 seconds to catch whatever didn't
 /// announce itself. Big packs reuse a few emote slots for hundreds of options, so each pose asks Penumbra once, for all
 /// its options' paths together.
-public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
+public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteIndex emotes)
 {
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromSeconds(5);
 
@@ -26,6 +26,12 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
     /// The animation playing when it's from a picked mod but excluded. Null otherwise.
     public ActEntry? Excluded { get; private set; }
 
+    /// Why a pose a picked mod replaces isn't counting: Penumbra isn't serving that mod's file. Null otherwise.
+    public string? NotServed { get; private set; }
+
+    private string? lastRace;
+    private string? lastLogged;
+
     public ActEntry? Update(DateTime now, PoseKey? pose, string? raceCode)
     {
         if (!penumbra.IsAvailable || pose is null)
@@ -33,6 +39,7 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
             lastPose = pose;
             current = null;
             Excluded = null;
+            NotServed = null;
             return null;
         }
 
@@ -43,6 +50,7 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
                || now >= nextCheck
                || (current is null && byPose.ContainsKey(pose.Value));
         lastPose = pose;
+        lastRace = raceCode;
         if (!due) return current;
 
         lastSettings = penumbra.SettingsVersion;
@@ -70,9 +78,22 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
     private ActEntry? Check(PoseKey pose, string? raceCode)
     {
         Excluded = null;
-        if (!byPose.TryGetValue(pose, out var entry)) return null;
+        NotServed = null;
+        if (!byPose.TryGetValue(pose, out var entry))
+        {
+            // Only worth saying for an emote a picked mod replaces under another pose, which means the pose read is off.
+            var command = emotes.CommandOfMode(pose.EmoteMode);
+            if (command is not null && acts.Candidates.Any(c => c.Command == command && c.Pose != pose
+                    && acts.File.Find(c.ModDirectory) is not null))
+                NotServed = $"Your /{command} reads as pose {pose.EmoteMode}/{pose.Variant}, which isn't the one Corruption expects for it.";
+            return null;
+        }
         var root = penumbra.TryGetModDirectory();
-        if (string.IsNullOrEmpty(root) || Resolve(entry.Paths) is not { } resolved) return null;
+        if (string.IsNullOrEmpty(root) || Resolve(entry.Paths) is not { } resolved)
+        {
+            NotServed = "Penumbra didn't say which animation files it plays for you, so this can't be checked.";
+            return null;
+        }
 
         foreach (var (act, candidate) in entry.Options)
         {
@@ -85,7 +106,49 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts)
             }
             return act;
         }
+        NotServed = WhyNotServed(root, entry.Options, resolved, raceCode);
         return null;
+    }
+
+    private string WhyNotServed(string root, List<(ActEntry Act, ActCandidate Candidate)> options, Dictionary<string, string> resolved,
+        string? raceCode)
+    {
+        var (act, candidate) = options[0];
+        var instead = ServedCheck.ServedInstead(root, candidate.Redirects, resolved, raceCode);
+        var message = instead switch
+        {
+            null => $"Penumbra didn't resolve {act.ModName}'s files for your race.",
+            "" => $"Penumbra says it plays the game's own animation here, not {act.ModName}'s.",
+            _ when instead.Contains(':') || instead.StartsWith('/')
+                => $"Penumbra plays {instead}, which isn't inside its mod folder, so Corruption can't match it to {act.ModName}.",
+            _ when instead.Equals(candidate.ModDirectory, StringComparison.OrdinalIgnoreCase)
+                => $"Penumbra plays a different option of {act.ModName} than the one Corruption knows for this pose. Re-scan your mods on the Acts page.",
+            _ => $"Penumbra plays {NameOf(instead)} instead of {act.ModName} for this animation. Give {act.ModName} a higher priority, or turn the other mod off.",
+        };
+        if (message == lastLogged) return message;
+        lastLogged = message;
+        Plugin.Log.Information($"Act not detected: {message}\n{string.Join("\n", Explain(lastPose!.Value, raceCode))}");
+        return message;
+    }
+
+    private string NameOf(string directory)
+        => penumbra.TryGetModList() is { } mods && mods.FirstOrDefault(m => m.Key.Equals(directory, StringComparison.OrdinalIgnoreCase)).Value is { } name
+            ? name
+            : directory;
+
+    /// What to send when asking for help: the reason and what Penumbra serves for the current pose.
+    public string Details()
+    {
+        if (lastPose is not { } pose) return NotServed ?? "";
+        var expected = acts.Candidates.Where(c => c.Pose is not null && acts.File.Find(c.ModDirectory) is not null)
+            .Select(c => $"{c.ModName}: {c.Trigger} = pose {c.Pose!.Value.EmoteMode}/{c.Pose.Value.Variant}").Distinct();
+        return string.Join("\n", new[]
+        {
+            NotServed ?? "",
+            $"Pose: {pose.EmoteMode}/{pose.Variant} (/{emotes.CommandOfMode(pose.EmoteMode) ?? "?"}), race {lastRace ?? "unknown"}",
+            $"Penumbra mod folder: {penumbra.TryGetModDirectory()}",
+            "Picked poses:",
+        }.Concat(expected).Append("For this pose:").Concat(Explain(pose, lastRace)));
     }
 
     private Dictionary<string, string>? Resolve(string[] paths)

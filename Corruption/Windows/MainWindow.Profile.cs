@@ -89,6 +89,16 @@ public sealed partial class MainWindow
             }
 
             DrawExcludeCurrent(engine);
+            if (status.Act is null && status.Excluded is null && detector.NotServed is { } notServed)
+            {
+                ImGui.TextColored(Theme.Warning, "Your animation isn't being detected.");
+                Theme.MutedWrapped(notServed);
+                if (ImGui.SmallButton("Copy details"))
+                {
+                    ImGui.SetClipboardText(detector.Details());
+                    Notifier.Info("Copied. Send it with your bug report.");
+                }
+            }
             DrawLickClean(engine, null);
             if (status.State == SceneState.Earning) DrawBonuses(engine);
             if (status.State == SceneState.Waiting && status.Failure == SceneFailure.SoloBudgetSpent)
