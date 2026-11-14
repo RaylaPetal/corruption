@@ -174,6 +174,12 @@ dotnet test --project Corruption.Tests/Corruption.Tests.csproj
 
 Requires the .NET 10 SDK and Dalamud installed at least once. Rules that don't need the game live in `Corruption.Core`, which has the tests. Balance constants ship in `Corruption/balance.json`.
 
+## Help and support
+
+Found a bug or need help? [Open an issue on GitHub](https://github.com/RaylaPetal/corruption/issues) or message `raylapetal` on Discord. The **?** button in the main window's title bar has both.
+
+If you enjoy Corruption, you can support it on [Ko-fi](https://ko-fi.com/raylapetal) or [Patreon](https://www.patreon.com/cw/RaylaPetal).
+
 ## Credits and licence
 
 Corruption is licensed under the **GNU AGPL v3** (see `LICENSE.md`).

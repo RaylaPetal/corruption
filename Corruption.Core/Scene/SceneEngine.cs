@@ -54,6 +54,9 @@ public interface IEngineHost
 
     void Notify(string text);
 
+    /// The Dalamud log only, never chat: for things the player mustn't see, such as a secret conception roll.
+    void Log(string text) { }
+
     /// A goal or achievement was completed, with the XP it actually paid.
     void Celebrate(GoalReward reward);
 
@@ -1206,17 +1209,33 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     {
         if (save.Setup is null || hole != CreampieAim.Pussy || source.Name.Length == 0) return;
         if (sentCreampies.TryGetValue((source.Key, hole), out var sent) && now - sent < OwnCreampieWindow) return;
-        if (lastCummyRoll.TryGetValue(source.Key, out var last) && now - last < CummyRollGap) return;
+        if (lastCummyRoll.TryGetValue(source.Key, out var last) && now - last < CummyRollGap)
+        {
+            host.Log($"Cummy creampie from {source.Key}: no roll, {(now - last).TotalSeconds:0}s since the last one (one a minute).");
+            return;
+        }
         var body = BodyOf(source);
-        if (body is { CanBreed: false }) return;
-        if (!PregnancyBook.HasCycle(save.Pregnancy, now)) return;
+        if (body is { CanBreed: false })
+        {
+            host.Log($"Cummy creampie from {source.Key}: no roll, their Corruption doesn't have \"I can breed\" on.");
+            return;
+        }
+        if (!PregnancyBook.HasCycle(save.Pregnancy, now))
+        {
+            host.Log($"Cummy creampie from {source.Key}: no roll, no running cycle (pregnancy off, can't carry, pregnant or recovering).");
+            return;
+        }
         lastCummyRoll[source.Key] = now;
         TryConceive(now, source, ConceptionChanceFor(now, source, body), ApiOutcomes.CummySource);
     }
 
     private void RollConception(DateTime now, PeerRecord peer)
     {
-        if (BodyOf(peer) is not { CanBreed: true } body) return;
+        if (BodyOf(peer) is not { CanBreed: true } body)
+        {
+            host.Log($"Creampie from {peer.Key}: no roll, their Corruption doesn't have \"I can breed\" on.");
+            return;
+        }
         TryConceive(now, peer, ConceptionChanceFor(now, peer, body), ApiOutcomes.SceneSource);
     }
 
@@ -1239,7 +1258,14 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
     /// test or day 5 confirms it.
     private bool TryConceive(DateTime now, PeerRecord peer, double chance, string source)
     {
-        if (chance <= 0 || random.NextDouble() >= chance) return false;
+        if (chance <= 0)
+        {
+            host.Log($"Conception roll from {peer.Key} ({source}): chance 0 (cycle phase, Contraceptive, paused or hidden).");
+            return false;
+        }
+        var roll = random.NextDouble();
+        host.Log($"Conception roll from {peer.Key} ({source}): chance {chance:P0}, rolled {roll:0.00}, {(roll < chance ? "conceived" : "missed")}.");
+        if (roll >= chance) return false;
         PregnancyBook.Conceive(save.Pregnancy, now, peer.Key, source);
         host.SaveProgress();
         return true;

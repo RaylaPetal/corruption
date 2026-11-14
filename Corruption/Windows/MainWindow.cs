@@ -74,6 +74,12 @@ public sealed partial class MainWindow : Window
         Size = new Vector2(660, 640);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(520, 420), MaximumSize = new Vector2(1400, 1600) };
+        TitleBarButtons.Add(new TitleBarButton
+        {
+            Icon = FontAwesomeIcon.QuestionCircle,
+            Click = _ => HelpLinks.RequestOpen(),
+            ShowTooltip = () => ImGui.SetTooltip("Help & bug reports"),
+        });
     }
 
     private static float Scale => ImGuiHelpers.GlobalScale;
@@ -81,6 +87,7 @@ public sealed partial class MainWindow : Window
     public override void Draw()
     {
         using var content = Theme.Content();
+        HelpLinks.Draw();
         if (scene.Engine is not { } engine)
         {
             Theme.MutedText("Log in to a character to use this.");
@@ -133,6 +140,9 @@ public sealed partial class MainWindow : Window
 
     private static float FooterGap => 6f * Scale;
 
+    /// The support buttons sit at the right of the footer's first line, so pills there wrap short of them.
+    private static float FooterSupportReserve => SupportLinks.Width + ImGui.GetStyle().ItemSpacing.X;
+
     /// Lines the footer takes at the current width, so the page above leaves room for all of them.
     private int FooterLines((string Name, bool Ok, bool Required, string Detail)[] items)
     {
@@ -142,7 +152,8 @@ public sealed partial class MainWindow : Window
         foreach (var item in items)
         {
             var width = PillWidth(item.Name);
-            if (used > 0 && used + FooterGap + width > avail)
+            var limit = lines == 1 ? avail - FooterSupportReserve : avail;
+            if (used > 0 && used + FooterGap + width > limit)
             {
                 lines++;
                 used = 0;
@@ -156,13 +167,24 @@ public sealed partial class MainWindow : Window
     private void DrawFooter((string Name, bool Ok, bool Required, string Detail)[] items)
     {
         ImGui.Separator();
+        var start = ImGui.GetCursorPos();
+        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - SupportLinks.Width);
+        SupportLinks.Draw();
+        ImGui.SetCursorPos(start);
+
         var first = true;
+        var firstLine = true;
         foreach (var (name, ok, required, detail) in items)
         {
             if (!first)
             {
                 ImGui.SameLine(0, FooterGap);
-                if (ImGui.GetContentRegionAvail().X < PillWidth(name)) ImGui.NewLine();
+                var room = ImGui.GetContentRegionAvail().X - (firstLine ? FooterSupportReserve : 0);
+                if (room < PillWidth(name))
+                {
+                    ImGui.NewLine();
+                    firstLine = false;
+                }
             }
             first = false;
             Theme.StatusPill(name, ok ? Theme.Good : required ? Theme.Danger : Theme.Faint);

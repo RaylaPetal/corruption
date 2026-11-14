@@ -398,6 +398,8 @@ public sealed class SceneService : IDisposable, IEngineHost
 
     public void Notify(string text) => Notifier.Info(text);
 
+    public void Log(string text) => Plugin.Log.Information(text);
+
     public void Celebrate(GoalReward reward) => celebrate(reward);
 
     /// Public too, for windows that change the save directly, such as tier visual choices.

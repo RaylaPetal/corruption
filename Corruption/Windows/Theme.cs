@@ -359,6 +359,26 @@ internal static class Theme
         return ImGuiComponents.IconButtonWithText(icon, text);
     }
 
+    /// A square button with the icon centred on its drawn shape: a button label centres the glyph's advance, which
+    /// sits off-centre for most Font Awesome icons.
+    public static unsafe bool CenteredIconButton(string id, FontAwesomeIcon icon, float size, Vector4 color)
+    {
+        var box = new Vector2(size, size);
+        var pressed = ImGui.Button($"##{id}", box);
+        var min = ImGui.GetItemRectMin();
+        var text = icon.ToIconString();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var glyph = ImGui.GetFont().FindGlyph(text[0]);
+            var glyphSize = new Vector2(glyph->X1 - glyph->X0, glyph->Y1 - glyph->Y0);
+            var pos = min + (box - glyphSize) / 2 - new Vector2(glyph->X0, glyph->Y0);
+            var alpha = ImGui.GetStyle().Alpha;
+            var tinted = alpha < 1f ? color with { W = color.W * alpha } : color;
+            ImGui.GetWindowDrawList().AddText(new Vector2(MathF.Round(pos.X), MathF.Round(pos.Y)), ImGui.GetColorU32(tinted), text);
+        }
+        return pressed;
+    }
+
     public static float IconButtonWidth(FontAwesomeIcon icon, string text)
     {
         float iconWidth;
