@@ -33,6 +33,31 @@ public class ServedCheckTests
     }
 
     [Fact]
+    public void ServedInsteadNamesTheWinningMod()
+    {
+        var resolved = new Dictionary<string, string> { [GamePath] = @"C:\Mods\OtherMod\anims\sweep.pap" };
+        Assert.Equal("othermod", ServedCheck.ServedInstead(Root, Redirects(GamePath), resolved, "c0201"));
+    }
+
+    [Fact]
+    public void ServedInsteadIsEmptyForTheGamesOwnFile()
+    {
+        var resolved = new Dictionary<string, string> { [GamePath] = GamePath };
+        Assert.Equal("", ServedCheck.ServedInstead(Root, Redirects(GamePath), resolved, "c0201"));
+    }
+
+    [Fact]
+    public void ServedInsteadGivesAFileOutsideTheModFolderWhole()
+    {
+        var resolved = new Dictionary<string, string> { [GamePath] = @"D:\Elsewhere\sweep.pap" };
+        Assert.Equal("d:/elsewhere/sweep.pap", ServedCheck.ServedInstead(Root, Redirects(GamePath), resolved, "c0201"));
+    }
+
+    [Fact]
+    public void ServedInsteadIsNullWhenUnresolved()
+        => Assert.Null(ServedCheck.ServedInstead(Root, Redirects(GamePath), new Dictionary<string, string>(), "c0201"));
+
+    [Fact]
     public void NotServedWhenUnresolved()
         => Assert.False(ServedCheck.IsServed(Root, "MyMod", Redirects(GamePath), new Dictionary<string, string>(), "c0201"));
 

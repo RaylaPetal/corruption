@@ -68,8 +68,9 @@ public sealed class Plugin : IDalamudPlugin
         if (warning is not null) Log.Warning(warning);
 
         penumbra = new PenumbraIpc();
-        var acts = new ActsService(penumbra, new ModScanner(new EmoteIndex()), configDirectory);
-        var detector = new ActDetector(penumbra, acts);
+        var emotes = new EmoteIndex();
+        var acts = new ActsService(penumbra, new ModScanner(emotes), configDirectory);
+        var detector = new ActDetector(penumbra, acts, emotes);
         heels = new SimpleHeelsIpc();
         cummy = new CummyBridge();
         bridges = new BridgeHub(settings, penumbra);

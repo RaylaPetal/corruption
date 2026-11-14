@@ -13,18 +13,41 @@ public static class ServedCheck
         IReadOnlyDictionary<string, string> resolved, string? raceCode)
     {
         var root = Normalize(modRoot).TrimEnd('/');
-        var own = raceCode is null
-            ? []
-            : redirects.Where(r => IsForRace(r.Key, raceCode)).ToList();
-        var relevant = own.Count > 0 ? own : redirects.ToList();
-
-        foreach (var (gamePath, files) in relevant)
+        foreach (var (gamePath, files) in Relevant(redirects, raceCode))
         {
             if (!resolved.TryGetValue(gamePath, out var actual)) continue;
             var normalized = Normalize(actual);
             if (files.Any(file => normalized == Normalize($"{root}/{modDirectory}/{file}"))) return true;
         }
         return false;
+    }
+
+    /// When a mod's animation isn't served, what Penumbra serves instead for its first path: another mod's folder, ""
+    /// for the game's own file, the whole path for a file outside the mod folder, or null when nothing resolved.
+    public static string? ServedInstead(string modRoot, IReadOnlyDictionary<string, IReadOnlyCollection<string>> redirects,
+        IReadOnlyDictionary<string, string> resolved, string? raceCode)
+    {
+        var root = Normalize(modRoot).TrimEnd('/') + "/";
+        foreach (var (gamePath, _) in Relevant(redirects, raceCode))
+        {
+            if (!resolved.TryGetValue(gamePath, out var actual)) continue;
+            var normalized = Normalize(actual);
+            // The game's own file comes back as the game path; anything else outside the mod folder is returned whole.
+            if (!normalized.StartsWith(root, StringComparison.Ordinal))
+                return normalized == Normalize(gamePath) ? "" : normalized;
+            var rest = normalized[root.Length..];
+            var slash = rest.IndexOf('/');
+            return slash < 0 ? rest : rest[..slash];
+        }
+        return null;
+    }
+
+    /// The paths for this race when the option has any, else all of them, since the game falls back to another skeleton.
+    private static List<KeyValuePair<string, IReadOnlyCollection<string>>> Relevant(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> redirects, string? raceCode)
+    {
+        var own = raceCode is null ? [] : redirects.Where(r => IsForRace(r.Key, raceCode)).ToList();
+        return own.Count > 0 ? own : redirects.ToList();
     }
 
     private static bool IsForRace(string gamePath, string raceCode)
