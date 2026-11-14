@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.5",
+        [
+            "Acts: animations played through BypassEmote now count. A picked mod's animation copied into another emote, such as /lean, is recognised as the original.",
+        ]),
         new("0.3.6.4",
         [
             "Acts: \"Copy details\" is on the scene card whenever no scene is earning, so you can always send what Corruption sees, even when it finds no reason.",

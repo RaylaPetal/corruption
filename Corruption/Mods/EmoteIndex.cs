@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Lumina.Excel.Sheets;
 
 namespace Corruption.Mods;
@@ -11,6 +12,7 @@ public sealed class EmoteIndex
     private readonly Dictionary<string, List<(string Key, string Command)>> byTimeline = new();
     private readonly Dictionary<string, uint> modeByCommand = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<uint, string> commandByMode = new();
+    private readonly Dictionary<string, List<string>> keysByCommand = new(StringComparer.OrdinalIgnoreCase);
 
     public EmoteIndex()
     {
@@ -29,6 +31,8 @@ public sealed class EmoteIndex
                 var basename = key[(key.LastIndexOf('/') + 1)..];
                 if (!byTimeline.TryGetValue(basename, out var list)) byTimeline[basename] = list = [];
                 list.Add((key, command));
+                if (!keysByCommand.TryGetValue(command, out var keys)) keysByCommand[command] = keys = [];
+                if (!keys.Contains(key)) keys.Add(key);
             }
         }
 
@@ -56,4 +60,10 @@ public sealed class EmoteIndex
     public uint? ModeOfCommand(string command) => modeByCommand.TryGetValue(command, out var mode) ? mode : null;
 
     public string? CommandOfMode(uint mode) => commandByMode.GetValueOrDefault(mode);
+
+    /// The game paths an emote's animations load from for a race, as "chara/human/c0801/.../emote/x.pap".
+    public IEnumerable<string> PathsOfCommand(string command, string raceCode)
+        => keysByCommand.TryGetValue(command, out var keys)
+            ? keys.Select(k => $"chara/human/{raceCode}/animation/a0001/bt_common/{k}.pap")
+            : [];
 }

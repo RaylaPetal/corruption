@@ -17,6 +17,10 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
 
     private Dictionary<PoseKey, PoseOptions> byPose = new();
     private int builtFrom = -1;
+    private readonly CopiedAnimations copies = new();
+
+    /// The copied file the current animation was recognised from, when it plays through another emote. Null otherwise.
+    public string? CopiedFrom { get; private set; }
 
     private PoseKey? lastPose;
     private int lastSettings;
@@ -72,6 +76,8 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
 
         byPose = options.ToDictionary(o => o.Key, o => new PoseOptions(o.Value,
             o.Value.SelectMany(v => v.Item2.Redirects.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()));
+        if (penumbra.TryGetModDirectory() is { Length: > 0 } root)
+            copies.Rebuild(root, options.Values.SelectMany(list => list));
         nextCheck = DateTime.MinValue;
     }
 
@@ -79,8 +85,10 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
     {
         Excluded = null;
         NotServed = null;
+        CopiedFrom = null;
         if (!byPose.TryGetValue(pose, out var entry))
         {
+            if (Copied(pose, raceCode) is { } copied) return Counted(copied);
             // Only worth saying for an emote a picked mod replaces under another pose, which means the pose read is off.
             var command = emotes.CommandOfMode(pose.EmoteMode);
             if (command is not null && acts.Candidates.Any(c => c.Command == command && c.Pose != pose
@@ -106,9 +114,41 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
             }
             return act;
         }
+        if (Copied(pose, raceCode) is { } copy) return Counted(copy);
         NotServed = WhyNotServed(root, entry.Options, resolved, raceCode);
         return null;
     }
+
+    private ActEntry? Counted(ActEntry act)
+    {
+        if (!acts.File.IsExcluded(act.ModDirectory, act.ExclusionKey)) return act;
+        Excluded = act;
+        return null;
+    }
+
+    /// A picked animation playing through another emote: what Penumbra serves for this emote is a byte-for-byte copy of
+    /// a picked mod's file, as plugins like BypassEmote make. The act keeps its own pose, so partners see the real one.
+    private ActEntry? Copied(PoseKey pose, string? raceCode)
+    {
+        if (raceCode is null || emotes.CommandOfMode(pose.EmoteMode) is not { } command) return null;
+        var paths = emotes.PathsOfCommand(command, raceCode).ToArray();
+        if (paths.Length == 0 || Resolve(paths) is not { } resolved) return null;
+        foreach (var (gamePath, actual) in resolved)
+        {
+            if (string.Equals(actual.Replace('\\', '/'), gamePath, StringComparison.OrdinalIgnoreCase)) continue;
+            if (copies.Match(actual) is not { } act) continue;
+            CopiedFrom = actual;
+            if (lastCopyLogged != actual)
+            {
+                lastCopyLogged = actual;
+                Plugin.Log.Information($"/{command} plays a copy of {act.ModName} / {act.DisplayName} ({actual}), counting it as that.");
+            }
+            return act;
+        }
+        return null;
+    }
+
+    private string? lastCopyLogged;
 
     private string WhyNotServed(string root, List<(ActEntry Act, ActCandidate Candidate)> options, Dictionary<string, string> resolved,
         string? raceCode)
@@ -153,6 +193,7 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
                 ? $"Pose: {pose.EmoteMode}/{pose.Variant} (/{emotes.CommandOfMode(pose.EmoteMode) ?? "?"})"
                 : "Pose: not in a looping emote",
             $"Race: {lastRace ?? "unknown"}",
+            $"Copied animation: {CopiedFrom ?? "none"}",
             $"Penumbra: {(penumbra.IsAvailable ? "available" : "unavailable")}, mod folder {penumbra.TryGetModDirectory()}",
             "Picked animations:",
         };
