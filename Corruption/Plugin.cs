@@ -33,7 +33,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private const string CommandName = "/corr";
 
-    private const string Usage = "/corr, /corr hud, /corr climax, /corr plate, /corr hide, /corr pause, /corr resume, /corr prestige";
+    private const string Usage = "/corr, /corr hud, /corr climax, /corr plate, /corr hide, /corr pause, /corr resume, /corr prestige, /corr changelog";
 
     private readonly WindowSystem windows = new("Corruption");
     private readonly Settings settings;
@@ -45,11 +45,19 @@ public sealed class Plugin : IDalamudPlugin
     private readonly SceneService scene;
     private readonly CorruptionApi api;
     private readonly MainWindow mainWindow;
+    private readonly ChangelogWindow changelog;
 
     public Plugin()
     {
-        settings = PluginInterface.GetPluginConfig() as Settings ?? new Settings();
+        var saved = PluginInterface.GetPluginConfig() as Settings;
+        settings = saved ?? new Settings();
         if (settings.Migrate()) settings.Save();
+        // A fresh install gets the welcome instead of notes about changes it never saw.
+        if (saved is null)
+        {
+            settings.LastSeenChangelog = Changelog.Latest;
+            settings.Save();
+        }
         ApplyUiHide(settings);
 
         var configDirectory = PluginInterface.GetPluginConfigDirectory();
@@ -76,6 +84,9 @@ public sealed class Plugin : IDalamudPlugin
         var welcome = new WelcomeWindow(settings, scene, balance, cummy, bridges, () => mainWindow.IsOpen = true);
         windows.AddWindow(welcome);
         mainWindow.OpenWelcome = welcome.Show;
+        changelog = new ChangelogWindow(settings);
+        windows.AddWindow(changelog);
+        mainWindow.OpenChangelog = changelog.ShowAll;
         windows.AddWindow(new HudWindow(settings, scene, balance, () => mainWindow.IsOpen = true));
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand) { HelpMessage = $"Corruption. {Usage}" });
@@ -168,6 +179,9 @@ public sealed class Plugin : IDalamudPlugin
                 break;
             case "resume":
                 scene.Engine?.Resume();
+                break;
+            case "changelog":
+                changelog.ShowAll();
                 break;
             default:
                 Notifier.Error($"Unknown command '{verb}'. Try: {Usage}");

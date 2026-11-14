@@ -15,6 +15,8 @@ public sealed partial class MainWindow
     private bool draftBreed;
     private int draftCycleDay = PregnancyBook.DefaultStartDay;
     private bool confirmingPregnancyOff;
+    private int bellyKind;
+    private string bellyFilter = "";
 
     private static readonly string[] TrimesterNames = ["", "First", "Second", "Third"];
 
@@ -221,6 +223,34 @@ public sealed partial class MainWindow
 
     // ── Settings ─────────────────────────────────────────────────────────────
 
+    /// The whole-pregnancy belly, which goes on once a pregnancy is confirmed whether or not tier visuals are on.
+    private void DrawBellyPicker(PregnancyState p)
+    {
+        ImGuiHelpers.ScaledDummy(2f);
+        ImGui.TextColored(Theme.Pink, "Pregnancy belly");
+        var slot = new VisualSlot(p.Visuals, PregnancyVisualPlan.BellyKey, "Belly", Theme.Pink);
+        p.Visuals.TryGetValue(slot.Key, out var choice);
+        ImGui.SameLine();
+        Theme.MutedWrapped(choice is null ? "Nothing" : $"{(choice.Kind == VisualKind.Glamourer ? "Design" : "Mod")}: {choice.Name}{OptionsText(choice)}");
+        Theme.MutedWrapped("On for the whole pregnancy once it's confirmed, and off at the birth. While tier visuals are on, a trimester's own visual there goes on instead during that trimester. Synced players see it like any other change to your look.");
+
+        ImGui.PushID("belly");
+        if (Theme.Choice("bellyKind", VisualKindNames, ref bellyKind)) bellyFilter = "";
+        switch (bellyKind)
+        {
+            case 0:
+                if (choice is not null && ImGui.Button("Clear the belly")) SetVisual(slot, null);
+                break;
+            case 1:
+                DrawDesignPicker(slot, ref bellyFilter);
+                break;
+            default:
+                DrawModPicker(slot, ref bellyFilter);
+                break;
+        }
+        ImGui.PopID();
+    }
+
     private void DrawPregnancySettings(SceneEngine engine)
     {
         var p = engine.Save.Pregnancy;
@@ -266,6 +296,7 @@ public sealed partial class MainWindow
                     ImGui.TextColored(Theme.Warning, cummy.IsAvailable
                         ? "Your Cummy is too old for creampies, so you can't conceive until it's updated."
                         : "Cummy isn't connected, so you can't conceive until it's installed and updated.");
+                DrawBellyPicker(p);
             }
             // A secret pregnancy can't lock the roles, or the lock would give it away.
             if (!PregnancyBook.IsConfirmed(p))

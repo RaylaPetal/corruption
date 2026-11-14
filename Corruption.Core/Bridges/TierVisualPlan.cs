@@ -42,12 +42,18 @@ public static class PregnancyVisualPlan
     /// The trimesters a visual can be chosen for, as stored.
     public static readonly IReadOnlyList<string> Keys = ["First", "Second", "Third"];
 
-    /// The current trimester's choice while pregnant and confirmed, in the same cases tier visuals apply, or null.
-    public static TierVisual? Wanted(CharacterSave save, DateTime now, bool removeWhilePaused)
+    /// Where the whole-pregnancy belly from the Pregnancy settings is stored, beside the trimesters.
+    public const string BellyKey = "Belly";
+
+    /// While pregnant and confirmed, in the same cases tier visuals apply: the current trimester's own choice when
+    /// trimester visuals are on (tier visuals are) and it has one, else the belly. Null when neither applies.
+    public static TierVisual? Wanted(CharacterSave save, DateTime now, bool removeWhilePaused, bool trimestersOn)
     {
         if (save.Setup is null || (save.Paused && removeWhilePaused)) return null;
         var stage = PregnancyBook.ShownStage(save.Pregnancy, now);
         if (stage is not (PregnancyStage.First or PregnancyStage.Second or PregnancyStage.Third)) return null;
-        return save.Pregnancy.Visuals.TryGetValue(Keys[(int)stage - 1], out var visual) ? visual : null;
+        var visuals = save.Pregnancy.Visuals;
+        if (trimestersOn && visuals.TryGetValue(Keys[(int)stage - 1], out var trimester)) return trimester;
+        return visuals.TryGetValue(BellyKey, out var belly) ? belly : null;
     }
 }

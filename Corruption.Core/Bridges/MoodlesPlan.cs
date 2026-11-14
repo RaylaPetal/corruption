@@ -8,10 +8,11 @@ public enum MoodleKind { Aroused, Marked, Watched, Bonded, Refractory, Fading, F
 /// <param name="WithBondedPartner">The scene's partner is the formed bond.</param>
 /// <param name="Trimester">1 to 3 while pregnant, else 0.</param>
 /// <param name="Dripping">The holes dripping, from Cummy version 6 ("pussy", "ass").</param>
+/// <param name="Father">The father's character name while confirmed pregnant, else null.</param>
 public readonly record struct MoodlesInput(bool Visible, double Arousal, int LayersWorn, bool InScene, int Watchers,
     bool WithBondedPartner, bool Refractory, bool Fading,
     bool Fertile = false, int Trimester = 0, bool Craving = false, bool Unsatisfied = false, bool Recovering = false,
-    IReadOnlyCollection<string>? Dripping = null);
+    IReadOnlyCollection<string>? Dripping = null, string? Father = null);
 
 public static class MoodlesPlan
 {
@@ -36,8 +37,13 @@ public static class MoodlesPlan
             Craving = pregnant && p.Craving is not null && !p.CravingMet,
             Unsatisfied = pregnant && p.Unsatisfied,
             Recovering = stage == PregnancyStage.Recovering,
+            Father = pregnant && ApiSnapshots.Split(p.FatherKey).Name.Trim() is { Length: > 0 } name ? name : null,
         };
     }
+
+    /// The Pregnant status's description: the father by name only, never the world.
+    public static string PregnantDescription(string? father)
+        => string.IsNullOrWhiteSpace(father) ? "Carrying a child." : $"Carrying {father.Trim()}'s child.";
 
     /// Each status that applies, with its level: the Aroused step from 1 to 5, the Marked layer count, the dripping holes
     /// (pussy 1, ass 2, both 3), else 1.

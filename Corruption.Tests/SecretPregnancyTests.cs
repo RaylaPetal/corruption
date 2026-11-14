@@ -225,9 +225,9 @@ public class SecretPregnancyTests
     {
         var save = Conceived();
         save.Pregnancy.Visuals["First"] = new TierVisual { Kind = VisualKind.Penumbra, ModDirectory = "bump" };
-        Assert.Null(PregnancyVisualPlan.Wanted(save, T0.AddHours(1), false));
+        Assert.Null(PregnancyVisualPlan.Wanted(save, T0.AddHours(1), false, true));
         PregnancyBook.Confirm(save.Pregnancy, T0.AddHours(1));
-        Assert.Equal("bump", PregnancyVisualPlan.Wanted(save, T0.AddHours(1), false)!.ModDirectory);
+        Assert.Equal("bump", PregnancyVisualPlan.Wanted(save, T0.AddHours(1), false, true)!.ModDirectory);
     }
 
     [Fact]

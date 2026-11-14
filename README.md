@@ -30,6 +30,7 @@ Your animations don't need to match, or even come from the same mod. Playing alo
 - **Nearby** lists who's around with Corruption, with their title and your history together (scenes, time together and when you were last together), plus a list of past partners. **Hide me** there, or `/corr hide`, stops other players seeing you have it. Scenes can't earn while you're hidden.
 - `/corr hud` toggles the HUD. `/corr plate` toggles your nameplate text. `/corr climax` climaxes by hand at 70 arousal or more (40 with a Hair Trigger); at 100 it happens by itself.
 - **Safeword:** Ctrl+Shift+End, or `/corr pause`, stops scene XP and arousal at once, and shows others you've paused. `/corr resume` continues. Change the key in **Settings**.
+- `/corr changelog` shows what's new. It also opens by itself once after each update.
 
 XP comes from your tier, your partner's tier if higher, people watching you, your streak, your bond, Cummy layers you're wearing, your prestige stars and your difficulty, not from which animation is playing.
 

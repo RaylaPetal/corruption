@@ -59,7 +59,8 @@ public sealed class MoodlesService
     private readonly ICallGateSubscriber<MoodleTuple, IPlayerCharacter, object> addByData;
     private readonly ICallGateSubscriber<Guid, IPlayerCharacter, object> remove;
     private readonly ICallGateSubscriber<List<MoodleTuple>> clientStatuses;
-    private readonly Dictionary<MoodleKind, int> applied = [];
+    /// What's on now: the level, and the extra text that can change without it (the Pregnant status's father).
+    private readonly Dictionary<MoodleKind, (int Level, string? Extra)> applied = [];
     private Dictionary<MoodleKind, int>? icons;
     private bool checkedOnce;
 
@@ -85,8 +86,9 @@ public sealed class MoodlesService
 
     public int AppliedCount => applied.Count;
 
-    /// Sends only what changed between the plan and what's on now.
-    public void Update(IReadOnlyDictionary<MoodleKind, int> plan, string applier, double arousal, int layers)
+    /// Sends only what changed between the plan and what's on now. Only the level counts, so the Aroused percentage
+    /// doesn't re-send every tick, except that a new father re-sends the Pregnant status.
+    public void Update(IReadOnlyDictionary<MoodleKind, int> plan, string applier, double arousal, int layers, string? father)
     {
         if (plan.Count == 0 && applied.Count == 0) return;
         if (Plugin.ObjectTable.LocalPlayer is not { } me) return;
@@ -101,9 +103,10 @@ public sealed class MoodlesService
             var added = false;
             foreach (var (kind, level) in plan)
             {
-                if (applied.TryGetValue(kind, out var was) && was == level) continue;
-                addByData.InvokeAction(Tuple(kind, level, applier, arousal, layers), me);
-                applied[kind] = level;
+                var extra = kind == MoodleKind.Pregnant ? father : null;
+                if (applied.TryGetValue(kind, out var was) && was == (level, extra)) continue;
+                addByData.InvokeAction(Tuple(kind, level, applier, arousal, layers, father), me);
+                applied[kind] = (level, extra);
                 added = true;
             }
             if (added && !checkedOnce) CheckAccepted();
@@ -123,8 +126,8 @@ public sealed class MoodlesService
         if (Plugin.ObjectTable.LocalPlayer is not { } me) return;
         try
         {
-            addByData.InvokeAction(Tuple(kind, level, applier, 0, level, icon), me);
-            applied[kind] = -1;
+            addByData.InvokeAction(Tuple(kind, level, applier, 0, level, null, icon), me);
+            applied[kind] = (-1, null);
         }
         catch (Exception ex)
         {
@@ -177,7 +180,8 @@ public sealed class MoodlesService
         applied.Clear();
     }
 
-    private MoodleTuple Tuple(MoodleKind kind, int level, string applier, double arousal, int layers, int? icon = null)
+    private MoodleTuple Tuple(MoodleKind kind, int level, string applier, double arousal, int layers, string? father,
+        int? icon = null)
     {
         var (title, description, type) = kind switch
         {
@@ -188,7 +192,7 @@ public sealed class MoodlesService
             MoodleKind.Refractory => ("Refractory", "Recovering after a climax.", Negative),
             MoodleKind.Fading => ("Fading", "Their corruption is fading.", Negative),
             MoodleKind.Fertile => ("Fertile", "Their body is ready to conceive.", Special),
-            MoodleKind.Pregnant => ($"Pregnant: {(level == 1 ? "first" : level == 2 ? "second" : "third")} trimester", "Carrying a child.", Positive),
+            MoodleKind.Pregnant => ($"Pregnant: {(level == 1 ? "first" : level == 2 ? "second" : "third")} trimester", MoodlesPlan.PregnantDescription(father), Positive),
             MoodleKind.Craving => ("Craving", "Craving something only a scene can give.", Special),
             MoodleKind.Unsatisfied => ("Unsatisfied", "Yesterday's craving went unmet.", Negative),
             MoodleKind.Dripping => AsSpecial(CumStatusText.Creampie(level)),

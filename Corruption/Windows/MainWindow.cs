@@ -80,6 +80,12 @@ public sealed partial class MainWindow : Window
             Click = _ => HelpLinks.RequestOpen(),
             ShowTooltip = () => ImGui.SetTooltip("Help & bug reports"),
         });
+        TitleBarButtons.Add(new TitleBarButton
+        {
+            Icon = FontAwesomeIcon.Scroll,
+            Click = _ => OpenChangelog?.Invoke(),
+            ShowTooltip = () => ImGui.SetTooltip("What's new"),
+        });
     }
 
     private static float Scale => ImGuiHelpers.GlobalScale;
@@ -291,6 +297,7 @@ public sealed partial class MainWindow : Window
 
     /// Opens the welcome window. Set by the plugin once both windows exist.
     public Action? OpenWelcome { get; set; }
+    public Action? OpenChangelog { get; set; }
 
     /// Before setup, the main window only points to the welcome window, which holds the setup.
     private void DrawSetup()

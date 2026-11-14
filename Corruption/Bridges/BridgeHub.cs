@@ -53,7 +53,8 @@ public sealed class BridgeHub : IDisposable
         var save = engine.Save;
         Visuals.Update(now,
             settings.TierVisualsEnabled ? TierVisualPlan.Wanted(save, settings.RemoveVisualWhilePaused) : null,
-            settings.TierVisualsEnabled ? PregnancyVisualPlan.Wanted(save, now, settings.RemoveVisualWhilePaused) : null);
+            // The belly from the Pregnancy settings applies on its own; trimester visuals only while tier visuals are on.
+            PregnancyVisualPlan.Wanted(save, now, settings.RemoveVisualWhilePaused, settings.TierVisualsEnabled));
 
         if (!settings.MoodlesEnabled) return;
         if (!leftoversCleared && Plugin.ObjectTable.LocalPlayer is not null)
@@ -62,7 +63,7 @@ public sealed class BridgeHub : IDisposable
             leftoversCleared = true;
         }
         var partner = engine.Status.Partner;
-        var plan = MoodlesPlan.Plan(MoodlesPlan.WithPregnancy(new MoodlesInput(
+        var input = MoodlesPlan.WithPregnancy(new MoodlesInput(
             save.Setup is not null && !save.Hidden,
             save.Arousal,
             engine.LayersWorn,
@@ -71,8 +72,8 @@ public sealed class BridgeHub : IDisposable
             partner is not null && engine.Bonds.PaysWith(partner.Key),
             Arousal.InRefractory(save, now),
             Progression.IsFading(save, now),
-            Dripping: engine.DrippingHoles), save.Pregnancy, now));
-        Moodles.Update(plan, selfKey, save.Arousal, engine.LayersWorn);
+            Dripping: engine.DrippingHoles), save.Pregnancy, now);
+        Moodles.Update(MoodlesPlan.Plan(input), selfKey, save.Arousal, engine.LayersWorn, input.Father);
     }
 
     /// The safeword, hiding, or turning toys off: every device stops now, without waiting for a tick.
@@ -105,6 +106,7 @@ public sealed class BridgeHub : IDisposable
     {
         settings.TierVisualsEnabled = enabled;
         settings.Save();
+        // This takes the pregnancy belly off too; the next Update puts it back within a second.
         if (!enabled) Visuals.RemoveApplied();
     }
 

@@ -68,6 +68,9 @@ public sealed class Settings : IPluginConfiguration
 
     public bool MoodlesEnabled { get; set; }
 
+    /// The newest changelog release this player has seen. Null before the changelog existed.
+    public string? LastSeenChangelog { get; set; }
+
     /// True when saved settings changed, so the caller can save them.
     public bool Migrate()
     {

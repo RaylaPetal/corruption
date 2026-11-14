@@ -260,7 +260,7 @@ public sealed partial class MainWindow
                 Theme.MutedWrapped(choice is null ? "Nothing" : $"{(choice.Kind == VisualKind.Glamourer ? "Design" : "Mod")}: {choice.Name}{OptionsText(choice)}");
             }
             if (save.Pregnancy.Enabled && save.Pregnancy.CanCarry)
-                Theme.MutedWrapped("A trimester's visual goes on over your tier's while you're in that trimester, and comes off at the birth.");
+                Theme.MutedWrapped("A trimester's visual goes on over your tier's while you're in that trimester, in place of the pregnancy belly from the Pregnancy settings, and comes off at the birth.");
 
             ImGuiHelpers.ScaledDummy(2f);
             var names = slots.Select(slot => slot.Label).ToArray();
@@ -276,10 +276,10 @@ public sealed partial class MainWindow
                         SetVisual(editing, null);
                     break;
                 case 1:
-                    DrawDesignPicker(editing);
+                    DrawDesignPicker(editing, ref visualFilter);
                     break;
                 default:
-                    DrawModPicker(editing);
+                    DrawModPicker(editing, ref visualFilter);
                     break;
             }
         });
@@ -307,7 +307,7 @@ public sealed partial class MainWindow
         scene.SaveProgress();
     }
 
-    private void DrawDesignPicker(VisualSlot slot)
+    private void DrawDesignPicker(VisualSlot slot, ref string filter)
     {
         if (!bridges.Glamourer.IsAvailable)
         {
@@ -315,12 +315,12 @@ public sealed partial class MainWindow
             return;
         }
         ImGui.SetNextItemWidth(220 * Scale);
-        ImGui.InputTextWithHint("##designFilter", "Search designs", ref visualFilter, 64);
+        ImGui.InputTextWithHint("##designFilter", "Search designs", ref filter, 64);
         slot.Store.TryGetValue(slot.Key, out var current);
         if (!ImGui.BeginListBox("##designs", new Vector2(-1, 140 * Scale))) return;
         foreach (var design in bridges.Glamourer.Designs())
         {
-            if (visualFilter.Length > 0 && !design.Path.Contains(visualFilter, StringComparison.OrdinalIgnoreCase)) continue;
+            if (filter.Length > 0 && !design.Path.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
             var selected = current is { Kind: VisualKind.Glamourer } && current.DesignId == design.Id;
             if (ImGui.Selectable($"{design.Path}##{design.Id}", selected))
                 SetVisual(slot, new TierVisual { Kind = VisualKind.Glamourer, DesignId = design.Id, Name = design.Name });
@@ -328,7 +328,7 @@ public sealed partial class MainWindow
         ImGui.EndListBox();
     }
 
-    private void DrawModPicker(VisualSlot slot)
+    private void DrawModPicker(VisualSlot slot, ref string filter)
     {
         if (!penumbra.IsAvailable)
         {
@@ -343,12 +343,12 @@ public sealed partial class MainWindow
 
         slot.Store.TryGetValue(slot.Key, out var current);
         ImGui.SetNextItemWidth(220 * Scale);
-        ImGui.InputTextWithHint("##modFilter", "Search mods", ref visualFilter, 64);
+        ImGui.InputTextWithHint("##modFilter", "Search mods", ref filter, 64);
         if (ImGui.BeginListBox("##mods", new Vector2(-1, 140 * Scale)))
         {
             foreach (var (directory, name) in modList.OrderBy(m => m.Value, StringComparer.OrdinalIgnoreCase))
             {
-                if (visualFilter.Length > 0 && !name.Contains(visualFilter, StringComparison.OrdinalIgnoreCase)) continue;
+                if (filter.Length > 0 && !name.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
                 var selected = current is { Kind: VisualKind.Penumbra } && current.ModDirectory == directory;
                 if (ImGui.Selectable($"{name}##{directory}", selected))
                     SetVisual(slot, new TierVisual { Kind = VisualKind.Penumbra, ModDirectory = directory, Name = name });
@@ -479,7 +479,7 @@ public sealed partial class MainWindow
             Theme.Heading(FontAwesomeIcon.Smile, "Moodles");
             var enabled = settings.MoodlesEnabled;
             if (ImGui.Checkbox("Show statuses on my character", ref enabled)) bridges.SetMoodlesEnabled(enabled);
-            Theme.MutedWrapped("Aroused, Marked, Watched, Bonded, Refractory and Fading, and with pregnancy on: Fertile, Pregnant, Craving, Unsatisfied and Recovering, while they apply. Synced players with Moodles see them. Your other Moodles are never touched.");
+            Theme.MutedWrapped("Aroused, Marked, Watched, Bonded, Refractory and Fading, and with pregnancy on: Fertile, Pregnant, Craving, Unsatisfied and Recovering, while they apply. Synced players with Moodles see them, and Pregnant names the father. Your other Moodles are never touched.");
             if (!settings.MoodlesEnabled) return;
             if (!moodles.IsAvailable) ImGui.TextColored(Theme.Warning, "Moodles isn't available.");
             else if (moodles.Problem is { } problem) ImGui.TextColored(Theme.Warning, problem);
