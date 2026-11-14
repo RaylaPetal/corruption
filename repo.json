@@ -3,7 +3,7 @@
     "Author": "Rayla Petal",
     "Name": "Corruption",
     "InternalName": "Corruption",
-    "AssemblyVersion": "0.3.6.0",
+    "AssemblyVersion": "0.3.6.1",
     "Description": "Earn XP and arousal when you and a nearby player with the plugin both play animations from mods you each picked in Penumbra. Level through corruption tiers, climax into Cummy layers, bond with a regular partner, earn and wear titles, spend Sins in the shop, and opt into a full pregnancy system. Everything runs locally.\nRequires Penumbra, SimpleHeels and a sync service such as Lightless. Cummy, Glamourer, Moodles and Intiface Central are optional. 18+ content.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
@@ -18,9 +18,9 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.6.0/Corruption-0.3.6.0.zip",
-    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.6.0/Corruption-0.3.6.0.zip",
+    "DownloadLinkInstall": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.6.1/Corruption-0.3.6.1.zip",
+    "DownloadLinkUpdate": "https://github.com/RaylaPetal/corruption/releases/download/v0.3.6.1/Corruption-0.3.6.1.zip",
     "Changelog": "- A partner creampying your pussy straight from Cummy's menu can now get you pregnant too, not just a climax in a scene. At most one roll a minute from each partner.\n- Plugin API: OnConceived's source is \"cummy\" for those.",
-    "LastUpdate": "1794621281"
+    "LastUpdate": "1794666021"
   }
 ]
