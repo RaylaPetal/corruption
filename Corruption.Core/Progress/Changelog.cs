@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.7",
+        [
+            "Acts: a partner playing an act through BypassEmote now shows up as playing it, so the scene earns on your side too. Both of you need this version.",
+        ]),
         new("0.3.6.6",
         [
             "Acts: BypassEmote copies are also recognised when they're on the base files other races fall back to, such as through /mandervilledance.",

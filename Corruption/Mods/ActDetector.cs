@@ -127,7 +127,7 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
     }
 
     /// A picked animation playing through another emote: what Penumbra serves for this emote is a byte-for-byte copy of
-    /// a picked mod's file, as plugins like BypassEmote make. The act keeps its own pose, so partners see the real one.
+    /// a picked mod's file, as plugins like BypassEmote make. The tag carries the pose the game shows, which partners read.
     private ActEntry? Copied(PoseKey pose, string? raceCode)
     {
         if (raceCode is null || emotes.CommandOfMode(pose.EmoteMode) is not { } command) return null;

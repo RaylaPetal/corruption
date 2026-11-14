@@ -395,6 +395,20 @@ public class SceneEngineTests
     // ── The tag ────────────────────────────────────────────────────────────────
 
     [Fact]
+    public void ACopiedActTagsThePoseTheGameShows()
+    {
+        // BypassEmote plays the act's animation through another emote; partners' clients see that emote's pose.
+        var r = new EngineRig();
+        var shown = PoseKey.Normalized(7, 0);
+        for (var i = 0; i < 5; i++)
+        {
+            r.Engine.Sample(r.Now, new SceneSample(r.Act, shown, Vector3.Zero, []));
+            r.Now = r.Now.AddSeconds(1);
+        }
+        Assert.Equal(shown, PresenceTag.Parse(r.Host.Tags[^1])!.Value.Pose);
+    }
+
+    [Fact]
     public void TagSaysWhatThisCharacterIsDoing()
     {
         var r = new EngineRig();

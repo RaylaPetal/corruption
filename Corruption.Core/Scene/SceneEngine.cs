@@ -384,7 +384,9 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
 
         Status = new SceneStatus(StateOf(failure), failure, partner, sample.OwnAct, sceneStarted, fatigue, lastTickXp, watchers, lastFactors,
             sample.OwnAct is null ? sample.Excluded : null, solo);
-        PublishTag(now, sample.OwnAct?.Pose);
+        // The pose the game shows is what partners' clients read for this character. An act played through another
+        // emote (BypassEmote) is that other emote's pose, not the act's own, so the tag carries the one they'll see.
+        PublishTag(now, sample.OwnAct is null ? null : sample.OwnPose ?? sample.OwnAct.Pose);
         PayRewards();
         SyncTitles();
         NoteApiTransitions(now);
