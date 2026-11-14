@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Corruption.Core;
 using Dalamud.Game;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Plugin.Ipc;
 using Lumina.Excel.Sheets;
@@ -63,6 +64,10 @@ public sealed class MoodlesService
     private readonly Dictionary<MoodleKind, (int Level, string? Extra)> applied = [];
     private Dictionary<MoodleKind, int>? icons;
     private bool checkedOnce;
+    private DateTime lastResync;
+
+    /// How often to look for statuses Moodles took off by itself, as it does entering a duty.
+    private static readonly TimeSpan ResyncEvery = TimeSpan.FromSeconds(5);
 
     public MoodlesService()
     {
@@ -95,6 +100,7 @@ public sealed class MoodlesService
 
         try
         {
+            Resync();
             foreach (var kind in applied.Keys.Where(k => !plan.ContainsKey(k)).ToList())
             {
                 remove.InvokeAction(Ids[kind], me);
@@ -132,6 +138,23 @@ public sealed class MoodlesService
         catch (Exception ex)
         {
             Plugin.Log.Warning($"Moodles preview failed: {ex.Message}");
+        }
+    }
+
+    /// Moodles takes statuses off by itself, such as in duties, without telling us. Outside a duty, forget any of ours
+    /// it no longer has, so this update puts them back. Inside one, leave them off rather than fight it.
+    private void Resync()
+    {
+        if (applied.Count == 0 || !checkedOnce) return;
+        var now = DateTime.UtcNow;
+        if (now - lastResync < ResyncEvery) return;
+        lastResync = now;
+        if (Plugin.Condition[ConditionFlag.BoundByDuty] || Plugin.Condition[ConditionFlag.BetweenAreas]) return;
+        var active = clientStatuses.InvokeFunc().Select(s => s.Id).ToHashSet();
+        foreach (var kind in applied.Keys.Where(k => !active.Contains(Ids[k])).ToList())
+        {
+            Plugin.Log.Debug($"Moodles no longer has {kind}; putting it back.");
+            applied.Remove(kind);
         }
     }
 

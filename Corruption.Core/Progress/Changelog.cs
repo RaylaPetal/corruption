@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.2",
+        [
+            "Moodles: Corruption's statuses come back by themselves within a few seconds after a duty, or anything else that clears them. Inside a duty they stay off.",
+        ]),
         new("0.3.6.1",
         [
             "Moodles: the Pregnant status now names the father, as in \"Carrying Bob Smith's child.\" Anyone who can see your Moodles can read it.",
