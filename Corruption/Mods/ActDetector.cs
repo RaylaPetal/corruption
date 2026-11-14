@@ -131,7 +131,12 @@ public sealed class ActDetector(PenumbraIpc penumbra, ActsService acts, EmoteInd
     private ActEntry? Copied(PoseKey pose, string? raceCode)
     {
         if (raceCode is null || emotes.CommandOfMode(pose.EmoteMode) is not { } command) return null;
-        var paths = emotes.PathsOfCommand(command, raceCode).ToArray();
+        // The race's own paths first, then the base skeletons the game falls back to for races without their own file,
+        // which is all BypassEmote redirects for some emotes.
+        var paths = new[] { raceCode, "c0101", "c0201" }.Distinct()
+            .SelectMany(race => emotes.PathsOfCommand(command, race))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         if (paths.Length == 0 || Resolve(paths) is not { } resolved) return null;
         foreach (var (gamePath, actual) in resolved)
         {

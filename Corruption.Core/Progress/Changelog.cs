@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.6",
+        [
+            "Acts: BypassEmote copies are also recognised when they're on the base files other races fall back to, such as through /mandervilledance.",
+        ]),
         new("0.3.6.5",
         [
             "Acts: animations played through BypassEmote now count. A picked mod's animation copied into another emote, such as /lean, is recognised as the original.",
