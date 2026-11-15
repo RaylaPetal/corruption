@@ -76,14 +76,14 @@ public class WelcomeTests
     }
 
     [Fact]
-    public void APregnancyKeepsItsRoles()
+    public void APregnancyKeepsCarryingButBreedingCanChange()
     {
         var r = new EngineRig();
         PregnancyBook.Enable(r.Save.Pregnancy, true, false, 3, r.Now);
         KnownPregnancy.Conceive(r.Save.Pregnancy, r.Now, "Bob B@W");
         r.Engine.CompleteWelcome(new WelcomeChoices(null, Anatomy.Vagina, new PregnancyChoice(true, false, true, 3, 1), Plain), r.Now);
         Assert.True(r.Save.Pregnancy.CanCarry);
-        Assert.False(r.Save.Pregnancy.CanBreed);
+        Assert.True(r.Save.Pregnancy.CanBreed);
         Assert.True(PregnancyBook.IsPregnant(r.Save.Pregnancy));
     }
 

@@ -1369,8 +1369,8 @@ public sealed partial class SceneEngine(CharacterSave save, Balance balance, IEn
         save.Anatomy = choices.Anatomy;
         if (p.On)
         {
-            // Roles can't change while pregnant, so an ongoing pregnancy keeps its roles.
-            if (!PregnancyBook.IsConfirmed(save.Pregnancy)) PregnancyBook.Enable(save.Pregnancy, p.Carry, p.Breed, p.StartDay, now);
+            // While pregnant only breeding can change, and carrying stays on whatever was chosen.
+            PregnancyBook.Enable(save.Pregnancy, p.Carry || PregnancyBook.IsConfirmed(save.Pregnancy), p.Breed, p.StartDay, now);
             save.Pregnancy.Enabled = true;
             save.Pregnancy.ChanceFactor = Math.Clamp(p.ChanceFactor, PregnancyBook.MinChanceFactor, PregnancyBook.MaxChanceFactor);
         }

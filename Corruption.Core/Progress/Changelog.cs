@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.8",
+        [
+            "Pregnancy: \"I can breed\" can be changed in Settings > Pregnancy while you're pregnant. \"I can carry\" shows too but stays locked until the pregnancy ends.",
+        ]),
         new("0.3.6.7",
         [
             "Acts: a partner playing an act through BypassEmote now shows up as playing it, so the scene earns on your side too. Both of you need this version.",

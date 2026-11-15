@@ -298,12 +298,18 @@ public sealed partial class MainWindow
                         : "Cummy isn't connected, so you can't conceive until it's installed and updated.");
                 DrawBellyPicker(p);
             }
-            // A secret pregnancy can't lock the roles, or the lock would give it away.
-            if (!PregnancyBook.IsConfirmed(p))
+            // Breeding can change any time. Carrying is locked during a confirmed pregnancy, since turning it off would
+            // end it; a secret pregnancy can't lock it, or the lock would give it away.
             {
+                var pregnant = PregnancyBook.IsConfirmed(p);
                 var carry = p.CanCarry;
                 var breed = p.CanBreed;
-                if (ImGui.Checkbox("I can carry##now", ref carry) | ImGui.Checkbox("I can breed##now", ref breed))
+                ImGui.BeginDisabled(pregnant);
+                var carryChanged = ImGui.Checkbox("I can carry##now", ref carry);
+                ImGui.EndDisabled();
+                if (pregnant && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                    ImGui.SetTooltip("Locked while you're pregnant. Turning pregnancy off ends the pregnancy.");
+                if (carryChanged | ImGui.Checkbox("I can breed##now", ref breed))
                 {
                     if (engine.EnablePregnancy(carry, breed, carry && !p.CanCarry ? PregnancyBook.DefaultStartDay
                             : CycleClock.DayAt(p.CycleStartUtc, DateTime.UtcNow), DateTime.UtcNow) is { } refusal)

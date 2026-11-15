@@ -73,6 +73,23 @@ public class PregnancyTests
         return save;
     }
 
+    [Fact]
+    public void BreedingCanChangeWhilePregnantButCarryingCant()
+    {
+        var save = Carrier(4);
+        KnownPregnancy.Conceive(save.Pregnancy, T0, "Bob B@W");
+        var cycle = save.Pregnancy.CycleStartUtc;
+
+        Assert.Null(PregnancyBook.Enable(save.Pregnancy, true, true, 1, T0.AddDays(2)));
+        Assert.True(save.Pregnancy.CanBreed);
+        Assert.Equal(cycle, save.Pregnancy.CycleStartUtc);
+        Assert.True(PregnancyBook.IsConfirmed(save.Pregnancy));
+
+        Assert.NotNull(PregnancyBook.Enable(save.Pregnancy, false, true, 1, T0.AddDays(2)));
+        Assert.True(save.Pregnancy.CanCarry);
+        Assert.True(PregnancyBook.IsConfirmed(save.Pregnancy));
+    }
+
     [Theory]
     [InlineData(1, 0)]
     [InlineData(4, 0.25)]
@@ -177,11 +194,11 @@ public class PregnancyTests
     }
 
     [Fact]
-    public void RolesCantChangeWhilePregnant()
+    public void CarryingCantStopWhilePregnant()
     {
         var p = Carrier(4).Pregnancy;
         KnownPregnancy.Conceive(p, T0, "Bob B@W");
-        Assert.NotNull(PregnancyBook.Enable(p, true, true, 3, T0));
+        Assert.NotNull(PregnancyBook.Enable(p, false, true, 3, T0));
     }
 
     // ── In the engine ──────────────────────────────────────────────────────────

@@ -117,7 +117,13 @@ public static class PregnancyBook
     public static string? Enable(PregnancyState p, bool carry, bool breed, int startDay, DateTime now)
     {
         if (!carry && !breed) return "Choose at least one role.";
-        if (IsConfirmed(p)) return "Roles can't change while you're pregnant.";
+        // While pregnant only breeding can change: carrying stays on, and the cycle is left as it is.
+        if (IsConfirmed(p))
+        {
+            if (!carry) return "You can't stop carrying while you're pregnant. Turning pregnancy off ends it.";
+            p.CanBreed = breed;
+            return null;
+        }
         // A secret pregnancy ends quietly if carrying is turned off, so the roles never give it away.
         if (IsSecret(p) && !carry) EndPregnancy(p, default);
         p.Enabled = true;
