@@ -9,6 +9,10 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.6.9",
+        [
+            "Welcome: closing the welcome window with the X or Later now works. It stays closed until your next login, and \"Finish setup\" opens it again.",
+        ]),
         new("0.3.6.8",
         [
             "Pregnancy: \"I can breed\" can be changed in Settings > Pregnancy while you're pregnant. \"I can carry\" shows too but stays locked until the pregnancy ends.",

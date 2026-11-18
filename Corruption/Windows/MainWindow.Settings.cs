@@ -135,6 +135,7 @@ public sealed partial class MainWindow
                 {
                     engine.ResetProgress(DateTime.UtcNow);
                     confirmingReset = false;
+                    OpenWelcome?.Invoke();
                 }
                 ImGui.SameLine();
                 if (ImGui.Button("Cancel")) confirmingReset = false;

@@ -33,7 +33,6 @@ public sealed class WelcomeWindow : Window
     private readonly Action openMainWindow;
 
     private SceneEngine? loadedFor;
-    private bool laterThisSession;
     private List<Step> steps = [];
     private int index;
     private string? problem;
@@ -74,7 +73,9 @@ public sealed class WelcomeWindow : Window
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(480, 440), MaximumSize = new Vector2(1000, 1200) };
     }
 
-    /// Runs every frame, open or not: opens for a character that still needs it, unless put off this session.
+    /// Runs every frame, open or not: opens once when a character that still needs it loads. Closing it, with the X or
+    /// Later, puts it off until the next login. This can't check every frame: Dalamud calls it before OnClose, so it
+    /// would reopen the window the frame after it closed.
     public override void PreOpenCheck()
     {
         if (scene.Engine is not { } engine)
@@ -82,26 +83,17 @@ public sealed class WelcomeWindow : Window
             loadedFor = null;
             return;
         }
-        if (engine != loadedFor)
-        {
-            loadedFor = engine;
-            laterThisSession = false;
-            Load(engine);
-        }
-        if (!IsOpen && !laterThisSession && Welcome.IsNeeded(engine.Save)) IsOpen = true;
+        if (engine == loadedFor) return;
+        loadedFor = engine;
+        Load(engine);
+        if (Welcome.IsNeeded(engine.Save)) IsOpen = true;
     }
 
-    /// From the main window: open it now, even if put off.
+    /// From the main window or Settings: open it now, even if put off.
     public void Show()
     {
         if (scene.Engine is { } engine) Load(engine);
-        laterThisSession = false;
         IsOpen = true;
-    }
-
-    public override void OnClose()
-    {
-        if (scene.Engine is { } engine && Welcome.IsNeeded(engine.Save)) laterThisSession = true;
     }
 
     private void Load(SceneEngine engine)
