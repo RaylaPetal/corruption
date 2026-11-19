@@ -9,6 +9,12 @@ public static class Changelog
 {
     public static readonly IReadOnlyList<ChangelogEntry> Entries =
     [
+        new("0.3.7.0",
+        [
+            "Cummy: a partner's climax now lands on the right side of a body that's lying down or bent over, not just a standing one, so lying on your back takes it on the front.",
+            "Cummy: a climax right by your mouth lands on your mouth first, so a 69 ends on the face instead of the back.",
+            "Cummy: a partner whose anatomy is Not set and whose penis is hidden now aims from their vagina.",
+        ]),
         new("0.3.6.9",
         [
             "Welcome: closing the welcome window with the X or Later now works. It stays closed until your next login, and \"Finish setup\" opens it again.",

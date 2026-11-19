@@ -386,12 +386,20 @@ public sealed class SceneService : IDisposable, IEngineHost
     {
         if (BoneReader.Snapshot(them) is not { } theirs || BoneReader.Snapshot(me) is not { } mine) return null;
 
-        var shot = ShotAim.GiverPoint(names => BoneReader.Average(theirs.Bones, names), ShotAim.Facing(theirs.Yaw), anatomy);
-        if (shot is not { } from) return null;
-        var points = ShotAim.PartPoints(names => BoneReader.Average(mine.Bones, names), ShotAim.Facing(mine.Yaw));
+        ShotAim.BoneLookup giverBones = names => BoneReader.Average(theirs.Bones, names);
+        ShotAim.BoneLookup receiverBones = names => BoneReader.Average(mine.Bones, names);
+        var giverFrame = ShotAim.BodyFrame(giverBones, ShotAim.Facing(theirs.Yaw));
+        if (ShotAim.GiverAim(giverBones, giverFrame, anatomy) is not var (from, source)) return null;
+        var frame = ShotAim.BodyFrame(receiverBones, ShotAim.Facing(mine.Yaw));
+        var points = ShotAim.PartPoints(receiverBones, frame);
         var order = ShotAim.Order(from, points, CummyParts.All);
 #if DEBUG
-        DebugLog("Aimed: " + string.Join(", ", order.Take(4).Select(p => points.TryGetValue(p, out var at) ? $"{p} {Vector3.Distance(at, from):0.00}y" : p)));
+        var penis = "";
+        if (anatomy == Anatomy.NotSet && ShotAim.PenisReadings(giverBones) is var (shaft, fromHips) && (shaft ?? fromHips) is not null)
+            penis = $"; penis shaft {shaft?.ToString("0.00") ?? "-"}y, tip from hips {fromHips?.ToString("0.00") ?? "-"}y";
+        DebugLog($"Aimed from {source} onto {(frame.FromBones ? "body" : "yaw")} frame: "
+                 + string.Join(", ", order.Take(4).Select(p => points.TryGetValue(p, out var at) ? $"{p} {Vector3.Distance(at, from):0.00}y" : p))
+                 + penis);
 #endif
         return order;
     }

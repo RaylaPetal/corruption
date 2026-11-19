@@ -10,7 +10,7 @@ public static class ShotAim
     /// Finds the average world position of the named bones that exist, or null when none do.
     public delegate Vector3? BoneLookup(IReadOnlyList<string> names);
 
-    /// A part's point on the body: the first bone group that exists, then pushed along the body's facing and up, so front
+    /// A part's point on the body: the first bone group that exists, then pushed along the body's own front and up, so front
     /// and back parts around the same bones come apart.
     private sealed record Anchor(string[][] Groups, float Forward = 0, float Up = 0);
 
@@ -36,9 +36,17 @@ public static class ShotAim
     };
 
     private static readonly string[] PenisTip = ["iv_ochinko_f"];
+    private static readonly string[] PenisBase = ["iv_ochinko_a"];
     private static readonly string[] PenisShaft = ["iv_ochinko_e"];
     private static readonly string[] Vagina = ["iv_omanko"];
     private static readonly string[] Hips = ["j_kosi"];
+    private static readonly string[] Neck = ["j_kubi"];
+    private static readonly string[] ShoulderL = ["j_sako_l"];
+    private static readonly string[] ShoulderR = ["j_sako_r"];
+    private static readonly string[] Chest = ["j_mune_l", "j_mune_r"];
+    private static readonly string[] UpperSpine = ["j_sebo_c"];
+    private static readonly string[] Lips = ["j_f_ulip_01_l", "j_f_ulip_01_r", "j_f_dlip_01_l", "j_f_dlip_01_r"];
+    private static readonly string[] Head = ["j_kao"];
 
     /// IVCS hole bones, for creampies. `iv_koumon` is the anus, as PoseKit and Cummy's own drip attach points use it.
     /// Neither has a vanilla stand-in: a creampie needs an IVCS skeleton, as Cummy's drip does.
@@ -71,31 +79,119 @@ public static class ShotAim
             .Select(h => h.Key)
             .FirstOrDefault();
 
-    /// Where a shot comes from, tried in order. IVCS skeletons may carry both sets of genital bones whatever the body
-    /// shows, so the giver's own anatomy choice picks which. Not set tries the penis first, then the vagina. Both shoots
-    /// from the penis. A skeleton without either falls back to a point in front of the hips.
-    private static string[][] SourceOrder(Anatomy anatomy) => anatomy switch
+    /// Which way a body's front and top point in the world. Read from the torso's bones when it can be, so a body an
+    /// animation lays down or bends over still has its front out of the chest; otherwise the model's facing and world up.
+    public readonly record struct Frame(Vector3 Forward, Vector3 Up, bool FromBones)
     {
-        Anatomy.Vagina => [Vagina, Hips],
-        _ => [PenisTip, PenisShaft, Vagina, Hips],
+        public static Frame Upright(Vector3 facing) => new(facing, Vector3.UnitY, false);
+    }
+
+    /// How far the shoulder line has to be from parallel with the spine (the sine of the angle between them) for the
+    /// torso's bones to give a frame.
+    public const float MinFrameSpread = 0.3f;
+
+    /// The body's frame: up along the spine from hips to neck, side along the shoulders, front across both. The front is
+    /// set by the chest sitting in front of the spine, or the lips in front of the head, so it doesn't depend on which
+    /// way the axes or the left and right bones run. Falls back to <paramref name="facing"/> and world up when the bones
+    /// are missing or line up.
+    public static Frame BodyFrame(BoneLookup bones, Vector3 facing)
+    {
+        var fallback = Frame.Upright(facing);
+        if (bones(Neck) is not { } neck || bones(Hips) is not { } hips
+            || bones(ShoulderL) is not { } left || bones(ShoulderR) is not { } right) return fallback;
+        var spine = neck - hips;
+        var across = right - left;
+        if (spine.LengthSquared() < 1e-6f || across.LengthSquared() < 1e-6f) return fallback;
+
+        var up = Vector3.Normalize(spine);
+        var side = Vector3.Normalize(across);
+        var flat = side - up * Vector3.Dot(side, up);
+        if (flat.Length() < MinFrameSpread) return fallback;
+
+        var forward = Vector3.Cross(up, Vector3.Normalize(flat));
+        if (FrontHint(bones, hips, forward) is { } sign && sign < 0) forward = -forward;
+        return new Frame(forward, up, true);
+    }
+
+    /// Which side of the torso <paramref name="forward"/> is on, by the chest in front of the spine, then the lips in
+    /// front of the head. Null when neither tells.
+    private static float? FrontHint(BoneLookup bones, Vector3 hips, Vector3 forward)
+    {
+        if (bones(Chest) is { } chest)
+        {
+            var dot = Vector3.Dot(forward, chest - (bones(UpperSpine) ?? hips));
+            if (MathF.Abs(dot) > 1e-4f) return dot;
+        }
+        if (bones(Lips) is { } lips && bones(Head) is { } head)
+        {
+            var dot = Vector3.Dot(forward, lips - head);
+            if (MathF.Abs(dot) > 1e-4f) return dot;
+        }
+        return null;
+    }
+
+    /// A penis tip closer than this to the penis base is a collapsed, hidden penis.
+    public const float MinShaft = 0.03f;
+
+    /// A penis tip farther than this from the hips isn't part of the shown body.
+    public const float MaxTipFromHips = 0.40f;
+
+    /// The tip-to-base and tip-to-hips distances the hidden-penis check reads, for the Debug readout. Each is null
+    /// without its bones.
+    public static (float? Shaft, float? FromHips) PenisReadings(BoneLookup bones)
+    {
+        if (bones(PenisTip) is not { } tip) return (null, null);
+        float? shaft = bones(PenisBase) is { } at ? Vector3.Distance(tip, at) : null;
+        float? fromHips = bones(Hips) is { } hips ? Vector3.Distance(tip, hips) : null;
+        return (shaft, fromHips);
+    }
+
+    /// Whether the penis bones look like part of the shown body: not collapsed, and at the hips. A missing reference bone
+    /// skips its check.
+    public static bool PenisLooksShown(BoneLookup bones)
+    {
+        var (shaft, fromHips) = PenisReadings(bones);
+        return shaft is not < MinShaft && fromHips is not > MaxTipFromHips;
+    }
+
+    /// Where a shot comes from, tried in order. IVCS skeletons may carry both sets of genital bones whatever the body
+    /// shows, so the giver's own anatomy choice picks which. Not set tries the penis first, then the vagina, unless the
+    /// penis looks hidden, when the vagina goes first. Both shoots from the penis. A skeleton without either falls back to
+    /// a point in front of the hips.
+    private static (string Name, string[] Bones)[] SourceOrder(Anatomy anatomy, BoneLookup bones) => anatomy switch
+    {
+        Anatomy.Vagina => [("vagina", Vagina), ("hips", Hips)],
+        Anatomy.NotSet when !PenisLooksShown(bones) => [("vagina", Vagina), ("penis", PenisTip), ("shaft", PenisShaft), ("hips", Hips)],
+        _ => [("penis", PenisTip), ("shaft", PenisShaft), ("vagina", Vagina), ("hips", Hips)],
     };
 
     /// The facing direction from a model yaw, as the game gives it.
     public static Vector3 Facing(float yaw) => new(MathF.Sin(yaw), 0, MathF.Cos(yaw));
 
     public static Vector3? GiverPoint(BoneLookup bones, Vector3 facing, Anatomy anatomy = Anatomy.NotSet)
+        => GiverPoint(bones, BodyFrame(bones, facing), anatomy);
+
+    public static Vector3? GiverPoint(BoneLookup bones, Frame frame, Anatomy anatomy = Anatomy.NotSet)
+        => GiverAim(bones, frame, anatomy)?.Point;
+
+    /// The shot's point and the name of what it came from (penis, shaft, vagina or hips), or null without any of them.
+    public static (Vector3 Point, string Source)? GiverAim(BoneLookup bones, Frame frame, Anatomy anatomy = Anatomy.NotSet)
     {
-        foreach (var group in SourceOrder(anatomy))
+        foreach (var (name, group) in SourceOrder(anatomy, bones))
         {
             if (bones(group) is not { } at) continue;
-            // Only the vanilla hip bone needs moving forward to where genitals would be.
-            return group[0] == "j_kosi" ? at + facing * 0.12f + Vector3.UnitY * -0.08f : at;
+            // Only the vanilla hip bone needs moving forward to where genitals would be, in the giver's own frame.
+            return (group == Hips ? at + frame.Forward * 0.12f + frame.Up * -0.08f : at, name);
         }
         return null;
     }
 
     /// Each part's point on the receiver that its bones allow.
     public static Dictionary<string, Vector3> PartPoints(BoneLookup bones, Vector3 facing)
+        => PartPoints(bones, BodyFrame(bones, facing));
+
+    /// Each part's point, its offsets along the body's own front and up.
+    public static Dictionary<string, Vector3> PartPoints(BoneLookup bones, Frame frame)
     {
         var points = new Dictionary<string, Vector3>();
         foreach (var (part, anchor) in Anchors)
@@ -103,19 +199,28 @@ public static class ShotAim
             foreach (var group in anchor.Groups)
             {
                 if (bones(group) is not { } at) continue;
-                points[part] = at + facing * anchor.Forward + Vector3.UnitY * anchor.Up;
+                points[part] = at + frame.Forward * anchor.Forward + frame.Up * anchor.Up;
                 break;
             }
         }
         return points;
     }
 
-    /// Parts from nearest to farthest from the shot. Parts with no point go last, in the given order.
+    /// How close a shot has to be to the mouth's point for the mouth to go first, in game units.
+    public const float MouthRadius = 0.12f;
+
+    private const string Mouth = "mo";
+
+    /// Parts from nearest to farthest from the shot, except that a shot within <see cref="MouthRadius"/> of the mouth
+    /// tries the mouth first. Parts with no point go last, in the given order.
     public static IReadOnlyList<string> Order(Vector3 shot, IReadOnlyDictionary<string, Vector3> points, IEnumerable<string> allParts)
     {
         var all = allParts.ToList();
-        return all.Where(points.ContainsKey).OrderBy(p => Vector3.DistanceSquared(points[p], shot))
+        var order = all.Where(points.ContainsKey).OrderBy(p => Vector3.DistanceSquared(points[p], shot))
             .Concat(all.Where(p => !points.ContainsKey(p)))
             .ToList();
+        if (points.TryGetValue(Mouth, out var mouth) && Vector3.Distance(mouth, shot) <= MouthRadius && order.Remove(Mouth))
+            order.Insert(0, Mouth);
+        return order;
     }
 }
